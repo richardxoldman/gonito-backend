@@ -42,6 +42,27 @@ mkYesodData "App" $(parseRoutesFile "config/routes")
 -- | A convenient synonym for creating forms.
 type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
 
+isTrustedAuthorized = do
+  mauth <- maybeAuth
+  case mauth of
+    Nothing -> return AuthenticationRequired
+    Just (Entity _ user)
+      | isTrusted user -> return Authorized
+      | otherwise    -> return $ Unauthorized "???"
+
+
+isTrusted :: User -> Bool
+isTrusted user =
+  case userIdent user of
+    "ptlen@ceti.pl" -> True
+    "hexin1989@gmail.com" -> True
+    "romang@amu.edu.pl" -> True
+    "junczys@amu.edu.pl" -> True
+    "rafalj@amu.edu.pl" -> True
+    _ -> False
+
+
+
 -- Please see the documentation for the Yesod typeclass. There are a number
 -- of settings which can be configured by overriding methods here.
 instance Yesod App where
@@ -78,7 +99,7 @@ instance Yesod App where
     isAuthorized FaviconR _ = return Authorized
     isAuthorized RobotsR _ = return Authorized
     -- Default to Authorized for now.
-    isAuthorized _ _ = return Authorized
+    isAuthorized _ _ = isTrustedAuthorized
 
     -- This function creates static content files in the static folder
     -- and names them based on a hash of their content. This allows
@@ -138,9 +159,13 @@ instance YesodAuth App where
 
     authenticate creds = runDB $ do
         x <- getBy $ UniqueUser $ credsIdent creds
-        return $ case x of
-            Just (Entity uid _) -> Authenticated uid
-            Nothing -> UserError InvalidLogin
+        Authenticated <$> case x of
+            Just (Entity uid _) -> return $ uid
+            Nothing ->
+                insert User
+                    { userIdent = credsIdent creds
+                    , userPassword = Nothing
+                    }
 
     -- You can add other plugins like BrowserID, email or OAuth here
     authPlugins _ = [authBrowserId def]
