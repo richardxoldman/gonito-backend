@@ -8,5 +8,27 @@ Email
     user UserId Maybe
     verkey Text Maybe
     UniqueEmail email
-
- -- By default this file is used in Model.hs (which is imported by Foundation.hs)
+Repo
+    url Text
+    branch Text
+    currentCommit SHA1
+    owner UserId
+    ready Bool default=False
+    stamp UTCTime default=now()
+    UniqueUrlBranch url branch
+    deriving Show
+Challenge
+    publicRepo RepoId
+    privateRepo RepoId
+    name Text
+    UniqueName name
+    title Text
+    description Text
+    stamp UTCTime default=now()
+Test
+    challenge ChallengeId
+    checksum SHA1
+    commit SHA1
+    active Bool default=True
+    UniqueChallengeChecksum challenge checksum
+-- By default this file is used in Model.hs (which is imported by Foundation.hs)
