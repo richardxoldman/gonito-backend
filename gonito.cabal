@@ -23,6 +23,7 @@ library
                      Settings.StaticFiles
                      SharedTypes
                      Handler.Common
+                     Handler.CreateChallenge
                      Handler.Fay
                      Handler.Home
 

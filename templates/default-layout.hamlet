@@ -1,6 +1,7 @@
     <div id="heading">
      $maybe user <- maybeUser
         _{MsgLoggedAs} #{userIdent $ entityVal user}
+        \ | <a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
         \ | <a href="@{AuthR LogoutR}">_{MsgLogOut}</a>
      $nothing
         <a href="@{AuthR LoginR}">_{MsgLogIn}</a>

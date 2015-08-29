@@ -1,0 +1,2 @@
+$maybe (name, publicUrl, publicBranch, privateUrl, privateUrl) <- challengeData
+  <p>Cloning #{publicUrl}
