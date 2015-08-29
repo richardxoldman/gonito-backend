@@ -23,8 +23,9 @@ postCreateChallengeR = do
         challengeData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
+        Just (name, publicUrl, publicBranch, privateUrl, privateBranch) = challengeData
 
-    runViewProgress doSomething
+    runViewProgress $ doRepoCloning publicUrl publicBranch
 
 sampleForm :: Form (Text, Text, Text, Text, Text)
 sampleForm = renderBootstrap3 BootstrapBasicForm $ (,,,,)

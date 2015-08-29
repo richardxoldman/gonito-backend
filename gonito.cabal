@@ -90,6 +90,7 @@ library
                  , vector
                  , time
                  , stm
+                 , network-uri
 
 executable         gonito
     if flag(library-only)
