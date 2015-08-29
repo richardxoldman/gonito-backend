@@ -39,6 +39,8 @@ instance HasHttpManager App where
 -- type Widget = WidgetT App IO ()
 mkYesodData "App" $(parseRoutesFile "config/routes")
 
+mkMessage "App" "messages" "en"
+
 -- | A convenient synonym for creating forms.
 type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
 
@@ -85,6 +87,8 @@ instance Yesod App where
         -- default-layout-wrapper is the entire page. Since the final
         -- value passed to hamletToRepHtml cannot be a widget, this allows
         -- you to use normal widget features in default-layout.
+
+        maybeUser <- maybeAuth
 
         pc <- widgetToPageContent $ do
             addStylesheet $ StaticR css_bootstrap_css
