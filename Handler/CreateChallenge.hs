@@ -4,6 +4,8 @@ import Import
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
                               withSmallInput)
 
+import Handler.Shared
+
 getCreateChallengeR :: Handler Html
 getCreateChallengeR = do
     (formWidget, formEnctype) <- generateFormPost sampleForm
@@ -14,7 +16,7 @@ getCreateChallengeR = do
         setTitle "Welcome To Yesod!"
         $(widgetFile "create-challenge")
 
-postCreateChallengeR :: Handler Html
+postCreateChallengeR :: Handler TypedContent
 postCreateChallengeR = do
     ((result, formWidget), formEnctype) <- runFormPost sampleForm
     let handlerName = "postCreateChallengeR" :: Text
@@ -22,10 +24,7 @@ postCreateChallengeR = do
             FormSuccess res -> Just res
             _ -> Nothing
 
-    defaultLayout $ do
-        aDomId <- newIdent
-        setTitle "Welcome To Yesod!"
-        $(widgetFile "creating-challenge")
+    runViewProgress doSomething
 
 sampleForm :: Form (Text, Text, Text, Text, Text)
 sampleForm = renderBootstrap3 BootstrapBasicForm $ (,,,,)

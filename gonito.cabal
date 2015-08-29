@@ -26,6 +26,7 @@ library
                      Handler.CreateChallenge
                      Handler.Fay
                      Handler.Home
+                     Handler.Shared
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -88,6 +89,7 @@ library
                  , containers
                  , vector
                  , time
+                 , stm
 
 executable         gonito
     if flag(library-only)

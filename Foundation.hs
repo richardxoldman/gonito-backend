@@ -21,6 +21,8 @@ data App = App
     , appHttpManager       :: Manager
     , appLogger            :: Logger
     , appFayCommandHandler :: CommandHandler App
+    , jobs                 :: TVar (IntMap (TChan (Maybe Text)))
+    , nextJob              :: TVar Int
     }
 
 instance HasHttpManager App where
