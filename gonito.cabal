@@ -91,6 +91,9 @@ library
                  , time
                  , stm
                  , network-uri
+                 , lifted-base
+                 , process
+
 
 executable         gonito
     if flag(library-only)
