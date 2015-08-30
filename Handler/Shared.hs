@@ -122,20 +122,11 @@ getViewProgressR jobId = do
 
 runProgram :: FilePath -> [String] -> Channel -> Handler ()
 runProgram programPath args chan = do
-  (exitCode, out, err) <- liftIO $ readProcessWithExitCode programPath args ""
-  raw chan $ T.pack err
-  raw chan $ T.pack out
-
---  (_, Just hout, Just herr, pid) <-
---       liftIO $ createProcess (proc programPath args){ std_out = CreatePipe, std_err = CreatePipe }
-
---  outErr <- liftIO $ hGetContents herr
---  let outErrLines = lines outErr
---  mapM_ (raw chan) outErrLines
---  (code, out) <- liftIO $ gatherOutput pid herr
---  raw chan $ decodeUtf8 out
---  _ <- liftIO $ waitForProcess pid
---  return ()
+  (_, Just hout, Just herr, pid) <-
+       liftIO $ createProcess (proc programPath args){ std_out = CreatePipe, std_err = CreatePipe }
+  (code, out) <- gatherOutput pid hout herr chan
+  _ <- liftIO $ waitForProcess pid
+  return ()
 
 
 processOutput :: Text -> ([Text], Text)
@@ -149,20 +140,33 @@ processOutput = processOutput' . lines
                       last (_:xs) = last xs
 
 
-gatherOutput :: ProcessHandle -> Handle -> IO (ExitCode, ByteString)
-gatherOutput ph h = work mempty
+gatherOutput :: ProcessHandle -> Handle -> Handle -> Channel -> Handler (ExitCode, Text)
+gatherOutput ph hout herr chan = work mempty mempty
   where
-    work acc = do
+    work accout accerr = do
         -- Read any outstanding input.
-        bs <- BS.hGetNonBlocking h (64 * 1024)
-        let acc' = acc <> bs
+        resterr <- takeABit herr accerr
+        restout <- takeABit hout accout
+        threadDelay 1000000
         -- Check on the process.
-        s <- getProcessExitCode ph
+        s <- liftIO $ getProcessExitCode ph
         -- Exit or loop.
         case s of
-            Nothing -> work acc'
+            Nothing -> work restout resterr
             Just ec -> do
                 -- Get any last bit written between the read and the status
                 -- check.
-                last <- BS.hGetContents h
-                return (ec, acc' <> last)
+                _ <- takeFinalBit herr resterr
+                all <- takeFinalBit hout restout
+                return (ec, all)
+    takeABit h acc = do
+      bs <- liftIO $ BS.hGetNonBlocking hout (64 * 1024)
+      let acc' = acc <> (decodeUtf8 bs)
+      let (fullLines, rest) = processOutput acc'
+      mapM_ (msg chan) fullLines
+      return rest
+    takeFinalBit h rest = do
+      last <- liftIO $ BS.hGetContents h
+      let all = rest <> (decodeUtf8 last)
+      mapM_ (msg chan) $ lines all
+      return all
