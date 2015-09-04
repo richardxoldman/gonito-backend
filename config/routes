@@ -9,3 +9,5 @@
 
 /create-challenge CreateChallengeR GET POST
 /view-progress/#Int ViewProgressR GET
+/list-challenges ListChallengesR GET
+/challenge/#Text ShowChallengeR GET

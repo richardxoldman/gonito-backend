@@ -7,3 +7,4 @@ PublicUrl: public repo (URL)
 PrivateUrl: private repo (URL)
 Branch: branch
 Add: Add!
+ListChallenges: list challenges

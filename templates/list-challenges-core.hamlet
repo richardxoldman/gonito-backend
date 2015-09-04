@@ -1,0 +1,4 @@
+$forall challenge <- challenges
+  <div .challenge-item>
+     <p .challenge-title><a .challenge-link  href="@{ShowChallengeR (challengeName challenge)}">#{challengeTitle challenge}</a>
+     <p .challenge-description>#{challengeDescription challenge}

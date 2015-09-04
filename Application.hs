@@ -37,6 +37,8 @@ import Handler.Common
 import Handler.Fay
 import Handler.Home
 import Handler.CreateChallenge
+import Handler.ListChallenges
+import Handler.ShowChallenge
 import Handler.Shared
 
 -- This line actually creates our YesodDispatch instance. It is the second half
