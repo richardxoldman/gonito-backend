@@ -104,12 +104,13 @@ cloneRepo url branch chan = do
                 repoId <- runDB $ insert $ Repo {
                   repoUrl=url,
                   repoBranch=branch,
-                  repoCurrentCommit=(toSHA1 (encodeUtf8 commitId)),
+                  repoCurrentCommit=commitRaw,
                   repoOwner=userId,
                   repoReady=True,
                   repoStamp=time }
                 return $ Just repoId
                 where commitId = T.replace "\n" "" out
+                      commitRaw = fromTextToSHA1 commitId
               ExitFailure _ -> do
                 err chan "cannot determine HEAD commit"
                 return Nothing
@@ -119,34 +120,6 @@ cloneRepo url branch chan = do
        else do
         err chan $ concat ["Wrong URL to a Git repo (note that one of the following protocols must be specified: ", validGitProtocolsAsText]
         return Nothing
-
-hexByteToWord8 :: Text -> Word8
-hexByteToWord8 t = (hexNibbleToWord8 $ T.head t) * 16 + (hexNibbleToWord8 $ T.index t 1)
-
-hexNibbleToWord8 :: Char -> Word8
-hexNibbleToWord8 '0' = 0
-hexNibbleToWord8 '1' = 1
-hexNibbleToWord8 '2' = 2
-hexNibbleToWord8 '3' = 3
-hexNibbleToWord8 '4' = 4
-hexNibbleToWord8 '5' = 5
-hexNibbleToWord8 '6' = 6
-hexNibbleToWord8 '7' = 7
-hexNibbleToWord8 '8' = 8
-hexNibbleToWord8 '9' = 9
-hexNibbleToWord8 'A' = 10
-hexNibbleToWord8 'a' = 10
-hexNibbleToWord8 'B' = 11
-hexNibbleToWord8 'b' = 11
-hexNibbleToWord8 'C' = 12
-hexNibbleToWord8 'c' = 12
-hexNibbleToWord8 'D' = 13
-hexNibbleToWord8 'd' = 13
-hexNibbleToWord8 'E' = 14
-hexNibbleToWord8 'e' = 14
-hexNibbleToWord8 'F' = 15
-hexNibbleToWord8 'f' = 15
-
 
 checkRepoUrl :: Text -> Bool
 checkRepoUrl url = case parsedURI of
