@@ -5,6 +5,10 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
                               withSmallInput)
 
 import Handler.Shared
+import Handler.Extract
+
+import System.Directory (doesFileExist)
+import qualified Data.Text as T
 
 getCreateChallengeR :: Handler Html
 getCreateChallengeR = do
@@ -41,13 +45,22 @@ doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
 addChallenge :: Text -> (Key Repo) -> (Key Repo) -> Channel -> Handler ()
 addChallenge name publicRepoId privateRepoId chan = do
   msg chan "adding challenge..."
+  let publicRepoDir = getRepoDir publicRepoId
+  let readmeFilePath = publicRepoDir </> readmeFile
+  doesReadmeExist <- liftIO $ doesFileExist readmeFilePath
+  (title, description) <- if doesReadmeExist
+                           then
+                            liftIO $ extractTitleAndDescription readmeFilePath
+                           else do
+                            err chan "README was not found"
+                            return (defaultTitle, defaultDescription)
   time <- liftIO getCurrentTime
   challengeId <- runDB $ insert $ Challenge {
     challengePublicRepo=publicRepoId,
     challengePrivateRepo=privateRepoId,
     challengeName=name,
-    challengeTitle="[UNKNOWN TITLE]",
-    challengeDescription="[UNKNOWN DESCRIPTION]",
+    challengeTitle=(T.pack $ title),
+    challengeDescription=(T.pack $ description),
     challengeStamp=time}
   return ()
 

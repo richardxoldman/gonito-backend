@@ -27,6 +27,7 @@ library
                      Handler.Fay
                      Handler.Home
                      Handler.Shared
+                     Handler.Extract
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -94,7 +95,8 @@ library
                  , lifted-base
                  , process
                  , random
-
+                 , pandoc
+                 , pandoc-types
 
 executable         gonito
     if flag(library-only)
