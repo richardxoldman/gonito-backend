@@ -33,8 +33,24 @@ doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
   case maybePublicRepoId of
     Just publicRepoId -> do
       maybePrivateRepoId <- cloneRepo privateUrl privateBranch chan
-      return ()
+      case maybePrivateRepoId of
+          Just privateRepoId -> addChallenge name publicRepoId privateRepoId chan
+          Nothing -> return ()
     Nothing -> return ()
+
+addChallenge :: Text -> (Key Repo) -> (Key Repo) -> Channel -> Handler ()
+addChallenge name publicRepoId privateRepoId chan = do
+  msg chan "adding challenge..."
+  time <- liftIO getCurrentTime
+  challengeId <- runDB $ insert $ Challenge {
+    challengePublicRepo=publicRepoId,
+    challengePrivateRepo=privateRepoId,
+    challengeName=name,
+    challengeTitle="[UNKNOWN TITLE]",
+    challengeDescription="[UNKNOWN DESCRIPTION]",
+    challengeStamp=time}
+  return ()
+
 
 sampleForm :: Form (Text, Text, Text, Text, Text)
 sampleForm = renderBootstrap3 BootstrapBasicForm $ (,,,,)
