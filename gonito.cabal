@@ -97,6 +97,8 @@ library
                  , random
                  , pandoc
                  , pandoc-types
+                 , filemanip
+                 , cryptohash
 
 executable         gonito
     if flag(library-only)
