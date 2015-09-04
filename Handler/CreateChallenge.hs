@@ -25,7 +25,16 @@ postCreateChallengeR = do
             _ -> Nothing
         Just (name, publicUrl, publicBranch, privateUrl, privateBranch) = challengeData
 
-    runViewProgress $ doRepoCloning publicUrl publicBranch
+    runViewProgress $ doCreateChallenge name publicUrl publicBranch privateUrl privateBranch
+
+doCreateChallenge :: Text -> Text -> Text -> Text -> Text -> Channel -> Handler ()
+doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
+  maybePublicRepoId <- cloneRepo publicUrl publicBranch chan
+  case maybePublicRepoId of
+    Just publicRepoId -> do
+      maybePrivateRepoId <- cloneRepo privateUrl privateBranch chan
+      return ()
+    Nothing -> return ()
 
 sampleForm :: Form (Text, Text, Text, Text, Text)
 sampleForm = renderBootstrap3 BootstrapBasicForm $ (,,,,)
