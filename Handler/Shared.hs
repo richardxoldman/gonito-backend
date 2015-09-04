@@ -127,7 +127,7 @@ cloneRepo url branch chan = do
         return Nothing
 
 getRepoDir :: Key Repo -> FilePath
-getRepoDir repoId = arena </> repoIdAsString
+getRepoDir repoId = arena </> ("r" ++ repoIdAsString)
                     where repoIdAsString = show $ fromSqlKey repoId
 
 checkRepoUrl :: Text -> Bool

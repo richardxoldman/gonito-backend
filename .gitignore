@@ -18,5 +18,5 @@ cabal.sandbox.config
 *.swp
 *.keter
 *~
-arena/t-*
-arena/r-*
+arena/t*
+arena/r*
