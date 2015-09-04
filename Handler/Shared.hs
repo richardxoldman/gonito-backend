@@ -11,13 +11,15 @@ import qualified Data.IntMap            as IntMap
 import Network.URI
 import qualified Data.Text as T
 
-import Database.Persist.Sql (ConnectionPool, runSqlPool)
+import Database.Persist.Sql (ConnectionPool, runSqlPool, fromSqlKey)
 
 import Control.Concurrent.Lifted (fork, threadDelay)
 
 import System.Process
 import System.Exit
 import System.Random
+
+import System.Directory (renameDirectory)
 
 import PersistSHA1
 
@@ -86,16 +88,16 @@ cloneRepo url branch chan = do
        then do
         msg chan "Cloning..."
         r <- randomInt
-        let repoDir = arena </> ("t" ++ show r)
+        let tmpRepoDir = arena </> ("t" ++ show r)
         (exitCode, _) <- runProgram Nothing gitPath ["clone",
                                                      "--progress",
                                                      "--branch",
                                                      T.unpack branch,
                                                      T.unpack url,
-                                                     repoDir] chan
+                                                     tmpRepoDir] chan
         case exitCode of
           ExitSuccess -> do
-            (exitCode, out) <- runProgram (Just repoDir) gitPath ["rev-parse", "HEAD"] chan
+            (exitCode, out) <- runProgram (Just tmpRepoDir) gitPath ["rev-parse", "HEAD"] chan
             case exitCode of
               ExitSuccess -> do
                 msg chan $ concat ["HEAD commit is ", commitId]
@@ -108,6 +110,9 @@ cloneRepo url branch chan = do
                   repoOwner=userId,
                   repoReady=True,
                   repoStamp=time }
+                let repoDir = getRepoDir repoId
+                liftIO $ renameDirectory tmpRepoDir repoDir
+                msg chan $ concat ["Repo is in ", (T.pack repoDir)]
                 return $ Just repoId
                 where commitId = T.replace "\n" "" out
                       commitRaw = fromTextToSHA1 commitId
@@ -120,6 +125,10 @@ cloneRepo url branch chan = do
        else do
         err chan $ concat ["Wrong URL to a Git repo (note that one of the following protocols must be specified: ", validGitProtocolsAsText]
         return Nothing
+
+getRepoDir :: Key Repo -> FilePath
+getRepoDir repoId = arena </> repoIdAsString
+                    where repoIdAsString = show $ fromSqlKey repoId
 
 checkRepoUrl :: Text -> Bool
 checkRepoUrl url = case parsedURI of
