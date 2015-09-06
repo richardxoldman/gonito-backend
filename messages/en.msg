@@ -8,3 +8,8 @@ PrivateUrl: private repo (URL)
 Branch: branch
 Add: Add!
 ListChallenges: list challenges
+SubmitSolution: Submit a solution to the challenge
+Submit: Submit
+SubmissionUrl: Submission repo URL
+SubmissionBranch: Submission repo branch
+SubmissionDescription: Submission description

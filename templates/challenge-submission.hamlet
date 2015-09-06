@@ -1,0 +1,7 @@
+<h2>_{MsgSubmitSolution}
+
+<p>
+  <form method=post action=@{ChallengeSubmissionR (challengeName challenge)}#form enctype=#{formEnctype}>
+    ^{formWidget}
+    <button .btn .btn-primary type="submit">
+       _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
