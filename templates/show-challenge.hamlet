@@ -1,2 +1,1 @@
-<p .challenge-title>#{challengeTitle challenge}
-<p .challenge-description>#{challengeDescription challenge}
+<p>Raz dwa trzy

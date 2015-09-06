@@ -1,0 +1,11 @@
+#submenu {
+   width: 20%;
+   float: left;
+   right-margin: 5px;
+}
+
+#main-block {
+    width: auto;
+    overflow: hidden;
+    left-margin: 5px;
+}

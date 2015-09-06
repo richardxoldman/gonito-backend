@@ -4,5 +4,5 @@ flags:
     dev: false
 packages:
 - '.'
-extra-deps: []
+extra-deps: [markdown-0.1.13.2]
 resolver: nightly-2015-08-20

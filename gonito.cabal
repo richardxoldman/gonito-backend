@@ -101,6 +101,7 @@ library
                  , pandoc-types
                  , filemanip
                  , cryptohash
+                 , markdown
 
 executable         gonito
     if flag(library-only)

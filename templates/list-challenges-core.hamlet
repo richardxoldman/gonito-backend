@@ -1,4 +1,4 @@
 $forall challenge <- challenges
-  <div .challenge-item>
-     <p .challenge-title><a .challenge-link  href="@{ShowChallengeR (challengeName challenge)}">#{challengeTitle challenge}</a>
-     <p .challenge-description>#{challengeDescription challenge}
+ <div class="panel panel-success">
+   <div class="panel-heading"><a .challenge-link  href="@{ShowChallengeR (challengeName challenge)}">#{challengeTitle challenge}</a>
+   <div class="panel-body">#{challengeDescription challenge}

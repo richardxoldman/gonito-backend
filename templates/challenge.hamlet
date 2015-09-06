@@ -1,0 +1,16 @@
+
+<div .row>
+  <div .col-md-2 role="complementary">
+    <ul class="nav nav-pills nav-stacked navbar-left">
+     <li role="presentation" class="active"><a href="@{ShowChallengeR (challengeName challenge)}">Graph</a>
+     <li role="presentation"><a href="@{ChallengeReadmeR (challengeName challenge)}">Readme</a>
+     <li role="presentation"><a href="#">Submit</a>
+     <li role="presentation"><a href="#">My Submissions</a>
+     <li role="presentation"><a href="#">All Submissions</a>
+  <div .col-md-10 role="main">
+    <div class="panel panel-default">
+      <div class="panel-body">
+        $if withHeader
+           <h1>#{challengeTitle challenge}
+           <p>#{challengeDescription challenge}
+        ^{pageBody bc}
