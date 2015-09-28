@@ -1,1 +1,4 @@
-<p>Raz dwa trzy
+<p>Repo:
+  <tt> #{repoUrl repo}
+  \ Branch:
+  <tt> #{repoBranch repo}
