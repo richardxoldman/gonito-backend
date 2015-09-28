@@ -27,8 +27,9 @@ Challenge
     stamp UTCTime default=now()
 Test
     challenge ChallengeId
+    name Text
     checksum SHA1
     commit SHA1
     active Bool default=True
-    UniqueChallengeChecksum challenge checksum
+    UniqueChallengeChecksum challenge name checksum
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)
