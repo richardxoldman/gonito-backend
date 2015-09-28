@@ -82,7 +82,37 @@ cloneRepo url branch chan = do
     Just _ -> do
       err chan "Repo already there"
       return Nothing
-    Nothing -> do
+    Nothing -> cloneRepo' url branch chan
+
+updateRepo :: Key Repo -> Channel -> Handler Bool
+updateRepo repoId chan = do
+  repo <- runDB $ get404 repoId
+  let repoDir = getRepoDir repoId
+  (exitCode, _) <- runProgram (Just repoDir) gitPath ["pull", "--progress"] chan
+  case exitCode of
+    ExitSuccess -> do
+      maybeHeadCommit <- getHeadCommit repoDir chan
+      case maybeHeadCommit of
+        Just headCommit -> do
+          runDB $ update repoId [RepoCurrentCommit =. headCommit]
+          return True
+        Nothing -> return False
+
+getHeadCommit :: FilePath -> Channel -> Handler (Maybe SHA1)
+getHeadCommit repoDir chan = do
+  (exitCode, out) <- runProgram (Just repoDir) gitPath ["rev-parse", "HEAD"] chan
+  case exitCode of
+    ExitSuccess -> do
+      msg chan $ concat ["HEAD commit is ", commitId]
+      return $ Just commitRaw
+        where commitId = T.replace "\n" "" out
+              commitRaw = fromTextToSHA1 commitId
+    ExitFailure _ -> do
+      err chan "cannot determine HEAD commit"
+      return Nothing
+
+cloneRepo' :: Text -> Text -> Channel -> Handler (Maybe (Key Repo))
+cloneRepo' url branch chan = do
       msg chan $ concat ["Preparing to clone repo ", url]
       if checkRepoUrl url
        then do
@@ -97,10 +127,9 @@ cloneRepo url branch chan = do
                                                      tmpRepoDir] chan
         case exitCode of
           ExitSuccess -> do
-            (exitCode, out) <- runProgram (Just tmpRepoDir) gitPath ["rev-parse", "HEAD"] chan
-            case exitCode of
-              ExitSuccess -> do
-                msg chan $ concat ["HEAD commit is ", commitId]
+            maybeHeadCommit <- getHeadCommit tmpRepoDir chan
+            case maybeHeadCommit of
+              Just commitRaw -> do
                 userId <- requireAuthId
                 time <- liftIO getCurrentTime
                 repoId <- runDB $ insert $ Repo {
@@ -114,10 +143,7 @@ cloneRepo url branch chan = do
                 liftIO $ renameDirectory tmpRepoDir repoDir
                 msg chan $ concat ["Repo is in ", (T.pack repoDir)]
                 return $ Just repoId
-                where commitId = T.replace "\n" "" out
-                      commitRaw = fromTextToSHA1 commitId
-              ExitFailure _ -> do
-                err chan "cannot determine HEAD commit"
+              Nothing -> do
                 return Nothing
           ExitFailure _ -> do
             err chan "git failed"
@@ -125,6 +151,7 @@ cloneRepo url branch chan = do
        else do
         err chan $ concat ["Wrong URL to a Git repo (note that one of the following protocols must be specified: ", validGitProtocolsAsText]
         return Nothing
+
 
 getRepoDir :: Key Repo -> FilePath
 getRepoDir repoId = arena </> ("r" ++ repoIdAsString)

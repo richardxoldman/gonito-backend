@@ -36,13 +36,62 @@ getChallengeSubmissionR name = do
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
 postChallengeSubmissionR name = do
+    (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
     ((result, formWidget), formEnctype) <- runFormPost submissionForm
     let submissionData = case result of
           FormSuccess res -> Just res
           _ -> Nothing
         Just (description, submissionUrl, submissionBranch) = submissionData
 
-    runViewProgress $ (flip msg) "HAHA"
+    runViewProgress $ doCreateSubmission challengeId description submissionUrl submissionBranch
+
+doCreateSubmission :: Key Challenge -> Text -> Text -> Text -> Channel -> Handler ()
+doCreateSubmission challengeId _ url branch chan = do
+  maybeRepoKey <- getSubmissionRepo challengeId url branch chan
+  case maybeRepoKey of
+    Just repoId -> do
+      repo <- runDB $ get404 repoId
+      msg chan "HAHA"
+    Nothing -> return ()
+
+getSubmissionRepo :: Key Challenge -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
+getSubmissionRepo challengeId url branch chan = do
+  maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
+  case maybeRepo of
+    Just (Entity repoId repo) -> do
+      msg chan "Repo already there"
+      available <- checkRepoAvailibility challengeId repoId chan
+      if available
+         then
+          do
+           updateStatus <- updateRepo repoId chan
+           if updateStatus
+             then
+               return $ Just repoId
+             else
+               return Nothing
+         else
+           return Nothing
+    Nothing -> cloneRepo' url branch chan
+
+
+checkRepoAvailibility :: Key Challenge -> Key Repo -> Channel -> Handler Bool
+checkRepoAvailibility challengeId repoId chan = do
+  maybeOtherChallengeId <- runDB $ selectFirst ( [ChallengePublicRepo ==. repoId]
+                                                 ||. [ChallengePrivateRepo ==. repoId]) []
+  case maybeOtherChallengeId of
+    Just _ -> do
+      err chan "Repository already used as a challenge repo, please use a different repo or a different branch"
+      return False
+    Nothing -> do
+      maybeOtherSubmissionId <- runDB $ selectFirst [SubmissionRepo ==. repoId,
+                                                    SubmissionChallenge !=. challengeId] []
+      case maybeOtherSubmissionId of
+        Just _ -> do
+          err chan "Repository already used as a submission repo for a different challenge, please use a different repo or a different branch"
+          return False
+        Nothing -> return True
+
 
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
