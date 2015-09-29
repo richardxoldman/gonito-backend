@@ -45,7 +45,7 @@ Evaluation
     score Double Maybe
     errorMessage Text Maybe
     stamp UTCTime default=now()
-    UniqueTestChecksum test checksum
+    UniqueEvaluationTestChecksum test checksum
 Out
     submission SubmissionId
     test TestId

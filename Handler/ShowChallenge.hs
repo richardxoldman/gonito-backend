@@ -77,8 +77,8 @@ getSubmission repoId commit challengeId description chan = do
         submissionDescription=description,
         submissionStamp=time }
 
-getOuts :: Key Submission -> Handler ([Out])
-getOuts submissionId = do
+getOuts :: Channel -> Key Submission -> Handler ([Out])
+getOuts chan submissionId = do
   submission <- runDB $ get404 submissionId
   let challengeId = submissionChallenge submission
   let repoDir = getRepoDir $ submissionRepo submission
@@ -86,6 +86,7 @@ getOuts submissionId = do
   testsDone <- filterM (doesOutExist repoDir) activeTests
   outs <- mapM (outForTest repoDir submissionId) testsDone
   mapM_ checkOrInsertOut outs
+  mapM_ (checkOrInsertEvaluation repoDir chan) outs
   return outs
 
 outFileName = "out.tsv"
@@ -107,6 +108,16 @@ checkOrInsertOut out = do
   case maybeOut of
     Just _ -> return ()
     Nothing -> (runDB $ insert out) >> return ()
+
+checkOrInsertEvaluation :: FilePath -> Channel -> Out -> Handler ()
+checkOrInsertEvaluation repoDir chan out = do
+  test <- runDB $ get404 $ outTest out
+  maybeEvaluation <- runDB $ getBy $ UniqueEvaluationTestChecksum (outTest out) (outChecksum out)
+  case maybeEvaluation of
+    Just (Entity _ evaluation) -> do
+      msg chan $ concat ["Already evaluated with score ", (T.pack $ fromMaybe "???" $ show <$> evaluationScore evaluation)]
+    Nothing -> do
+      msg chan $ "Start evaluation..."
 
 getSubmissionRepo :: Key Challenge -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo challengeId url branch chan = do
