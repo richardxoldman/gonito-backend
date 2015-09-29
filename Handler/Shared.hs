@@ -15,6 +15,8 @@ import Database.Persist.Sql (ConnectionPool, runSqlPool, fromSqlKey)
 
 import Control.Concurrent.Lifted (fork, threadDelay)
 
+import qualified Crypto.Hash.SHA1 as CHS
+
 import System.Process
 import System.Exit
 import System.Random
@@ -239,3 +241,8 @@ gatherOutput ph hout herr chan = work mempty mempty
 
 randomInt :: Handler Int
 randomInt = liftIO $ randomIO
+
+gatherSHA1ForCollectionOfFiles :: [FilePath] -> IO ByteString
+gatherSHA1ForCollectionOfFiles files = do
+  contentss <- mapM readFile $ sort files
+  return $ CHS.finalize $ foldl' CHS.update CHS.init contentss

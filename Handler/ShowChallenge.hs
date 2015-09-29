@@ -7,8 +7,13 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
 import qualified Data.Text.Lazy          as TL
 import           Text.Markdown
 
+import System.Directory (doesFileExist)
+import qualified Data.Text as T
+
 import Handler.Extract
 import Handler.Shared
+
+import PersistSHA1
 
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
@@ -46,13 +51,62 @@ postChallengeSubmissionR name = do
     runViewProgress $ doCreateSubmission challengeId description submissionUrl submissionBranch
 
 doCreateSubmission :: Key Challenge -> Text -> Text -> Text -> Channel -> Handler ()
-doCreateSubmission challengeId _ url branch chan = do
+doCreateSubmission challengeId description url branch chan = do
   maybeRepoKey <- getSubmissionRepo challengeId url branch chan
   case maybeRepoKey of
     Just repoId -> do
       repo <- runDB $ get404 repoId
+      submissionId <- getSubmission repoId (repoCurrentCommit repo) challengeId description chan
       msg chan "HAHA"
     Nothing -> return ()
+
+getSubmission :: Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
+getSubmission repoId commit challengeId description chan = do
+  maybeSubmission <- runDB $ getBy $ UniqueSubmissionRepoCommitChallenge repoId commit challengeId
+  case maybeSubmission of
+    Just (Entity submissionId submission) -> do
+      msg chan "Submission already there, re-checking"
+      return submissionId
+    Nothing -> do
+      msg chan "Creating new submission"
+      time <- liftIO getCurrentTime
+      runDB $ insert $ Submission {
+        submissionRepo=repoId,
+        submissionCommit=commit,
+        submissionChallenge=challengeId,
+        submissionDescription=description,
+        submissionStamp=time }
+
+getOuts :: Key Submission -> Handler ([Out])
+getOuts submissionId = do
+  submission <- runDB $ get404 submissionId
+  let challengeId = submissionChallenge submission
+  let repoDir = getRepoDir $ submissionRepo submission
+  activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
+  testsDone <- filterM (doesOutExist repoDir) activeTests
+  outs <- mapM (outForTest repoDir submissionId) testsDone
+  mapM_ checkOrInsertOut outs
+  return outs
+
+outFileName = "out.tsv"
+
+getOutFilePath repoDir test = repoDir </> (T.unpack $ testName test) </> outFileName
+
+doesOutExist repoDir (Entity _ test) = liftIO $ doesFileExist $ getOutFilePath repoDir test
+
+outForTest repoDir submissionId (Entity testId test) = do
+  checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [getOutFilePath repoDir test]
+  return Out {
+    outSubmission=submissionId,
+    outTest=testId,
+    outChecksum=SHA1 checksum }
+
+checkOrInsertOut :: Out -> Handler ()
+checkOrInsertOut out = do
+  maybeOut <- runDB $ getBy $ UniqueOutSubmissionTestChecksum (outSubmission out) (outTest out) (outChecksum out)
+  case maybeOut of
+    Just _ -> return ()
+    Nothing -> (runDB $ insert out) >> return ()
 
 getSubmissionRepo :: Key Challenge -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo challengeId url branch chan = do

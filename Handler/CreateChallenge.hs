@@ -11,8 +11,6 @@ import System.Directory (doesFileExist)
 import System.FilePath.Find as SFF
 import qualified Data.Text as T
 
-import Crypto.Hash.SHA1
-
 import PersistSHA1
 
 getCreateChallengeR :: Handler Html
@@ -109,8 +107,7 @@ checkTestDir chan challengeId commit testDir = do
 gatherSHA1 :: FilePath -> IO ByteString
 gatherSHA1 testDir = do
   files <- SFF.find always isTestDirHashedFile testDir
-  contentss <- mapM readFile $ sort files
-  return $ finalize $ foldl' Crypto.Hash.SHA1.update init contentss
+  gatherSHA1ForCollectionOfFiles files
 
 isTestDirHashedFile :: FindClause Bool
 isTestDirHashedFile = fileType ==? RegularFile
