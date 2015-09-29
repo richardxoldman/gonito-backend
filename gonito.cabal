@@ -104,6 +104,7 @@ library
                  , markdown
                  , geval
                  , filepath
+                 , yesod-table
 
 executable         gonito
     if flag(library-only)

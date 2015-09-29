@@ -5,8 +5,8 @@
      <li role="presentation" class="active"><a href="@{ShowChallengeR (challengeName challenge)}">Graph</a>
      <li role="presentation"><a href="@{ChallengeReadmeR (challengeName challenge)}">Readme</a>
      <li role="presentation"><a href="@{ChallengeSubmissionR (challengeName challenge)}">Submit</a>
-     <li role="presentation"><a href="#">My Submissions</a>
-     <li role="presentation"><a href="#">All Submissions</a>
+     <li role="presentation"><a href="@{ChallengeMySubmissionsR (challengeName challenge)}">My Submissions</a>
+     <li role="presentation"><a href="@{ChallengeAllSubmissionsR (challengeName challenge)}">All Submissions</a>
   <div .col-md-10 role="main">
     <div class="panel panel-default">
       <div class="panel-body">

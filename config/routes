@@ -14,3 +14,5 @@
 /challenge/#Text ShowChallengeR GET
 /challenge-readme/#Text ChallengeReadmeR GET
 /challenge-submission/#Text ChallengeSubmissionR GET POST
+/challenge-my-submissions/#Text ChallengeMySubmissionsR GET
+/challenge-all-submissions/#Text ChallengeAllSubmissionsR GET
