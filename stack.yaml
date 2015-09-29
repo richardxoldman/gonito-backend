@@ -4,5 +4,6 @@ flags:
     dev: false
 packages:
 - '.'
-extra-deps: [markdown-0.1.13.2]
+- '../geval'
+extra-deps: [markdown-0.1.13.2,geval-0.1.0.0]
 resolver: nightly-2015-08-20

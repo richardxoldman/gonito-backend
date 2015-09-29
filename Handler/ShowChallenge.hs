@@ -13,6 +13,9 @@ import qualified Data.Text as T
 import Handler.Extract
 import Handler.Shared
 
+import GEval.Core
+import GEval.OptionsParser
+
 import PersistSHA1
 
 getShowChallengeR :: Text -> Handler Html
@@ -57,7 +60,8 @@ doCreateSubmission challengeId description url branch chan = do
     Just repoId -> do
       repo <- runDB $ get404 repoId
       submissionId <- getSubmission repoId (repoCurrentCommit repo) challengeId description chan
-      msg chan "HAHA"
+      _ <- getOuts chan submissionId
+      msg chan "Done"
     Nothing -> return ()
 
 getSubmission :: Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
@@ -112,12 +116,31 @@ checkOrInsertOut out = do
 checkOrInsertEvaluation :: FilePath -> Channel -> Out -> Handler ()
 checkOrInsertEvaluation repoDir chan out = do
   test <- runDB $ get404 $ outTest out
+  challenge <- runDB $ get404 $ testChallenge test
   maybeEvaluation <- runDB $ getBy $ UniqueEvaluationTestChecksum (outTest out) (outChecksum out)
   case maybeEvaluation of
     Just (Entity _ evaluation) -> do
       msg chan $ concat ["Already evaluated with score ", (T.pack $ fromMaybe "???" $ show <$> evaluationScore evaluation)]
     Nothing -> do
       msg chan $ "Start evaluation..."
+      result <- liftIO $ runGEvalGetOptions ["--expected-directory", (getRepoDir $ challengePrivateRepo challenge),
+                                            "--out-directory", repoDir]
+      case result of
+        Left parseResult -> do
+          err chan "Cannot parse options, check the challenge repo"
+        Right (opts, Just result) -> do
+          msg chan $ concat [ "Evaluated! Score ", (T.pack $ show result) ]
+          time <- liftIO getCurrentTime
+          runDB $ insert $ Evaluation {
+            evaluationTest=outTest out,
+            evaluationChecksum=outChecksum out,
+            evaluationScore=Just result,
+            evaluationErrorMessage=Nothing,
+            evaluationStamp=time }
+          msg chan "Evaluation done"
+        Right (_, Nothing) -> do
+          err chan "Error during the evaluation"
+
 
 getSubmissionRepo :: Key Challenge -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo challengeId url branch chan = do

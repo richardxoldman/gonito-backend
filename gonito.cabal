@@ -102,6 +102,8 @@ library
                  , filemanip
                  , cryptohash
                  , markdown
+                 , geval
+                 , filepath
 
 executable         gonito
     if flag(library-only)

@@ -9,6 +9,7 @@ import Handler.Extract
 
 import System.Directory (doesFileExist)
 import System.FilePath.Find as SFF
+import System.FilePath
 import qualified Data.Text as T
 
 import PersistSHA1
@@ -94,7 +95,7 @@ checkTestDir chan challengeId commit testDir = do
       checksum <- liftIO $ gatherSHA1 testDir
       testId <- runDB $ insert $ Test {
         testChallenge=challengeId,
-        testName=T.pack testDir,
+        testName=T.pack $ takeFileName testDir,
         testChecksum=(SHA1 checksum),
         testCommit=commit,
         testActive=True }
