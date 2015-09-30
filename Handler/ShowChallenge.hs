@@ -199,15 +199,23 @@ submissionForm = renderBootstrap3 BootstrapBasicForm $ (,,)
     <*> areq textField (fieldSettingsLabel MsgSubmissionBranch) Nothing
 
 getChallengeMySubmissionsR :: Text -> Handler Html
-getChallengeMySubmissionsR = getChallengeMySubmissionsR
+getChallengeMySubmissionsR name = do
+  userId <- requireAuthId
+  getChallengeSubmissions (\(Entity _ submission) -> (submissionSubmitter submission == userId)) name
 
 getChallengeAllSubmissionsR :: Text -> Handler Html
-getChallengeAllSubmissionsR name = do
+getChallengeAllSubmissionsR name = getChallengeSubmissions (\_ -> True) name
+
+getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
+getChallengeSubmissions condition name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
-  submissions <- runDB $ selectList [SubmissionChallenge ==. challengeId] [Desc SubmissionStamp]
+  allSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId] [Desc SubmissionStamp]
+  let submissions = filter condition allSubmissions
   tests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
   evaluationMaps <- mapM getEvaluationMap submissions
   challengeLayout True challenge (challengeAllSubmissionsWidget challenge evaluationMaps tests)
+
+
 
 getEvaluationMap :: Entity Submission -> Handler (Entity Submission, User, Map (Key Test) Evaluation)
 getEvaluationMap s@(Entity submissionId submission) = do
