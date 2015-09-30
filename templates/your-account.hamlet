@@ -1,0 +1,7 @@
+<h2>Your account
+
+<p>
+  <form method=post action=@{YourAccountR}#form enctype=#{formEnctype}>
+    ^{formWidget}
+    <button .btn .btn-primary type="submit">
+       _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>

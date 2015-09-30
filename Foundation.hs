@@ -171,6 +171,7 @@ instance YesodAuth App where
                 insert User
                     { userIdent = credsIdent creds
                     , userPassword = Nothing
+                    , userName = Nothing
                     }
 
     -- You can add other plugins like BrowserID, email or OAuth here

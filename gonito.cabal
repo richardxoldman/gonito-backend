@@ -30,6 +30,7 @@ library
                      Handler.Shared
                      Handler.ShowChallenge
                      Handler.Extract
+                     Handler.YourAccount
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

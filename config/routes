@@ -16,3 +16,5 @@
 /challenge-submission/#Text ChallengeSubmissionR GET POST
 /challenge-my-submissions/#Text ChallengeMySubmissionsR GET
 /challenge-all-submissions/#Text ChallengeAllSubmissionsR GET
+
+/account YourAccountR GET POST

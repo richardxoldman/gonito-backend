@@ -13,3 +13,6 @@ Submit: Submit
 SubmissionUrl: Submission repo URL
 SubmissionBranch: Submission repo branch
 SubmissionDescription: Submission description
+YourAccount: your account
+AboutMe: about me
+AccountName: name
