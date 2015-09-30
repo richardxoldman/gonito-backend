@@ -74,6 +74,7 @@ doCreateSubmission challengeId description url branch chan = do
 getSubmission :: Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
 getSubmission repoId commit challengeId description chan = do
   maybeSubmission <- runDB $ getBy $ UniqueSubmissionRepoCommitChallenge repoId commit challengeId
+  userId <- requireAuthId
   case maybeSubmission of
     Just (Entity submissionId submission) -> do
       msg chan "Submission already there, re-checking"
@@ -86,7 +87,8 @@ getSubmission repoId commit challengeId description chan = do
         submissionCommit=commit,
         submissionChallenge=challengeId,
         submissionDescription=description,
-        submissionStamp=time }
+        submissionStamp=time,
+        submissionSubmitter=userId }
 
 getOuts :: Channel -> Key Submission -> Handler ([Out])
 getOuts chan submissionId = do
@@ -207,24 +209,31 @@ getChallengeAllSubmissionsR name = do
   evaluationMaps <- mapM getEvaluationMap submissions
   challengeLayout True challenge (challengeAllSubmissionsWidget challenge evaluationMaps tests)
 
-getEvaluationMap :: Entity Submission -> Handler (Entity Submission, Map (Key Test) Evaluation)
+getEvaluationMap :: Entity Submission -> Handler (Entity Submission, User, Map (Key Test) Evaluation)
 getEvaluationMap s@(Entity submissionId submission) = do
   outs <- runDB $ selectList [OutSubmission ==. submissionId] []
+  user <- runDB $ get404 $ submissionSubmitter submission
   maybeEvaluations <- runDB $ mapM (\(Entity _ o) -> getBy $ UniqueEvaluationTestChecksum (outTest o) (outChecksum o)) outs
   let evaluations = catMaybes maybeEvaluations
   let m = Map.fromList $ map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
-  return (s, m)
+  return (s, user, m)
 
 challengeAllSubmissionsWidget challenge submissions tests = $(widgetFile "challenge-all-submissions")
 
-submissionsTable :: [Entity Test] -> Table site (Entity Submission, Map (Key Test) Evaluation)
+submissionsTable :: [Entity Test] -> Table site (Entity Submission, User, Map (Key Test) Evaluation)
 submissionsTable tests = mempty
-  ++ Table.string "when" (show . submissionStamp . \(Entity _ s, _) -> s)
-  ++ Table.text "description" (submissionDescription . \(Entity _ s, _) -> s)
+  ++ Table.text "submitter" (formatSubmitter . \(_, submitter, _) -> submitter)
+  ++ Table.string "when" (show . submissionStamp . \(Entity _ s, _, _) -> s)
+  ++ Table.text "description" (submissionDescription . \(Entity _ s, _,  _) -> s)
   ++ mconcat (map (\(Entity k t) -> Table.string (testName t) (submissionScore k)) tests)
 
-submissionScore :: Key Test -> (Entity Submission, Map (Key Test) Evaluation) -> String
-submissionScore k (_, m) = fromMaybe "N/A" (presentScore <$> lookup k m)
+formatSubmitter :: User -> Text
+formatSubmitter user = case userName user of
+  Just name -> name
+  Nothing -> "[name not given]"
+
+submissionScore :: Key Test -> (Entity Submission, User, Map (Key Test) Evaluation) -> String
+submissionScore k (_, _, m) = fromMaybe "N/A" (presentScore <$> lookup k m)
 
 presentScore :: Evaluation -> String
 presentScore evaluation = fromMaybe "???" (show <$> evaluationScore evaluation)

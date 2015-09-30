@@ -39,6 +39,7 @@ Submission
     challenge ChallengeId
     description Text
     stamp UTCTime default=now()
+    submitter UserId
     UniqueSubmissionRepoCommitChallenge repo commit challenge
 Evaluation
     test TestId
