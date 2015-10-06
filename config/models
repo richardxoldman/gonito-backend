@@ -3,6 +3,7 @@ User
     password Text Maybe
     UniqueUser ident
     name Text Maybe
+    isAdmin Bool default=True
     deriving Typeable
 Email
     email Text

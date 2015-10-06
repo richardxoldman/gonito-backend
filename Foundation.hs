@@ -63,7 +63,7 @@ isTrusted user =
     "romang@amu.edu.pl" -> True
     "junczys@amu.edu.pl" -> True
     "rafalj@amu.edu.pl" -> True
-    _ -> False
+    _ -> True
 
 
 
@@ -172,6 +172,7 @@ instance YesodAuth App where
                     { userIdent = credsIdent creds
                     , userPassword = Nothing
                     , userName = Nothing
+                    , userIsAdmin = False
                     }
 
     -- You can add other plugins like BrowserID, email or OAuth here

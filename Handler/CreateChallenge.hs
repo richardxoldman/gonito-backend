@@ -33,7 +33,13 @@ postCreateChallengeR = do
             _ -> Nothing
         Just (name, publicUrl, publicBranch, privateUrl, privateBranch) = challengeData
 
-    runViewProgress $ doCreateChallenge name publicUrl publicBranch privateUrl privateBranch
+    userId <- requireAuthId
+    user <- runDB $ get404 userId
+    if userIsAdmin user
+      then
+        runViewProgress $ doCreateChallenge name publicUrl publicBranch privateUrl privateBranch
+      else
+        runViewProgress $ (flip err) "MUST BE AN ADMIN TO CREATE A CHALLENGE"
 
 doCreateChallenge :: Text -> Text -> Text -> Text -> Text -> Channel -> Handler ()
 doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
