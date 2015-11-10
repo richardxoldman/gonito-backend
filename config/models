@@ -4,6 +4,8 @@ User
     UniqueUser ident
     name Text Maybe
     isAdmin Bool default=True
+    localId Text Maybe
+    sshPubKey Text Maybe
     deriving Typeable
 Email
     email Text

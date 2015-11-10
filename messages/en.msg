@@ -16,3 +16,5 @@ SubmissionDescription: Submission description
 YourAccount: your account
 AboutMe: about me
 AccountName: name
+Id: ID
+SshPubKey: your SSH public key
