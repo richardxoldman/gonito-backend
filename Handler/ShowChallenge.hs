@@ -134,7 +134,7 @@ checkOrInsertEvaluation repoDir chan out = do
       msg chan $ concat ["Already evaluated with score ", (T.pack $ fromMaybe "???" $ show <$> evaluationScore evaluation)]
     Nothing -> do
       msg chan $ "Start evaluation..."
-      resultOrException <- liftIO $ rawEval challenge repoDir
+      resultOrException <- liftIO $ rawEval challenge repoDir (testName test)
       case resultOrException of
         Right (Left parseResult) -> do
           err chan "Cannot parse options, check the challenge repo"
@@ -153,10 +153,11 @@ checkOrInsertEvaluation repoDir chan out = do
         Left exception -> do
           err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
 
-rawEval :: Challenge -> FilePath -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe MetricValue)))
-rawEval challenge repoDir = try (runGEvalGetOptions [
+rawEval :: Challenge -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe MetricValue)))
+rawEval challenge repoDir name = try (runGEvalGetOptions [
                                     "--expected-directory", (getRepoDir $ challengePrivateRepo challenge),
-                                    "--out-directory", repoDir])
+                                    "--out-directory", repoDir,
+                                    "--test-name", (T.unpack name)])
 
 getSubmissionRepo :: Key Challenge -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo challengeId url branch chan = do

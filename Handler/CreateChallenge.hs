@@ -43,10 +43,11 @@ postCreateChallengeR = do
 
 doCreateChallenge :: Text -> Text -> Text -> Text -> Text -> Channel -> Handler ()
 doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
-  maybePublicRepoId <- cloneRepo publicUrl publicBranch chan
+  maybePublicRepoId <- cloneRepo publicUrl publicBranch publicUrl publicBranch chan
   case maybePublicRepoId of
     Just publicRepoId -> do
-      maybePrivateRepoId <- cloneRepo privateUrl privateBranch chan
+      publicRepo <- runDB $ get404 publicRepoId
+      maybePrivateRepoId <- cloneRepo privateUrl privateBranch (T.pack $ getRepoDir publicRepoId) (repoBranch publicRepo) chan
       case maybePrivateRepoId of
           Just privateRepoId -> addChallenge name publicRepoId privateRepoId chan
           Nothing -> return ()

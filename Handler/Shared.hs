@@ -65,40 +65,41 @@ err = msg
 raw :: Channel -> Text -> Handler ()
 raw = msg
 
-doRepoCloning :: Text -> Text -> Channel -> Handler ()
-doRepoCloning url branch chan = do
-  msg chan "Did something"
-  _ <- cloneRepo url branch chan
-  return ()
-
 validGitProtocols :: [String]
 validGitProtocols = ["git", "http", "https", "ssh"]
 
 validGitProtocolsAsText :: Text
 validGitProtocolsAsText = T.pack $ intercalate ", " $ map (++"://") validGitProtocols
 
-cloneRepo :: Text -> Text -> Channel -> Handler (Maybe (Key Repo))
-cloneRepo url branch chan = do
+cloneRepo :: Text -> Text -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
+cloneRepo url branch referenceUrl referenceBranch chan = do
   maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
   case maybeRepo of
     Just _ -> do
       err chan "Repo already there"
       return Nothing
-    Nothing -> cloneRepo' url branch url branch chan
+    Nothing -> cloneRepo' url branch referenceUrl referenceBranch chan
 
 updateRepo :: Key Repo -> Channel -> Handler Bool
 updateRepo repoId chan = do
   repo <- runDB $ get404 repoId
   let repoDir = getRepoDir repoId
-  (exitCode, _) <- runProgram (Just repoDir) gitPath ["pull", "--progress"] chan
+  (exitCode, _) <- runProgram (Just repoDir) gitPath ["fetch", "--progress"] chan
   case exitCode of
     ExitSuccess -> do
-      maybeHeadCommit <- getHeadCommit repoDir chan
-      case maybeHeadCommit of
-        Just headCommit -> do
-          runDB $ update repoId [RepoCurrentCommit =. headCommit]
-          return True
-        Nothing -> return False
+      (exitCode, _) <- runProgram (Just repoDir) gitPath ["reset",
+                                                         "--hard",
+                                                         "FETCH_HEAD"] chan
+      case exitCode of
+       ExitSuccess -> do
+         maybeHeadCommit <- getHeadCommit repoDir chan
+         case maybeHeadCommit of
+          Just headCommit -> do
+            runDB $ update repoId [RepoCurrentCommit =. headCommit]
+            return True
+          Nothing -> return False
+       _ -> return False
+    _ -> return False
 
 getHeadCommit :: FilePath -> Channel -> Handler (Maybe SHA1)
 getHeadCommit repoDir chan = do
