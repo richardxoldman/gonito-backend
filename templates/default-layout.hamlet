@@ -2,7 +2,8 @@
      $maybe user <- maybeUser
         _{MsgLoggedAs} #{userIdent $ entityVal user}
         \ | <a href="@{HomeR}">_{MsgHome}</a>
-        \ | <a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
+        $if userIsAdmin $ entityVal user
+           \ | <a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
         \ | <a href="@{ListChallengesR}">_{MsgListChallenges}</a>
         \ | <a href="@{YourAccountR}">_{MsgYourAccount}</a>
         \ | <a href="@{AuthR LogoutR}">_{MsgLogOut}</a>
