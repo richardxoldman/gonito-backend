@@ -5,8 +5,10 @@ User
     name Text Maybe
     isAdmin Bool default=True
     localId Text Maybe
-    sshPubKey Text Maybe
     deriving Typeable
+PublicKey
+    user UserId
+    pubkey Text
 Email
     email Text
     user UserId Maybe

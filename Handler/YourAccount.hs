@@ -13,7 +13,9 @@ getYourAccountR :: Handler Html
 getYourAccountR = do
     userId <- requireAuthId
     user <- runDB $ get404 userId
-    (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) (userSshPubKey user))
+    keyS <- runDB $ selectFirst [PublicKeyUser ==. userId] []
+    let key = publicKeyPubkey <$> entityVal <$> keyS
+    (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) key)
     let submission = Nothing :: Maybe (Import.FileInfo, Text)
         handlerName = "getYourAccountR" :: Text
     defaultLayout $ do
@@ -75,8 +77,15 @@ updateLocalIdAndPubKey userId (Just localId) maybeSshPubKey = do
           case userLocalId user of
              Just prevLocalId -> do
                unless (prevLocalId == localId) $ setMessage $ toHtml ("only the administrator can change your ID" :: Text)
-             Nothing -> do
-               runDB $ update userId [UserLocalId =. (Just localId), UserSshPubKey =. maybeSshPubKey]
+             Nothing -> return ()
+          runDB $ deleteWhere [PublicKeyUser ==. userId]
+          case maybeSshPubKey of
+            Just key -> do
+              runDB $ insert $ PublicKey {
+                publicKeyUser=userId,
+                publicKeyPubkey=key }
+              return ()
+            Nothing -> return ()
     else
       setMessage $ toHtml ("unexpected ID (use only lower-case letters, digits and hyphens, start with a letter)" :: Text)
 
