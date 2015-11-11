@@ -5,3 +5,10 @@
     ^{formWidget}
     <button .btn .btn-primary type="submit">
        _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
+
+<ul>
+  <li><b>name</b> is your human-readable name (to be shown on the leaderboard)
+  <li><b>ID</b> is used in the URLs for your repos (must be composed of lower-case letters, digits or hyphyns, must start with a lower-case letter)
+  <li><b>SSH public key</b> is needed if you want to access repos hosted on Gonito.net
+  <li>ID cannot be changed once it is set up
+  <li>you don't need to specify your ID and SSH public key, if you don't use private repos hosted on Gonito.net

@@ -18,3 +18,4 @@ AboutMe: about me
 AccountName: name
 Id: ID
 SshPubKey: your SSH public key
+Home: home

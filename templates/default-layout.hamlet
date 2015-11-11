@@ -1,6 +1,7 @@
     <div id="heading">
      $maybe user <- maybeUser
         _{MsgLoggedAs} #{userIdent $ entityVal user}
+        \ | <a href="@{HomeR}">_{MsgHome}</a>
         \ | <a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
         \ | <a href="@{ListChallengesR}">_{MsgListChallenges}</a>
         \ | <a href="@{YourAccountR}">_{MsgYourAccount}</a>
@@ -8,5 +9,5 @@
      $nothing
         <a href="@{AuthR LoginR}">_{MsgLogIn}</a>
 $maybe msg <- mmsg
-    <div #message>#{msg}
+    <div #message .alert .alert-warning><a href="#" class="close" data-dismiss="alert">&times;</a> #{msg}
 ^{widget}
