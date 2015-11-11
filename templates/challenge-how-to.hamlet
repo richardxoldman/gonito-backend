@@ -1,0 +1,43 @@
+<h1>Challenge How To
+
+<h2>Install GEval
+
+<p>In order to evaluate your work locally, you need the GEval tool. First install <a href="https://github.com/commercialhaskell/stack">Haskell Stack</a> and then install GEval itselt:
+
+<pre>
+  git clone git://gonito.net/geval
+  cd geval
+  stack setup
+  stack install
+
+<h2>Get your repo
+
+<p>You need to upload your SSH public key (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
+
+<pre>
+  git clone ssh://gitolite@gonito.net/#{idToBeShown}/#{challengeName challenge}
+  cd #{challengeName challenge}
+  git pull ssh://gitolite@gonito.net/#{challengeName challenge}
+  git push origin master
+
+<h2>Work on your solution
+
+<p>You need to generate your solution for the test set as <tt>test-A/out.tsv</tt>. You may also generate the solution for the dev set (<tt>dev-0/out.tsv</tt>).
+
+<p>You can evaluate results for the dev set locally:
+
+<pre>
+  cd #{challengeName challenge}
+  geval --test-name dev-0
+
+<h2>Submit your solution
+
+<p>Push <tt>out.tsv</tt> files to your repo. It is also recommended to push your source codes along with <tt>out.tsv</tt> files.
+
+<pre>
+  cd #{challengeName challenge}
+  git add dev-0/out.tsv test-A/out.tsv # also your source codes could be added
+  git commit -m 'my brilliant solution'
+  git push origin master
+
+<p>Finally, you need to tell Gonito.net to evaluate your submission. Go to the <a href="@{ChallengeSubmissionR $ challengeName challenge}">submit form</a>.

@@ -44,17 +44,35 @@ getChallengeReadmeR name = do
 
 showChallengeWidget challenge repo = $(widgetFile "show-challenge")
 
+getChallengeHowToR :: Text -> Handler Html
+getChallengeHowToR name = do
+  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
+  maybeUser <- maybeAuth
+  challengeLayout False challenge (challengeHowTo challenge (idToBeShown challenge maybeUser))
+
+idToBeShown challenge maybeUser =
+  case maybeUser of
+   Just user ->  case userLocalId $ entityVal user of
+                 Just localId -> localId
+                 Nothing -> defaultIdToBe
+   Nothing -> defaultIdToBe
+  where defaultIdToBe = "YOURID" :: Text
+
+defaultRepo challenge maybeUser = "ssh://gitolite@gonito.net/" ++ (idToBeShown challenge maybeUser) ++ "/" ++ (challengeName challenge)
+
+challengeHowTo challenge idToBeShown = $(widgetFile "challenge-how-to")
 
 getChallengeSubmissionR :: Text -> Handler Html
 getChallengeSubmissionR name = do
    (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
-   (formWidget, formEnctype) <- generateFormPost submissionForm
+   maybeUser <- maybeAuth
+   (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just $ defaultRepo challenge maybeUser)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
 postChallengeSubmissionR name = do
     (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
-    ((result, formWidget), formEnctype) <- runFormPost submissionForm
+    ((result, formWidget), formEnctype) <- runFormPost $ submissionForm Nothing
     let submissionData = case result of
           FormSuccess res -> Just res
           _ -> Nothing
@@ -203,11 +221,11 @@ checkRepoAvailibility challengeId repoId chan = do
 
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
-submissionForm :: Form (Text, Text, Text)
-submissionForm = renderBootstrap3 BootstrapBasicForm $ (,,)
+submissionForm :: Maybe Text -> Form (Text, Text, Text)
+submissionForm defaultUrl = renderBootstrap3 BootstrapBasicForm $ (,,)
     <$> areq textField (fieldSettingsLabel MsgSubmissionDescription) Nothing
-    <*> areq textField (fieldSettingsLabel MsgSubmissionUrl) Nothing
-    <*> areq textField (fieldSettingsLabel MsgSubmissionBranch) Nothing
+    <*> areq textField (fieldSettingsLabel MsgSubmissionUrl) defaultUrl
+    <*> areq textField (fieldSettingsLabel MsgSubmissionBranch) (Just "master")
 
 getChallengeMySubmissionsR :: Text -> Handler Html
 getChallengeMySubmissionsR name = do

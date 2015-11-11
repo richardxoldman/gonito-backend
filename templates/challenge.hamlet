@@ -2,8 +2,9 @@
 <div .row>
   <div .col-md-2 role="complementary">
     <ul class="nav nav-pills nav-stacked navbar-left">
-     <li role="presentation" class="active"><a href="@{ShowChallengeR (challengeName challenge)}">Graph</a>
+     <li role="presentation" class="active"><a href="@{ShowChallengeR (challengeName challenge)}">Challenge</a>
      <li role="presentation"><a href="@{ChallengeReadmeR (challengeName challenge)}">Readme</a>
+     <li role="presentation"><a href="@{ChallengeHowToR (challengeName challenge)}">How To</a>
      <li role="presentation"><a href="@{ChallengeSubmissionR (challengeName challenge)}">Submit</a>
      <li role="presentation"><a href="@{ChallengeMySubmissionsR (challengeName challenge)}">My Submissions</a>
      <li role="presentation"><a href="@{ChallengeAllSubmissionsR (challengeName challenge)}">All Submissions</a>
