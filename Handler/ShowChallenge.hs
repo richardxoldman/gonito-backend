@@ -25,6 +25,8 @@ import qualified Data.Map as Map
 
 import PersistSHA1
 
+import Options.Applicative
+
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
@@ -132,12 +134,11 @@ checkOrInsertEvaluation repoDir chan out = do
       msg chan $ concat ["Already evaluated with score ", (T.pack $ fromMaybe "???" $ show <$> evaluationScore evaluation)]
     Nothing -> do
       msg chan $ "Start evaluation..."
-      result <- liftIO $ runGEvalGetOptions ["--expected-directory", (getRepoDir $ challengePrivateRepo challenge),
-                                            "--out-directory", repoDir]
-      case result of
-        Left parseResult -> do
+      resultOrException <- liftIO $ rawEval challenge repoDir
+      case resultOrException of
+        Right (Left parseResult) -> do
           err chan "Cannot parse options, check the challenge repo"
-        Right (opts, Just result) -> do
+        Right (Right (opts, Just result)) -> do
           msg chan $ concat [ "Evaluated! Score ", (T.pack $ show result) ]
           time <- liftIO getCurrentTime
           runDB $ insert $ Evaluation {
@@ -147,9 +148,15 @@ checkOrInsertEvaluation repoDir chan out = do
             evaluationErrorMessage=Nothing,
             evaluationStamp=time }
           msg chan "Evaluation done"
-        Right (_, Nothing) -> do
+        Right (Right (_, Nothing)) -> do
           err chan "Error during the evaluation"
+        Left exception -> do
+          err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
 
+rawEval :: Challenge -> FilePath -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe MetricValue)))
+rawEval challenge repoDir = try (runGEvalGetOptions [
+                                    "--expected-directory", (getRepoDir $ challengePrivateRepo challenge),
+                                    "--out-directory", repoDir])
 
 getSubmissionRepo :: Key Challenge -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo challengeId url branch chan = do
@@ -169,8 +176,11 @@ getSubmissionRepo challengeId url branch chan = do
                return Nothing
          else
            return Nothing
-    Nothing -> cloneRepo' url branch chan
-
+    Nothing -> do
+      challenge <- runDB $ get404 challengeId
+      let repoId = challengePublicRepo challenge
+      repo <- runDB $ get404 repoId
+      cloneRepo' url branch (T.pack $ getRepoDir repoId) (repoBranch repo) chan
 
 checkRepoAvailibility :: Key Challenge -> Key Repo -> Channel -> Handler Bool
 checkRepoAvailibility challengeId repoId chan = do

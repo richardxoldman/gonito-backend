@@ -113,6 +113,7 @@ library
                  , filepath
                  , yesod-table
                  , regex-tdfa
+                 , optparse-applicative
 
 executable         gonito
     if flag(library-only)

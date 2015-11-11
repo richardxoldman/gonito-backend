@@ -84,7 +84,7 @@ cloneRepo url branch chan = do
     Just _ -> do
       err chan "Repo already there"
       return Nothing
-    Nothing -> cloneRepo' url branch chan
+    Nothing -> cloneRepo' url branch url branch chan
 
 updateRepo :: Key Repo -> Channel -> Handler Bool
 updateRepo repoId chan = do
@@ -113,20 +113,15 @@ getHeadCommit repoDir chan = do
       err chan "cannot determine HEAD commit"
       return Nothing
 
-cloneRepo' :: Text -> Text -> Channel -> Handler (Maybe (Key Repo))
-cloneRepo' url branch chan = do
+cloneRepo' :: Text -> Text -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
+cloneRepo' url branch referenceUrl referenceBranch chan = do
       msg chan $ concat ["Preparing to clone repo ", url]
       if checkRepoUrl url
        then do
         msg chan "Cloning..."
         r <- randomInt
         let tmpRepoDir = arena </> ("t" ++ show r)
-        (exitCode, _) <- runProgram Nothing gitPath ["clone",
-                                                     "--progress",
-                                                     "--branch",
-                                                     T.unpack branch,
-                                                     T.unpack url,
-                                                     tmpRepoDir] chan
+        exitCode <- rawClone tmpRepoDir url branch referenceUrl referenceBranch chan
         case exitCode of
           ExitSuccess -> do
             maybeHeadCommit <- getHeadCommit tmpRepoDir chan
@@ -154,6 +149,37 @@ cloneRepo' url branch chan = do
         err chan $ concat ["Wrong URL to a Git repo (note that one of the following protocols must be specified: ", validGitProtocolsAsText]
         return Nothing
 
+rawClone :: FilePath -> Text -> Text -> Text -> Text -> Channel -> Handler (ExitCode)
+rawClone tmpRepoDir url branch referenceUrl referenceBranch chan = do
+  (exitCode, _) <- runProgram Nothing gitPath ["clone",
+                                              "--progress",
+                                              "--branch",
+                                              T.unpack referenceBranch,
+                                              T.unpack referenceUrl,
+                                              tmpRepoDir] chan
+  if url /= referenceUrl || branch /= referenceBranch
+    then
+      do
+      (exitCode, _) <- runProgram (Just tmpRepoDir) gitPath ["remote",
+                                                            "set-url",
+                                                            "origin",
+                                                            T.unpack url] chan
+      case exitCode of
+       ExitSuccess -> do
+         (exitCode, _) <- runProgram (Just tmpRepoDir) gitPath ["fetch",
+                                                               "origin",
+                                                               T.unpack branch] chan
+         case exitCode of
+           ExitSuccess -> do
+             (exitCode, _) <- runProgram (Just tmpRepoDir) gitPath ["reset",
+                                                                   "--hard",
+                                                                   "FETCH_HEAD"] chan
+             return exitCode
+           _ -> return exitCode
+       _ -> return exitCode
+
+    else
+      return exitCode
 
 getRepoDir :: Key Repo -> FilePath
 getRepoDir repoId = arena </> ("r" ++ repoIdAsString)

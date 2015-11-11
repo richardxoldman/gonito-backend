@@ -5,5 +5,5 @@ flags:
 packages:
 - '.'
 - '../geval'
-extra-deps: [markdown-0.1.13.2,geval-0.1.0.0]
-resolver: lts-3.11
+extra-deps: [markdown-0.1.13.2,geval-0.2.0.0]
+resolver: lts-3.13
