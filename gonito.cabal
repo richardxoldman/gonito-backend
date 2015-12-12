@@ -24,6 +24,7 @@ library
                      Import
                      Import.NoFoundation
                      Model
+                     PersistMetric
                      PersistSHA1
                      Settings
                      Settings.StaticFiles
@@ -36,6 +37,7 @@ library
                      Handler.Shared
                      Handler.ShowChallenge
                      Handler.Extract
+                     Handler.Tables
                      Handler.YourAccount
 
     if flag(dev) || flag(library-only)
@@ -109,7 +111,7 @@ library
                  , filemanip
                  , cryptohash
                  , markdown
-                 , geval
+                 , geval >= 0.2.2.0
                  , filepath
                  , yesod-table
                  , regex-tdfa

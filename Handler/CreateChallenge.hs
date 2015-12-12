@@ -102,6 +102,7 @@ checkTestDir chan challengeId commit testDir = do
       checksum <- liftIO $ gatherSHA1 testDir
       testId <- runDB $ insert $ Test {
         testChallenge=challengeId,
+        testMetric=Nothing,
         testName=T.pack $ takeFileName testDir,
         testChecksum=(SHA1 checksum),
         testCommit=commit,

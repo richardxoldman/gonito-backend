@@ -5,8 +5,6 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
                               withSmallInput)
 
 import Data.Monoid
-import qualified Yesod.Table as Table
-import Yesod.Table (Table)
 
 import qualified Data.Text.Lazy          as TL
 import           Text.Markdown
@@ -14,8 +12,12 @@ import           Text.Markdown
 import System.Directory (doesFileExist)
 import qualified Data.Text as T
 
+import qualified Yesod.Table as Table
+import Yesod.Table (Table)
+
 import Handler.Extract
 import Handler.Shared
+import Handler.Tables
 
 import GEval.Core
 import GEval.OptionsParser
@@ -29,9 +31,10 @@ import Options.Applicative
 
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
-  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
+  (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   Just repo <- runDB $ get $ challengePublicRepo challenge
-  challengeLayout True challenge (showChallengeWidget challenge repo)
+  leaderboard <- getLeaderboardEntries challengeId
+  challengeLayout True challenge (showChallengeWidget challenge repo leaderboard)
 
 getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR name = do
@@ -42,7 +45,8 @@ getChallengeReadmeR name = do
   contents <- readFile readmeFilePath
   challengeLayout False challenge $ toWidget $ markdown def $ TL.fromStrict contents
 
-showChallengeWidget challenge repo = $(widgetFile "show-challenge")
+showChallengeWidget challenge repo leaderboard = $(widgetFile "show-challenge")
+  where leaderboardWithRanks = zip [1..] leaderboard
 
 getChallengeHowToR :: Text -> Handler Html
 getChallengeHowToR name = do
@@ -237,43 +241,11 @@ getChallengeAllSubmissionsR name = getChallengeSubmissions (\_ -> True) name
 
 getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
 getChallengeSubmissions condition name = do
-  (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
-  allSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId] [Desc SubmissionStamp]
-  let submissions = filter condition allSubmissions
-  tests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
-  evaluationMaps <- mapM getEvaluationMap submissions
+  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
+  (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
   challengeLayout True challenge (challengeAllSubmissionsWidget challenge evaluationMaps tests)
 
-
-
-getEvaluationMap :: Entity Submission -> Handler (Entity Submission, User, Map (Key Test) Evaluation)
-getEvaluationMap s@(Entity submissionId submission) = do
-  outs <- runDB $ selectList [OutSubmission ==. submissionId] []
-  user <- runDB $ get404 $ submissionSubmitter submission
-  maybeEvaluations <- runDB $ mapM (\(Entity _ o) -> getBy $ UniqueEvaluationTestChecksum (outTest o) (outChecksum o)) outs
-  let evaluations = catMaybes maybeEvaluations
-  let m = Map.fromList $ map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
-  return (s, user, m)
-
 challengeAllSubmissionsWidget challenge submissions tests = $(widgetFile "challenge-all-submissions")
-
-submissionsTable :: [Entity Test] -> Table site (Entity Submission, User, Map (Key Test) Evaluation)
-submissionsTable tests = mempty
-  ++ Table.text "submitter" (formatSubmitter . \(_, submitter, _) -> submitter)
-  ++ Table.string "when" (show . submissionStamp . \(Entity _ s, _, _) -> s)
-  ++ Table.text "description" (submissionDescription . \(Entity _ s, _,  _) -> s)
-  ++ mconcat (map (\(Entity k t) -> Table.string (testName t) (submissionScore k)) tests)
-
-formatSubmitter :: User -> Text
-formatSubmitter user = case userName user of
-  Just name -> name
-  Nothing -> "[name not given]"
-
-submissionScore :: Key Test -> (Entity Submission, User, Map (Key Test) Evaluation) -> String
-submissionScore k (_, _, m) = fromMaybe "N/A" (presentScore <$> lookup k m)
-
-presentScore :: Evaluation -> String
-presentScore evaluation = fromMaybe "???" (show <$> evaluationScore evaluation)
 
 challengeLayout withHeader challenge widget = do
   bc <- widgetToPageContent widget

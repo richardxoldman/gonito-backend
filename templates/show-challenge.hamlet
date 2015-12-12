@@ -2,3 +2,7 @@
   <tt> #{repoUrl repo}
   \ Branch:
   <tt> #{repoBranch repo}
+
+<h2>Leaderboard
+
+^{Table.buildBootstrap leaderboardTable leaderboardWithRanks}
