@@ -33,7 +33,7 @@ Challenge
     stamp UTCTime default=now()
 Test
     challenge ChallengeId
-    metric Metric Maybe
+    metric Metric
     name Text
     checksum SHA1
     commit SHA1

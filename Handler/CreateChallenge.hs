@@ -7,6 +7,9 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
 import Handler.Shared
 import Handler.Extract
 
+import GEval.Core
+import GEval.OptionsParser
+
 import System.Directory (doesFileExist)
 import System.FilePath.Find as SFF
 import System.FilePath
@@ -84,7 +87,7 @@ updateTests challengeId chan = do
   repo <- runDB $ get404 repoId
   let commit = repoCurrentCommit repo
   testDirs <- liftIO $ findTestDirs repoDir
-  mapM_ (checkTestDir chan challengeId commit) testDirs
+  mapM_ (checkTestDir chan challengeId challenge commit) testDirs
   msg chan (T.pack $ show testDirs)
   return ()
 
@@ -93,21 +96,29 @@ expectedFileName = "expected.tsv"
 doesExpectedExist :: FilePath -> IO Bool
 doesExpectedExist fp = doesFileExist (fp </> expectedFileName)
 
-checkTestDir :: Channel -> (Key Challenge) -> SHA1 -> FilePath -> Handler ()
-checkTestDir chan challengeId commit testDir = do
+checkTestDir :: Channel -> (Key Challenge) -> Challenge -> SHA1 -> FilePath -> Handler ()
+checkTestDir chan challengeId challenge commit testDir = do
   expectedExists <- liftIO $ doesExpectedExist testDir
   if expectedExists
     then do
       msg chan $ concat ["Test dir ", (T.pack testDir), " found."]
       checksum <- liftIO $ gatherSHA1 testDir
-      testId <- runDB $ insert $ Test {
-        testChallenge=challengeId,
-        testMetric=Nothing,
-        testName=T.pack $ takeFileName testDir,
-        testChecksum=(SHA1 checksum),
-        testCommit=commit,
-        testActive=True }
-      return ()
+      optionsParsingResult <- liftIO $ getOptions [
+        "--expected-directory", (getRepoDir $ challengePrivateRepo challenge),
+        "--test-name", takeFileName testDir]
+      case optionsParsingResult of
+       Left evalException -> do
+         err chan "Cannot read metric"
+         return ()
+       Right opts -> do
+         _ <- runDB $ insert $ Test {
+           testChallenge=challengeId,
+           testMetric=gesMetric $ geoSpec opts,
+           testName=T.pack $ takeFileName testDir,
+           testChecksum=(SHA1 checksum),
+           testCommit=commit,
+           testActive=True }
+         return ()
     else
       msg chan $ concat ["Test dir ", (T.pack testDir), " does not have expected results."]
   return ()
