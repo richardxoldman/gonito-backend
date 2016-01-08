@@ -40,7 +40,7 @@ getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR name = do
   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
   let repoId = challengePublicRepo challenge
-  let repoDir = getRepoDir repoId
+  repoDir <- getRepoDir repoId
   let readmeFilePath = repoDir </> readmeFile
   contents <- readFile readmeFilePath
   challengeLayout False challenge $ toWidget $ markdown def $ TL.fromStrict contents
@@ -118,7 +118,7 @@ getOuts :: Channel -> Key Submission -> Handler ([Out])
 getOuts chan submissionId = do
   submission <- runDB $ get404 submissionId
   let challengeId = submissionChallenge submission
-  let repoDir = getRepoDir $ submissionRepo submission
+  repoDir <- getRepoDir $ submissionRepo submission
   activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
   testsDone <- filterM (doesOutExist repoDir) activeTests
   outs <- mapM (outForTest repoDir submissionId) testsDone
@@ -156,7 +156,8 @@ checkOrInsertEvaluation repoDir chan out = do
       msg chan $ concat ["Already evaluated with score ", (T.pack $ fromMaybe "???" $ show <$> evaluationScore evaluation)]
     Nothing -> do
       msg chan $ "Start evaluation..."
-      resultOrException <- liftIO $ rawEval challenge repoDir (testName test)
+      challengeDir <- getRepoDir $ challengePrivateRepo challenge
+      resultOrException <- liftIO $ rawEval challengeDir repoDir (testName test)
       case resultOrException of
         Right (Left parseResult) -> do
           err chan "Cannot parse options, check the challenge repo"
@@ -175,9 +176,9 @@ checkOrInsertEvaluation repoDir chan out = do
         Left exception -> do
           err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
 
-rawEval :: Challenge -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe MetricValue)))
-rawEval challenge repoDir name = try (runGEvalGetOptions [
-                                    "--expected-directory", (getRepoDir $ challengePrivateRepo challenge),
+rawEval :: FilePath -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe MetricValue)))
+rawEval challengeDir repoDir name = try (runGEvalGetOptions [
+                                    "--expected-directory", challengeDir,
                                     "--out-directory", repoDir,
                                     "--test-name", (T.unpack name)])
 
@@ -203,7 +204,8 @@ getSubmissionRepo challengeId url branch chan = do
       challenge <- runDB $ get404 challengeId
       let repoId = challengePublicRepo challenge
       repo <- runDB $ get404 repoId
-      cloneRepo' url branch (T.pack $ getRepoDir repoId) (repoBranch repo) chan
+      repoDir <- getRepoDir repoId
+      cloneRepo' url branch (T.pack repoDir) (repoBranch repo) chan
 
 checkRepoAvailibility :: Key Challenge -> Key Repo -> Channel -> Handler Bool
 checkRepoAvailibility challengeId repoId chan = do

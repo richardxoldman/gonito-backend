@@ -50,7 +50,8 @@ doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
   case maybePublicRepoId of
     Just publicRepoId -> do
       publicRepo <- runDB $ get404 publicRepoId
-      maybePrivateRepoId <- cloneRepo privateUrl privateBranch (T.pack $ getRepoDir publicRepoId) (repoBranch publicRepo) chan
+      publicRepoDir <- getRepoDir publicRepoId
+      maybePrivateRepoId <- cloneRepo privateUrl privateBranch (T.pack $ publicRepoDir) (repoBranch publicRepo) chan
       case maybePrivateRepoId of
           Just privateRepoId -> addChallenge name publicRepoId privateRepoId chan
           Nothing -> return ()
@@ -59,7 +60,7 @@ doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
 addChallenge :: Text -> (Key Repo) -> (Key Repo) -> Channel -> Handler ()
 addChallenge name publicRepoId privateRepoId chan = do
   msg chan "adding challenge..."
-  let publicRepoDir = getRepoDir publicRepoId
+  publicRepoDir <- getRepoDir publicRepoId
   let readmeFilePath = publicRepoDir </> readmeFile
   doesReadmeExist <- liftIO $ doesFileExist readmeFilePath
   (title, description) <- if doesReadmeExist
@@ -83,7 +84,7 @@ updateTests :: (Key Challenge) -> Channel -> Handler ()
 updateTests challengeId chan = do
   challenge <- runDB $ get404 challengeId
   let repoId = challengePrivateRepo challenge
-  let repoDir = getRepoDir repoId
+  repoDir <- getRepoDir repoId
   repo <- runDB $ get404 repoId
   let commit = repoCurrentCommit repo
   testDirs <- liftIO $ findTestDirs repoDir
@@ -103,8 +104,9 @@ checkTestDir chan challengeId challenge commit testDir = do
     then do
       msg chan $ concat ["Test dir ", (T.pack testDir), " found."]
       checksum <- liftIO $ gatherSHA1 testDir
+      challengeRepoDir <- getRepoDir $ challengePrivateRepo challenge
       optionsParsingResult <- liftIO $ getOptions [
-        "--expected-directory", (getRepoDir $ challengePrivateRepo challenge),
+        "--expected-directory", challengeRepoDir,
         "--test-name", takeFileName testDir]
       case optionsParsingResult of
        Left evalException -> do

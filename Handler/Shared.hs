@@ -31,8 +31,10 @@ atom = Control.Concurrent.STM.atomically
 
 type Channel = TChan (Maybe Text)
 
-arena :: FilePath
-arena = "arena"
+arena :: Handler FilePath
+arena = do
+  app <- getYesod
+  return $ (appVarDir $ appSettings app) </> "arena"
 
 gitPath :: FilePath
 gitPath = "/usr/bin/git"
@@ -83,7 +85,7 @@ cloneRepo url branch referenceUrl referenceBranch chan = do
 updateRepo :: Key Repo -> Channel -> Handler Bool
 updateRepo repoId chan = do
   repo <- runDB $ get404 repoId
-  let repoDir = getRepoDir repoId
+  repoDir <- getRepoDir repoId
   (exitCode, _) <- runProgram (Just repoDir) gitPath ["fetch", "--progress"] chan
   case exitCode of
     ExitSuccess -> do
@@ -121,7 +123,8 @@ cloneRepo' url branch referenceUrl referenceBranch chan = do
        then do
         msg chan "Cloning..."
         r <- randomInt
-        let tmpRepoDir = arena </> ("t" ++ show r)
+        arenaDir <- arena
+        let tmpRepoDir = arenaDir </> ("t" ++ show r)
         exitCode <- rawClone tmpRepoDir url branch referenceUrl referenceBranch chan
         case exitCode of
           ExitSuccess -> do
@@ -137,7 +140,7 @@ cloneRepo' url branch referenceUrl referenceBranch chan = do
                   repoOwner=userId,
                   repoReady=True,
                   repoStamp=time }
-                let repoDir = getRepoDir repoId
+                repoDir <- getRepoDir repoId
                 liftIO $ renameDirectory tmpRepoDir repoDir
                 msg chan $ concat ["Repo is in ", (T.pack repoDir)]
                 return $ Just repoId
@@ -182,9 +185,11 @@ rawClone tmpRepoDir url branch referenceUrl referenceBranch chan = do
     else
       return exitCode
 
-getRepoDir :: Key Repo -> FilePath
-getRepoDir repoId = arena </> ("r" ++ repoIdAsString)
-                    where repoIdAsString = show $ fromSqlKey repoId
+getRepoDir :: Key Repo -> Handler FilePath
+getRepoDir repoId = do
+  arenaDir <- arena
+  return $ arenaDir </> ("r" ++ repoIdAsString)
+    where repoIdAsString = show $ fromSqlKey repoId
 
 checkRepoUrl :: Text -> Bool
 checkRepoUrl url = case parsedURI of
