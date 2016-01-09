@@ -116,6 +116,7 @@ library
                  , yesod-table
                  , regex-tdfa
                  , optparse-applicative
+                 , wai-handler-fastcgi
 
 executable         gonito
     if flag(library-only)
@@ -164,3 +165,4 @@ test-suite test
                  , hspec >= 2.0.0
                  , classy-prelude
                  , classy-prelude-yesod
+                 , wai-handler-fastcgi
