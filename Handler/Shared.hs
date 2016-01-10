@@ -39,6 +39,14 @@ arena = do
 gitPath :: FilePath
 gitPath = "/usr/bin/git"
 
+browsableGitSite :: Text
+browsableGitSite = "http://gonito.net/gitlist/"
+
+browsableGitRepo :: Text -> Text
+browsableGitRepo bareRepoName
+  | ".git" `isSuffixOf` bareRepoName = browsableGitSite ++ bareRepoName
+  | otherwise = browsableGitSite ++ bareRepoName ++ ".git"
+
 runViewProgress :: (Channel -> Handler ()) -> Handler TypedContent
 runViewProgress action = do
   App {..} <- getYesod

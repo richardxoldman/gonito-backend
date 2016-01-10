@@ -1,7 +1,7 @@
-<p>Repo:
-  <tt> #{repoUrl repo}
-  \ Branch:
-  <tt> #{repoBranch repo}
+$maybe repoLink  <- maybeRepoLink
+  <p> Repo: <tt><a href="#{repoLink}">#{repoUrl repo}</a></tt> Branch: <tt> #{repoBranch repo}</tt>
+$nothing
+  <p> Repo: <tt>#{repoUrl repo}</tt> Branch: <tt> #{repoBranch repo}</tt>
 
 <h2>Leaderboard
 

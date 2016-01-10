@@ -1,12 +1,12 @@
 <h1>Welcome to Gonito.net!
 
-<p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle-like platform for machine learning competitions (disclaimer: Gonito is neither affiliated with nor endorsed by <a href="https://www.kaggle.com">Kaggle</a>)
+<p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle<sup><u><a href="#disclaimer">*</a></u></sup>-like platform for machine learning competitions.
 
 <p>What's so special about Gonito:
 
 <ul>
-  <li>free & open-source (AGPL), you can use it your own, in your company, at your university, etc. (git repo: <tt>git://gonito.net/gonito</tt>)
-  <li>git-based (challenges and solutions are submitted only with git)
+  <li>free & open-source (AGPL), you can use it your own, in your company, at your university, etc. (git repo: <tt><a href="#{browsableGitRepo "gonito"}">git://gonito.net/gonito</a></tt>),
+  <li>git-based (challenges and solutions are submitted only with git).
 
 $maybe _ <- maybeUser
   $maybe _ <- maybeLocalId
@@ -20,3 +20,5 @@ $nothing
   <p>Gonito uses <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system available in Mozilla Firefox. Other authentication systems are on the way, but for the time being you need to use Firefox.
 
   <p>So, just click <a href="@{AuthR LoginR}">log in</a>, then "Sign in with Persona" button and Firefox will guide you!
+
+<p><sup>*</sup>Disclaimer: Gonito is neither affiliated with nor endorsed by <a href="https://www.kaggle.com">Kaggle</a>.

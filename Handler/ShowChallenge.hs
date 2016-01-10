@@ -47,6 +47,17 @@ getChallengeReadmeR name = do
 
 showChallengeWidget challenge repo leaderboard = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
+        maybeRepoLink = getRepoLink repo
+
+
+getRepoLink :: Repo -> Maybe Text
+getRepoLink repo
+  | sitePrefix `isPrefixOf` url = Just $ (browsableGitRepo bareRepoName) ++ "/" ++ (repoBranch repo)
+  | otherwise = Nothing
+  where sitePrefix = "git://gonito.net/" :: Text
+        sitePrefixLen = length sitePrefix
+        url = repoUrl repo
+        bareRepoName = drop sitePrefixLen url
 
 getChallengeHowToR :: Text -> Handler Html
 getChallengeHowToR name = do
