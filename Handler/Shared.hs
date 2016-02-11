@@ -94,7 +94,11 @@ updateRepo :: Key Repo -> Channel -> Handler Bool
 updateRepo repoId chan = do
   repo <- runDB $ get404 repoId
   repoDir <- getRepoDir repoId
-  (exitCode, _) <- runProgram (Just repoDir) gitPath ["fetch", "--progress"] chan
+  let branch = repoBranch repo
+  (exitCode, _) <- runProgram (Just repoDir) gitPath ["fetch",
+                                                     "origin",
+                                                     T.unpack branch,
+                                                     "--progress"] chan
   case exitCode of
     ExitSuccess -> do
       (exitCode, _) <- runProgram (Just repoDir) gitPath ["reset",
