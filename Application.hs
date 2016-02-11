@@ -37,6 +37,7 @@ import qualified Data.IntMap as IntMap
 -- Don't forget to add new modules to your cabal file!
 import Handler.Common
 import Handler.Fay
+import Handler.Graph
 import Handler.Home
 import Handler.CreateChallenge
 import Handler.ListChallenges

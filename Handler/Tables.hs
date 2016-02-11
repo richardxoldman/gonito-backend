@@ -40,12 +40,22 @@ leaderboardTable = mempty
   ++ Table.string "result" (presentScore . leaderboardEvaluation . snd)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
 
+
+getMainTest :: [Entity Test] -> Entity Test
+getMainTest tests = DL.maximumBy (\(Entity _ a) (Entity _ b) -> ((testName a) `compare` (testName b))) tests
+
+getAuxSubmissions :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation)] -> [(Key User, (User, [(Submission, Evaluation)]))]
+getAuxSubmissions testId evaluationMaps = map (processEvaluationMap testId) evaluationMaps
+   where processEvaluationMap testId ((Entity _ s), (Entity ui u), m) = (ui, (u, case Map.lookup testId m of
+                                                                                       Just e -> [(s, e)]
+                                                                                       Nothing -> []))
+
 getLeaderboardEntries :: Key Challenge -> Handler [LeaderboardEntry]
 getLeaderboardEntries challengeId = do
   (evaluationMaps, tests) <- getChallengeSubmissionInfos (\_ -> True) challengeId
-  let mainTestEnt = DL.maximumBy (\(Entity _ a) (Entity _ b) -> ((testName a) `compare` (testName b))) tests
+  let mainTestEnt = getMainTest tests
   let (Entity mainTestId mainTest) = mainTestEnt
-  let auxSubmissions = map (processEvaluationMap mainTestId) evaluationMaps
+  let auxSubmissions = getAuxSubmissions mainTestId evaluationMaps
   let submissionsByUser = Map.fromListWith (\(u1, l1) (_, l2) -> (u1, l1++l2)) auxSubmissions
   let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluation a) (evaluationScore $ leaderboardEvaluation b)
   let entries = sortBy (flip entryComparator) $ map (toEntry mainTest) $ filter (\(_, (_, s)) -> not (null s)) $ Map.toList submissionsByUser
@@ -57,9 +67,6 @@ getLeaderboardEntries challengeId = do
               leaderboardEvaluation = snd bestOne,
               leaderboardNumberOfSubmissions = length ss }
                   where bestOne = DL.maximumBy (submissionComparator mainTest) ss
-          processEvaluationMap mainTestId ((Entity _ s), (Entity ui u), m) = (ui, (u, case Map.lookup mainTestId m of
-                                                                                       Just e -> [(s, e)]
-                                                                                       Nothing -> []))
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
 compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ testMetric test) x y

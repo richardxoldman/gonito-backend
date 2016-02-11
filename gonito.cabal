@@ -32,6 +32,7 @@ library
                      Handler.Common
                      Handler.CreateChallenge
                      Handler.Fay
+                     Handler.Graph
                      Handler.Home
                      Handler.ListChallenges
                      Handler.Shared
