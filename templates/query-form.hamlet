@@ -1,0 +1,7 @@
+<h2>Search for submission by Git commit SHA1 hashes:
+
+<p>
+  <form method=post action=@{QueryFormR}#form enctype=#{formEnctype}>
+    ^{formWidget}
+    <button .btn .btn-primary type="submit">
+       _{MsgSearch} <span class="glyphicon glyphicon-upload"></span>

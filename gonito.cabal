@@ -38,6 +38,7 @@ library
                      Handler.Shared
                      Handler.ShowChallenge
                      Handler.Extract
+                     Handler.Query
                      Handler.Tables
                      Handler.YourAccount
 

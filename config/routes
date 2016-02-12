@@ -19,4 +19,8 @@
 /challenge-how-to/#Text ChallengeHowToR GET
 /challenge-graph-data/#Text ChallengeGraphDataR GET
 
+/q QueryFormR GET POST
+/q/#Text QueryResultsR  GET
+
+
 /account YourAccountR GET POST

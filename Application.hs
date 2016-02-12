@@ -41,6 +41,7 @@ import Handler.Graph
 import Handler.Home
 import Handler.CreateChallenge
 import Handler.ListChallenges
+import Handler.Query
 import Handler.ShowChallenge
 import Handler.Shared
 import Handler.YourAccount

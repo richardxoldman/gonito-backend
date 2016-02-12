@@ -20,8 +20,17 @@ toSHA1 x = SHA1 $ B.concat ["E'\\\\x", x, "'"]
 fromTextToSHA1 :: Text -> SHA1
 fromTextToSHA1 = SHA1 . B.pack . (map hexByteToWord8) . (T.chunksOf 2)
 
+fromSHA1ToText :: SHA1 -> Text
+fromSHA1ToText (SHA1 bs) = T.pack $ concat $ map word8ToHex $ B.unpack bs
+
 hexByteToWord8 :: Text -> Word8
 hexByteToWord8 t = (hexNibbleToWord8 $ T.head t) * 16 + (hexNibbleToWord8 $ T.index t 1)
+
+word8ToHex :: Word8 -> String
+word8ToHex e = case h of
+   [c] -> ['0', c]
+   s -> s
+  where h = showHex e ""
 
 hexNibbleToWord8 :: Char -> Word8
 hexNibbleToWord8 '0' = 0
@@ -46,7 +55,6 @@ hexNibbleToWord8 'E' = 14
 hexNibbleToWord8 'e' = 14
 hexNibbleToWord8 'F' = 15
 hexNibbleToWord8 'f' = 15
-
 
 instance PersistField SHA1 where
   toPersistValue (SHA1 t) = PersistByteString t

@@ -1,0 +1,7 @@
+<h2>Query results
+
+$if null submissions
+   <p>No results found.
+$else
+   $forall submission <- submissions
+      ^{queryResult submission}

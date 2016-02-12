@@ -19,3 +19,5 @@ AccountName: name
 Id: ID
 SshPubKey: your SSH public key
 Home: home
+Search: search
+GitCommitSha1: Git commit SHA1 hash

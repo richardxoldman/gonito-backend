@@ -1,0 +1,6 @@
+<div .subm-commit>#{commitSha1AsText}
+<div .subm-description>#{submissionDescription $ fsiSubmission submission}
+<div .subm-user>#{submitter}
+<div .subm-stamp>#{stamp}
+<div .subm-repo>#{repoUrl $ fsiRepo submission} / #{repoBranch $ fsiRepo submission}
+<hr>
