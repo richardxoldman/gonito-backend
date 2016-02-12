@@ -50,6 +50,16 @@ getAuxSubmissions testId evaluationMaps = map (processEvaluationMap testId) eval
                                                                                        Just e -> [(s, e)]
                                                                                        Nothing -> []))
 
+
+getAuxSubmissionEnts :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation)] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
+getAuxSubmissionEnts testId evaluationMaps = map (processEvaluationMap testId) evaluationMaps
+   where processEvaluationMap testId (s, (Entity ui u), m) = (ui, (u, case Map.lookup testId m of
+                                                                                       Just e -> [(s, e)]
+                                                                                       Nothing -> []))
+
+
+
+
 getLeaderboardEntries :: Key Challenge -> Handler [LeaderboardEntry]
 getLeaderboardEntries challengeId = do
   (evaluationMaps, tests) <- getChallengeSubmissionInfos (\_ -> True) challengeId

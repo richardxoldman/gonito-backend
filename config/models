@@ -47,6 +47,10 @@ Submission
     stamp UTCTime default=now()
     submitter UserId
     UniqueSubmissionRepoCommitChallenge repo commit challenge
+Fork
+    source SubmissionId
+    target SubmissionId
+    UniqueSourceTarget source target
 Evaluation
     test TestId
     checksum SHA1
