@@ -1,8 +1,8 @@
 <h1>Welcome to Gonito.net!
 
-<p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle<sup><u><a href="#disclaimer">*</a></u></sup>-like platform for machine learning competitions.
+<p>Gonito.net (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle<sup><a href="#disclaimer">*</a></sup>-like platform for machine learning competitions.
 
-<p>What's so special about Gonito:
+<p>What's so special about Gonito.net:
 
 <ul>
   <li>free & open-source (AGPL), you can use it your own, in your company, at your university, etc. (git repo: <tt><a href="#{browsableGitRepo "gonito"}">git://gonito.net/gonito</a></tt>),
