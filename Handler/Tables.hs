@@ -107,9 +107,13 @@ getEvaluationMap s@(Entity submissionId submission) = do
 
 
 formatSubmitter :: User -> Text
-formatSubmitter user = case userName user of
-  Just name -> name
-  Nothing -> "[name not given]"
+formatSubmitter user = if userIsAnonymous user
+                          then
+                            "[anonymised]"
+                          else
+                            case userName user of
+                              Just name -> name
+                              Nothing -> "[name not given]"
 
 submissionScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation) -> String
 submissionScore k (_, _, m) = fromMaybe "N/A" (presentScore <$> lookup k m)
