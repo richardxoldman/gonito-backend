@@ -3,8 +3,9 @@ User
     password Text Maybe
     UniqueUser ident
     name Text Maybe
-    isAdmin Bool default=True
+    isAdmin Bool default=False
     localId Text Maybe
+    isAnonymous Bool Maybe
     deriving Typeable
 PublicKey
     user UserId
@@ -46,6 +47,7 @@ Submission
     description Text
     stamp UTCTime default=now()
     submitter UserId
+    isPublic Bool Maybe
     UniqueSubmissionRepoCommitChallenge repo commit challenge
 Fork
     source SubmissionId

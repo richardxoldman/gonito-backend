@@ -123,7 +123,8 @@ getSubmission repoId commit challengeId description chan = do
         submissionChallenge=challengeId,
         submissionDescription=description,
         submissionStamp=time,
-        submissionSubmitter=userId }
+        submissionSubmitter=userId,
+        submissionIsPublic=Just False }
 
 getOuts :: Channel -> Key Submission -> Handler ([Out])
 getOuts chan submissionId = do
