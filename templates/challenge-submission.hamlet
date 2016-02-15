@@ -1,19 +1,8 @@
 <h2>_{MsgSubmitSolution}
 <hr>
 
-<form class="form-horizontal" role="form" method="post" action=@{ChallengeSubmissionR (challengeName challenge)}#form enctype=#{formEnctype}>
-    <div class="form-group">
-        <label class="control-label col-sm-3" for="hident2">Submission description:
-        <div class="col-sm-5">
-            <input id="hident2" name="f1" type="text" value="" class="form-control" id="email" placeholder="Submission description">
-    <div class="form-group">
-        <label class="control-label col-sm-3" for="hident3">Submission repo URL:
-        <div class="col-sm-5">          
-            <input id="hident3" name="f2" type="text" required value="" class="form-control" id="pwd" placeholder="Submission repo URL">
-    <div class="form-group">
-        <label class="control-label col-sm-3" for="hident4">Submission repo branch:
-        <div class="col-sm-5">          
-            <input id="hident4" name="f3" type="text" required value="" class="form-control" id="pwd" placeholder="Submission repo branch">
-    <div class="form-group">        
-        <div class="col-sm-offset-3 col-sm-10">
-            <button type="submit" class="btn btn-primary">_{MsgSubmit}
+<p>
+  <form method=post action=@{ChallengeSubmissionR (challengeName challenge)}#form enctype=#{formEnctype}>
+    ^{formWidget}
+    <button .btn .btn-primary type="submit">
+       _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
