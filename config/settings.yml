@@ -26,5 +26,5 @@ database:
   database: "_env:PGDATABASE:gonito"
   poolsize: "_env:PGPOOLSIZE:10"
 
-copyright: © Filip Graliński
+copyright: © p/tlen
 #analytics: UA-YOURCODE
