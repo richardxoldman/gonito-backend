@@ -1,30 +1,29 @@
 <div class="container">
     <div class="jumbotron">
-    <h1>Welcome to Gonito.net!
-    <hr>
-    <p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle<sup><u><a href="#disclaimer">*</a></u></sup>-like platform for machine learning competitions. 
-    <p>What's so special about Gonito:
-    <ul class="list-group">
-      <li class="list-group-item">free & open-source (AGPL), you can use it your own, in your company, at your university, etc. (git repo: <tt><a href="#{browsableGitRepo "gonito"}">git://gonito.net/gonito</a></tt>)
-      <li class="list-group-item">git-based (challenges and solutions are submitted only with git).
+        <h1>Welcome to Gonito.net!
+        <p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle<sup><u><a class="nounderline" href="#disclaimer">*</a></u></sup>-like platform for machine learning competitions.
+
+    <div class="panel panel-default">
+        <div class="panel-heading">What's so special about Gonito:
+        <ul class="list-group">
+            <li class="list-group-item">free & open-source (AGPL), you can use it your own, in your company, at your university, etc. (git repo: <tt><a href="#{browsableGitRepo "gonito"}">git://gonito.net/gonito</a></tt>)
+            <li class="list-group-item">git-based (challenges and solutions are submitted only with git).
 
     $maybe _ <- maybeUser
         $maybe _ <- maybeLocalId
             <p>Go to the <a href="@{ListChallengesR}">challenge list</a> and choose a challenge for you!
         $nothing
-            <h2>How to setup your account?
-            <p>Click <a href="@{YourAccountR}">your account</a> to setup your name, ID and SSH public key.
+            <div class="alert alert-info" role="alert">
+                <p>
+                    <strong>How to setup your account?
+                    Click <a href="@{YourAccountR}">your account</a> to setup your name, ID and SSH public key.
     $nothing
-    <br><br><br>
-        <h2>How to log in?
-        <hr>
 
-        <p>Gonito uses <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system available in Mozilla Firefox. Other authentication systems are on the way, but for the time being you need to use Firefox.
+        <div class="alert alert-info" role="alert">
+            <p>
+                <strong>How to log in?
+                Gonito uses <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system available in Mozilla Firefox. Other authentication systems are on the way, but for the time being you need to use Firefox.
 
-        <p>So, just click <a href="@{AuthR LoginR}">log in</a>, then "Sign in with Persona" button and Firefox will guide you!
-        <p>So, just click button below, then "Sign in with Persona" button and Firefox will guide you!</p>
+            <p>So, just click <a href="@{AuthR LoginR}">log in</a>, then "Sign in with Persona" button and Firefox will guide you!
   
-        <br><br>
-        <p>
-        <a class="btn btn-lg btn-primary" href="@{AuthR LoginR}" role="button">Log in »</a>
-    <p><sup>*</sup>Disclaimer: Gonito is neither affiliated with nor endorsed by <a href="https://www.kaggle.com">Kaggle</a>.
+<p class="text-muted pagination-centered"><sup>*</sup>Disclaimer: Gonito is neither affiliated with nor endorsed by <a href="https://www.kaggle.com">Kaggle</a>.
