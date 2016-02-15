@@ -42,6 +42,9 @@ gitPath = "/usr/bin/git"
 browsableGitSite :: Text
 browsableGitSite = "http://gonito.net/gitlist/"
 
+gitServer :: Text
+gitServer = "ssh://gitolite@gonito.net/"
+
 browsableGitRepo :: Text -> Text
 browsableGitRepo bareRepoName
   | ".git" `isSuffixOf` bareRepoName = browsableGitSite ++ bareRepoName
