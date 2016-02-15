@@ -9,3 +9,8 @@
     overflow: hidden;
     left-margin: 5px;
 }
+
+#graph-container {
+    height: 400px;
+    margin: auto;
+}
