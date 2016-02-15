@@ -1,5 +1,7 @@
 <h2>Search for submission by Git commit SHA1 hashes:
 
+<p>(Only public submissions will be returned.)
+
 <p>
   <form method=post action=@{QueryFormR}#form enctype=#{formEnctype}>
     ^{formWidget}

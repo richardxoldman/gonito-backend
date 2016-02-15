@@ -6,9 +6,6 @@ import Handler.Shared
 
 import PersistSHA1
 
-import Text.Printf
-import Database.Persist.Sql
-
 import Data.Text as T
 
 getMakePublicR :: SubmissionId -> Handler TypedContent
@@ -23,15 +20,15 @@ doMakePublic submissionId chan = do
    else do
     msg chan "Making the submission public..."
     runDB $ update submissionId [SubmissionIsPublic =. True]
-    let targetBranchName = printf "submission-%05d" $ fromSqlKey submissionId
     submission <- runDB $ get404 submissionId
     challenge <- runDB $ get404 $ submissionChallenge submission
     let submissionRepoId = submissionRepo submission
     submissionRepoDir <- getRepoDir submissionRepoId
-    let targetRepoUrl = T.unpack $ gitServer ++ challengeName challenge
-    msg chan $ T.pack $ "Start pushing from " ++ submissionRepoDir ++ " to repo " ++ targetRepoUrl ++ ", branch " ++ targetBranchName ++ " ..."
+    let targetRepoUrl = getPublicSubmissionUrl $ challengeName challenge
+    let targetBranchName = getPublicSubmissionBranch submissionId
+    msg chan $ "Start pushing from " ++ (T.pack submissionRepoDir) ++ " to repo " ++ targetRepoUrl ++ ", branch " ++ targetBranchName ++ " ..."
     let commit = submissionCommit submission
-    pushRepo submissionRepoDir commit targetRepoUrl targetBranchName chan
+    pushRepo submissionRepoDir commit (T.unpack $ targetRepoUrl) (T.unpack $ targetBranchName) chan
   return ()
 
 
