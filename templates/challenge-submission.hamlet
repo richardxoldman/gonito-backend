@@ -12,7 +12,7 @@
             <input id="hident3" name="f2" type="text" required value="" class="form-control" id="pwd" placeholder="Submission repo URL">
     <div class="form-group">
         <label class="control-label col-sm-3" for="hident4">Submission repo branch:
-        <div class="col-sm-2">          
+        <div class="col-sm-5">          
             <input id="hident4" name="f3" type="text" required value="" class="form-control" id="pwd" placeholder="Submission repo branch">
     <div class="form-group">        
         <div class="col-sm-offset-3 col-sm-10">

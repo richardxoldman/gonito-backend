@@ -1,7 +1,7 @@
 <div class="container">
     <div class="jumbotron">
         <h1>Welcome to Gonito.net!
-        <p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle<sup><u><a class="nounderline" href="#disclaimer">*</a></u></sup>-like platform for machine learning competitions.
+        <p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle<sup><a href="#disclaimer">*</a></sup>-like platform for machine learning competitions.
 
     <div class="panel panel-default">
         <div class="panel-heading">What's so special about Gonito:
@@ -26,4 +26,4 @@
 
             <p>So, just click <a href="@{AuthR LoginR}">log in</a>, then "Sign in with Persona" button and Firefox will guide you!
   
-<p class="text-muted pagination-centered"><sup>*</sup>Disclaimer: Gonito is neither affiliated with nor endorsed by <a href="https://www.kaggle.com">Kaggle</a>.
+<p class="text-muted text-right"><sup>*</sup>Disclaimer: Gonito is neither affiliated with nor endorsed by <a href="https://www.kaggle.com">Kaggle</a>.
