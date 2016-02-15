@@ -2,7 +2,7 @@ module Handler.ShowChallenge where
 
 import Import
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
-                              withSmallInput)
+                              withSmallInput, bfs)
 
 import Data.Monoid
 
@@ -241,9 +241,9 @@ challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "chall
 
 submissionForm :: Maybe Text -> Form (Text, Text, Text)
 submissionForm defaultUrl = renderBootstrap3 BootstrapBasicForm $ (,,)
-    <$> areq textField (fieldSettingsLabel MsgSubmissionDescription) Nothing
-    <*> areq textField (fieldSettingsLabel MsgSubmissionUrl) defaultUrl
-    <*> areq textField (fieldSettingsLabel MsgSubmissionBranch) (Just "master")
+    <$> areq textField (bfs MsgSubmissionDescription) Nothing
+    <*> areq textField (bfs MsgSubmissionUrl) defaultUrl
+    <*> areq textField (bfs MsgSubmissionBranch) (Just "master")
 
 getChallengeMySubmissionsR :: Text -> Handler Html
 getChallengeMySubmissionsR name = do

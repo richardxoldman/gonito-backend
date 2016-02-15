@@ -2,7 +2,7 @@ module Handler.YourAccount where
 
 import Import
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
-                              withSmallInput)
+                              withSmallInput, bfs)
 
 import Handler.Shared
 import Handler.Extract
@@ -41,9 +41,9 @@ postYourAccountR = do
 
 yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Maybe Text)
 yourAccountForm maybeName maybeLocalId maybeSshPubKey = renderBootstrap3 BootstrapBasicForm $ (,,)
-    <$> aopt textField (fieldSettingsLabel MsgAccountName) (Just maybeName)
-    <*> aopt textField (fieldSettingsLabel MsgId) (Just maybeLocalId)
-    <*> aopt textField (fieldSettingsLabel MsgSshPubKey) (Just maybeSshPubKey)
+    <$> aopt textField (bfs MsgAccountName) (Just maybeName)
+    <*> aopt textField (bfs MsgId) (Just maybeLocalId)
+    <*> aopt textField (bfs MsgSshPubKey) (Just maybeSshPubKey)
 
 localIdRegexp = makeRegexOpts defaultCompOpt{newSyntax=True} defaultExecOpt ("\\`[a-z][-a-z0-9]{0,31}\\'" ::String)
 
