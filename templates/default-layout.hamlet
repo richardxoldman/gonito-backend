@@ -1,14 +1,21 @@
-    <div id="heading">
-     $maybe user <- maybeUser
-        _{MsgLoggedAs} #{userIdent $ entityVal user}
-        \ | <a href="@{HomeR}">_{MsgHome}</a>
-        $if userIsAdmin $ entityVal user
-           \ | <a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
-        \ | <a href="@{ListChallengesR}">_{MsgListChallenges}</a>
-        \ | <a href="@{YourAccountR}">_{MsgYourAccount}</a>
-        \ | <a href="@{AuthR LogoutR}">_{MsgLogOut}</a>
-     $nothing
-        <a href="@{AuthR LoginR}">_{MsgLogIn}</a>
+   <nav class="navbar navbar-default navbar-fixed-top">
+    <div class="container">
+        <div class="navbar-header">
+            <a class="navbar-brand" href="http://gonito.net/">Gonito.net</a>
+        <div id="navbar" class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            $maybe user <- maybeUser
+                _{MsgLoggedAs} #{userIdent $ entityVal user}
+                <li><a href="@{HomeR}">_{MsgHome}</a>
+                $if userIsAdmin $ entityVal user
+                    <li><a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a></li>
+                <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a></li>
+                <li><a href="@{YourAccountR}">_{MsgYourAccount}</a></li>
+                <li><a href="@{AuthR LogoutR}">_{MsgLogOut}</a></li>
+            $nothing
+                    <li><a href="@{AuthR LoginR}">_{MsgLogIn}</a>
 $maybe msg <- mmsg
+
     <div #message .alert .alert-warning><a href="#" class="close" data-dismiss="alert">&times;</a> #{msg}
+<br><br><br><br>
 ^{widget}

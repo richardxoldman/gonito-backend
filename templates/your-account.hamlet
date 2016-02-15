@@ -1,14 +1,27 @@
-<h2>Your account
-
-<p>
-  <form method=post action=@{YourAccountR}#form enctype=#{formEnctype}>
-    ^{formWidget}
-    <button .btn .btn-primary type="submit">
-       _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
-
-<ul>
-  <li><b>name</b> is your human-readable name (to be shown on the leaderboard)
-  <li><b>ID</b> is used in the URLs for your repos (must be composed of lower-case letters, digits or hyphyns, must start with a lower-case letter)
-  <li><b>SSH public key</b> is needed if you want to access repos hosted on Gonito.net
-  <li>ID cannot be changed once it is set up
-  <li>you don't need to specify your ID and SSH public key, if you don't use private repos hosted on Gonito.net
+<div class="container">
+    <div id="main" role="main">
+        <h2>Your account
+        <hr>
+        <form class="form-horizontal" role="form" method="post" action=@{YourAccountR}#form enctype=#{formEnctype}>
+            <div class="form-group">
+                <label class="control-label col-sm-2" for="hident2">Name:
+                <div class="col-sm-2">
+                    <input id="hident2" name="f1" type="text" value="" class="form-control"  placeholder="Your name">
+            <div class="form-group">
+                <label class="control-label col-sm-2" for="hident3">ID:
+                <div class="col-sm-2">          
+                    <input id="hident3" name="f2" type="text" value="" class="form-control"  placeholder="Your id">
+            <div class="form-group">
+                <label class="control-label col-sm-2" for="hident4">Your SSH public key:
+                <div class="col-sm-5">          
+                    <input id="hident4" name="f3" type="text" value="" class="form-control"  placeholder="SSH public key">
+            <div class="form-group">        
+                <div class="col-sm-offset-2 col-sm-10">
+                    <button type="submit" class="btn btn-default">_{MsgSubmit}
+        <hr>
+        <ul class="list-group">
+            <li class="list-group-item"><b>Name</b> is your human-readable name (to be shown on the leaderboard).
+            <li class="list-group-item"><b>ID</b> is used in the URLs for your repos (must be composed of lower-case letters, digits or hyphyns, must start with a lower-case letter).
+            <li class="list-group-item"><b>SSH public key</b> is needed if you want to access repos hosted on Gonito.net.
+            <li class="list-group-item">ID cannot be changed once it is set up.
+            <li class="list-group-item">You don't need to specify your ID and SSH public key, if you don't use private repos hosted on Gonito.net.
