@@ -27,6 +27,9 @@ import PersistSHA1
 
 import qualified Data.ByteString as BS
 
+import Text.Printf
+import Database.Persist.Sql
+
 atom = Control.Concurrent.STM.atomically
 
 type Channel = TChan (Maybe Text)
@@ -41,6 +44,28 @@ gitPath = "/usr/bin/git"
 
 browsableGitSite :: Text
 browsableGitSite = "http://gonito.net/gitlist/"
+
+serverAddress :: Text
+serverAddress = "gonito.net"
+
+gitServer :: Text
+gitServer = "ssh://gitolite@" ++ serverAddress ++ "/"
+
+gitReadOnlyServer :: Text
+gitReadOnlyServer = "git://" ++ serverAddress ++ "/"
+
+
+getPublicSubmissionBranch :: SubmissionId -> Text
+getPublicSubmissionBranch = T.pack . (printf "submission-%05d") . fromSqlKey
+
+getPublicSubmissionUrl :: Text -> Text
+getPublicSubmissionUrl bareRepoName = gitServer ++ bareRepoName
+
+getReadOnlySubmissionUrl :: Text -> Text
+getReadOnlySubmissionUrl bareRepoName = gitReadOnlyServer ++ bareRepoName
+
+browsableGitRepoBranch :: Text -> Text -> Text
+browsableGitRepoBranch bareRepoName branch = (browsableGitRepo bareRepoName) ++ "/" ++ branch ++ "/"
 
 browsableGitRepo :: Text -> Text
 browsableGitRepo bareRepoName

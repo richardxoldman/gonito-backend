@@ -22,5 +22,6 @@
 /q QueryFormR GET POST
 /q/#Text QueryResultsR  GET
 
+/make-public/#SubmissionId MakePublicR GET
 
 /account YourAccountR GET POST

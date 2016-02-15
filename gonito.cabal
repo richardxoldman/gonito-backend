@@ -35,6 +35,7 @@ library
                      Handler.Graph
                      Handler.Home
                      Handler.ListChallenges
+                     Handler.MakePublic
                      Handler.Shared
                      Handler.ShowChallenge
                      Handler.Extract
