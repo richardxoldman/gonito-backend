@@ -6,3 +6,8 @@ $nothing
 <h2>Leaderboard
 
 ^{Table.buildBootstrap leaderboardTable leaderboardWithRanks}
+
+<div id="graph-container">
+
+<script src="/static/js/sigma.min.js">
+<script src="/static/js/sigma.parsers.json.min.js">
