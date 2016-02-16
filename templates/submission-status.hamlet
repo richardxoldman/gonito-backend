@@ -1,6 +1,10 @@
 $if isVisible
   <a href="@{QueryResultsR commitHash}">
-    <span class="glyphicon glyphicon-info-sign" aria-hidden="true">
+    <span class="glyphicon glyphicon-info-sign" title="click to see the detailed information" aria-hidden="true">
 $maybe browsableUrl <- maybeBrowsableUrl
   <a href="#{browsableUrl}">
-    <span class="glyphicon glyphicon-folder-open" aria-hidden="true">
+    <span class="glyphicon glyphicon-folder-open" title="click to see the files aria-hidden="true">
+$nothing
+  $if isOwner
+    <a href="@{MakePublicR submissionId}">
+      <span class="glyphicon glyphicon-share" title="click to make it public!" aria-hidden="true">
