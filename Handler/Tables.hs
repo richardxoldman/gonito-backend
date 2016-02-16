@@ -14,6 +14,8 @@ import qualified Data.Maybe as DM
 
 import qualified Data.List as DL
 
+import Data.Text (pack)
+
 import GEval.Core
 
 data LeaderboardEntry = LeaderboardEntry {
@@ -26,7 +28,7 @@ data LeaderboardEntry = LeaderboardEntry {
 submissionsTable :: [Entity Test] -> Table site (Entity Submission, Entity User, Map (Key Test) Evaluation)
 submissionsTable tests = mempty
   ++ Table.text "submitter" (formatSubmitter . \(_, Entity _ submitter, _) -> submitter)
-  ++ Table.string "when" (show . submissionStamp . \(Entity _ s, _, _) -> s)
+  ++ timestampCell "when" (submissionStamp . \(Entity _ s, _, _) -> s)
   ++ Table.text "description" (submissionDescription . \(Entity _ s, _,  _) -> s)
   ++ mconcat (map (\(Entity k t) -> Table.string (testName t) (submissionScore k)) tests)
 
@@ -35,11 +37,19 @@ leaderboardTable :: Table site (Int, LeaderboardEntry)
 leaderboardTable = mempty
   ++ Table.int "#" fst
   ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd)
-  ++ Table.string "when" (show . submissionStamp . leaderboardBestSubmission . snd)
+  ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
   ++ Table.text "description" (submissionDescription . leaderboardBestSubmission . snd)
   ++ Table.string "result" (presentScore . leaderboardEvaluation . snd)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
 
+
+hoverTextCell :: Text -> (a -> Text) -> (a -> Text) -> Table site a
+hoverTextCell h mainTextFun hoverTextFun = Table.widget h (
+  \v -> [whamlet|<span title="#{hoverTextFun v}">#{mainTextFun v}|])
+
+timestampCell :: Text -> (a -> UTCTime) -> Table site a
+timestampCell h timestampFun = hoverTextCell h (Data.Text.pack . shorterFormat . timestampFun) (Data.Text.pack . show . timestampFun)
+   where shorterFormat = formatTime defaultTimeLocale "%Y-%m-%d %H:%M"
 
 getMainTest :: [Entity Test] -> Entity Test
 getMainTest tests = DL.maximumBy (\(Entity _ a) (Entity _ b) -> ((testName a) `compare` (testName b))) tests
