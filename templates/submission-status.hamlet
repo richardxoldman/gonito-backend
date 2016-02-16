@@ -1,3 +1,6 @@
 $if isVisible
   <a href="@{QueryResultsR commitHash}">
     <span class="glyphicon glyphicon-info-sign" aria-hidden="true">
+$maybe browsableUrl <- maybeBrowsableUrl
+  <a href="#{browsableUrl}">
+    <span class="glyphicon glyphicon-folder-open" aria-hidden="true">

@@ -3,6 +3,7 @@
 module Handler.Tables where
 
 import Import
+import Handler.Shared
 
 import qualified Yesod.Table as Table
 import Yesod.Table (Table)
@@ -29,23 +30,23 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardNumberOfSubmissions :: Int
 }
 
-submissionsTable :: [Entity Test] -> Table App ((Entity Submission, Entity User, Map (Key Test) Evaluation), Maybe UserId)
-submissionsTable tests = mempty
+submissionsTable :: Text -> [Entity Test] -> Table App ((Entity Submission, Entity User, Map (Key Test) Evaluation), Maybe UserId)
+submissionsTable challengeName tests = mempty
   ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _) -> submitter) . fst)
   ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _) -> s) . fst)
   ++ Table.text "description" (submissionDescription . (\(Entity _ s, _,  _) -> s) . fst)
   ++ mconcat (map (\(Entity k t) -> Table.string (testName t) ((submissionScore k) . fst)) tests)
-  ++ statusCell (\((Entity submissionId submission, Entity userId _, _), mauthId) -> (submissionId, submission, userId, mauthId))
+  ++ statusCell challengeName (\((Entity submissionId submission, Entity userId _, _), mauthId) -> (submissionId, submission, userId, mauthId))
 
-leaderboardTable :: Table App ((Int, LeaderboardEntry), Maybe UserId)
-leaderboardTable = mempty
+leaderboardTable :: Text -> Table App ((Int, LeaderboardEntry), Maybe UserId)
+leaderboardTable challengeName = mempty
   ++ Table.int "#" (fst . fst)
   ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd . fst)
   ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd . fst)
   ++ Table.text "description" (submissionDescription . leaderboardBestSubmission . snd . fst)
   ++ Table.string "result" (presentScore . leaderboardEvaluation . snd . fst)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd . fst)
-  ++ statusCell (\((_, e), mauthId) -> (leaderboardBestSubmissionId e,
+  ++ statusCell challengeName (\((_, e), mauthId) -> (leaderboardBestSubmissionId e,
                                        leaderboardBestSubmission e,
                                        leaderboardUserId e,
                                        mauthId))
@@ -59,14 +60,20 @@ timestampCell :: Text -> (a -> UTCTime) -> Table site a
 timestampCell h timestampFun = hoverTextCell h (Data.Text.pack . shorterFormat . timestampFun) (Data.Text.pack . show . timestampFun)
    where shorterFormat = formatTime defaultTimeLocale "%Y-%m-%d %H:%M"
 
-statusCell :: (a -> (SubmissionId, Submission, UserId, Maybe UserId)) -> Table App a
-statusCell fun = Table.widget "" (statusCellWidget . fun)
+statusCell :: Text -> (a -> (SubmissionId, Submission, UserId, Maybe UserId)) -> Table App a
+statusCell challengeName fun = Table.widget "" (statusCellWidget challengeName . fun)
 
-statusCellWidget (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")
+statusCellWidget challengeName (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
           isOwner = (mauthId == Just userId)
           isVisible = isPublic || isOwner
+          publicSubmissionBranch = getPublicSubmissionBranch submissionId
+          maybeBrowsableUrl = if isPublic
+                                then
+                                  Just $ browsableGitRepoBranch challengeName publicSubmissionBranch
+                                else
+                                  Nothing
 
 getMainTest :: [Entity Test] -> Entity Test
 getMainTest tests = DL.maximumBy (\(Entity _ a) (Entity _ b) -> ((testName a) `compare` (testName b))) tests

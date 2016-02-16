@@ -1,7 +1,7 @@
 <div class="alert alert-info" role="alert">
             <p>This is a long list of all submissions, if you want to see only the best, click <a href="@{ShowChallengeR (challengeName challenge)}">leaderboard</a>.
 
-^{Table.buildBootstrap (submissionsTable tests) submissionsWithCurrentUser}
+^{Table.buildBootstrap (submissionsTable (challengeName challenge) tests) submissionsWithCurrentUser}
 
 <div id="graph-container">
 
