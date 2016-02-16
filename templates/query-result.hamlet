@@ -3,6 +3,7 @@
 <div .subm-user>#{submitter}
 <div .subm-stamp>#{stamp}
 <div .subm-repo>taken from: #{repoUrl $ fsiRepo submission} / branch #{repoBranch $ fsiRepo submission}
-<div .subm-repo>publicly available at: #{publicSubmissionRepo} / branch #{publicSubmissionBranch}
-<div .subm-browsable>browsable at: <a href="#{browsableUrl}">#{browsableUrl}</a>
+$if submissionIsPublic $ fsiSubmission submission
+  <div .subm-repo>publicly available at: #{publicSubmissionRepo} / branch #{publicSubmissionBranch}
+  <div .subm-browsable>browsable at: <a href="#{browsableUrl}">#{browsableUrl}</a>
 <hr>
