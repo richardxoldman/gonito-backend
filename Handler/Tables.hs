@@ -16,31 +16,39 @@ import qualified Data.List as DL
 
 import Data.Text (pack)
 
+import PersistSHA1
+
 import GEval.Core
 
 data LeaderboardEntry = LeaderboardEntry {
   leaderboardUser :: User,
+  leaderboardUserId :: UserId,
   leaderboardBestSubmission :: Submission,
+  leaderboardBestSubmissionId :: SubmissionId,
   leaderboardEvaluation :: Evaluation,
   leaderboardNumberOfSubmissions :: Int
 }
 
-submissionsTable :: [Entity Test] -> Table site (Entity Submission, Entity User, Map (Key Test) Evaluation)
+submissionsTable :: [Entity Test] -> Table App ((Entity Submission, Entity User, Map (Key Test) Evaluation), Maybe UserId)
 submissionsTable tests = mempty
-  ++ Table.text "submitter" (formatSubmitter . \(_, Entity _ submitter, _) -> submitter)
-  ++ timestampCell "when" (submissionStamp . \(Entity _ s, _, _) -> s)
-  ++ Table.text "description" (submissionDescription . \(Entity _ s, _,  _) -> s)
-  ++ mconcat (map (\(Entity k t) -> Table.string (testName t) (submissionScore k)) tests)
+  ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _) -> submitter) . fst)
+  ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _) -> s) . fst)
+  ++ Table.text "description" (submissionDescription . (\(Entity _ s, _,  _) -> s) . fst)
+  ++ mconcat (map (\(Entity k t) -> Table.string (testName t) ((submissionScore k) . fst)) tests)
+  ++ statusCell (\((Entity submissionId submission, Entity userId _, _), mauthId) -> (submissionId, submission, userId, mauthId))
 
-
-leaderboardTable :: Table site (Int, LeaderboardEntry)
+leaderboardTable :: Table App ((Int, LeaderboardEntry), Maybe UserId)
 leaderboardTable = mempty
-  ++ Table.int "#" fst
-  ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd)
-  ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
-  ++ Table.text "description" (submissionDescription . leaderboardBestSubmission . snd)
-  ++ Table.string "result" (presentScore . leaderboardEvaluation . snd)
-  ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
+  ++ Table.int "#" (fst . fst)
+  ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd . fst)
+  ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd . fst)
+  ++ Table.text "description" (submissionDescription . leaderboardBestSubmission . snd . fst)
+  ++ Table.string "result" (presentScore . leaderboardEvaluation . snd . fst)
+  ++ Table.int "×" (leaderboardNumberOfSubmissions . snd . fst)
+  ++ statusCell (\((_, e), mauthId) -> (leaderboardBestSubmissionId e,
+                                       leaderboardBestSubmission e,
+                                       leaderboardUserId e,
+                                       mauthId))
 
 
 hoverTextCell :: Text -> (a -> Text) -> (a -> Text) -> Table site a
@@ -50,6 +58,15 @@ hoverTextCell h mainTextFun hoverTextFun = Table.widget h (
 timestampCell :: Text -> (a -> UTCTime) -> Table site a
 timestampCell h timestampFun = hoverTextCell h (Data.Text.pack . shorterFormat . timestampFun) (Data.Text.pack . show . timestampFun)
    where shorterFormat = formatTime defaultTimeLocale "%Y-%m-%d %H:%M"
+
+statusCell :: (a -> (SubmissionId, Submission, UserId, Maybe UserId)) -> Table App a
+statusCell fun = Table.widget "" (statusCellWidget . fun)
+
+statusCellWidget (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")
+    where commitHash = fromSHA1ToText $ submissionCommit submission
+          isPublic = submissionIsPublic submission
+          isOwner = (mauthId == Just userId)
+          isVisible = isPublic || isOwner
 
 getMainTest :: [Entity Test] -> Entity Test
 getMainTest tests = DL.maximumBy (\(Entity _ a) (Entity _ b) -> ((testName a) `compare` (testName b))) tests
@@ -75,15 +92,17 @@ getLeaderboardEntries challengeId = do
   (evaluationMaps, tests) <- getChallengeSubmissionInfos (\_ -> True) challengeId
   let mainTestEnt = getMainTest tests
   let (Entity mainTestId mainTest) = mainTestEnt
-  let auxSubmissions = getAuxSubmissions mainTestId evaluationMaps
+  let auxSubmissions = getAuxSubmissionEnts mainTestId evaluationMaps
   let submissionsByUser = Map.fromListWith (\(u1, l1) (_, l2) -> (u1, l1++l2)) auxSubmissions
   let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluation a) (evaluationScore $ leaderboardEvaluation b)
   let entries = sortBy (flip entryComparator) $ map (toEntry mainTest) $ filter (\(_, (_, s)) -> not (null s)) $ Map.toList submissionsByUser
   return entries
     where submissionComparator mainTest (_, e1) (_, e2) = (compareResult mainTest) (evaluationScore e1) (evaluationScore e2)
-          toEntry mainTest (_, (u, ss)) = LeaderboardEntry {
+          toEntry mainTest (ui, (u, ss)) = LeaderboardEntry {
               leaderboardUser = u,
-              leaderboardBestSubmission = fst bestOne,
+              leaderboardUserId = ui,
+              leaderboardBestSubmission = (\(Entity _ s) -> s) $ fst bestOne,
+              leaderboardBestSubmissionId = (\(Entity si _) -> si) $ fst bestOne,
               leaderboardEvaluation = snd bestOne,
               leaderboardNumberOfSubmissions = length ss }
                   where bestOne = DL.maximumBy (submissionComparator mainTest) ss

@@ -34,7 +34,9 @@ getShowChallengeR name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   Just repo <- runDB $ get $ challengePublicRepo challenge
   leaderboard <- getLeaderboardEntries challengeId
-  challengeLayout True challenge (showChallengeWidget challenge repo leaderboard)
+  mauth <- maybeAuth
+  let muserId = (\(Entity uid _) -> uid) <$> mauth
+  challengeLayout True challenge (showChallengeWidget muserId challenge repo leaderboard)
 
 getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR name = do
@@ -45,8 +47,9 @@ getChallengeReadmeR name = do
   contents <- readFile readmeFilePath
   challengeLayout False challenge $ toWidget $ markdown def $ TL.fromStrict contents
 
-showChallengeWidget challenge repo leaderboard = $(widgetFile "show-challenge")
+showChallengeWidget muserId challenge repo leaderboard = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
+        leaderboardWithRanksAndCurrentUser = map (\e -> (e, muserId)) leaderboardWithRanks
         maybeRepoLink = getRepoLink repo
 
 
@@ -257,9 +260,12 @@ getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
 getChallengeSubmissions condition name = do
   challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
-  challengeLayout True challenge (challengeAllSubmissionsWidget challenge evaluationMaps tests)
+  mauth <- maybeAuth
+  let muserId = (\(Entity uid _) -> uid) <$> mauth
+  challengeLayout True challenge (challengeAllSubmissionsWidget muserId challenge evaluationMaps tests)
 
-challengeAllSubmissionsWidget challenge submissions tests = $(widgetFile "challenge-all-submissions")
+challengeAllSubmissionsWidget muserId challenge submissions tests = $(widgetFile "challenge-all-submissions")
+    where submissionsWithCurrentUser = map (\e -> (e, muserId)) submissions
 
 challengeLayout withHeader challenge widget = do
   bc <- widgetToPageContent widget

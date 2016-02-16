@@ -1,0 +1,3 @@
+$if isVisible
+  <a href="@{QueryResultsR commitHash}">
+    <span class="glyphicon glyphicon-info-sign" aria-hidden="true">

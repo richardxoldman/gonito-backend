@@ -33,7 +33,10 @@ getFullInfo (Entity submissionId submission) = do
 
 findSubmissions :: Text -> Handler [FullSubmissionInfo]
 findSubmissions sha1Prefix = do
-  submissions <- runDB $ rawSql "SELECT ?? FROM submission WHERE is_public AND cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
+  mauthId <- maybeAuth
+  submissions <- runDB $ case mauthId of
+    Just (Entity authId _) -> rawSql "SELECT ?? FROM submission WHERE (is_public OR submitter = ?) AND cast(commit as text) like ?" [toPersistValue authId, PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
+    Nothing -> rawSql "SELECT ?? FROM submission WHERE is_public AND cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
   mapM getFullInfo submissions
 
 getQueryFormR :: Handler Html
