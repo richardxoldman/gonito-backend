@@ -49,7 +49,6 @@ getChallengeReadmeR name = do
 
 showChallengeWidget muserId challenge test repo leaderboard = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
-        leaderboardWithRanksAndCurrentUser = map (\e -> (e, muserId)) leaderboardWithRanks
         maybeRepoLink = getRepoLink repo
 
 
@@ -265,7 +264,6 @@ getChallengeSubmissions condition name = do
   challengeLayout True challenge (challengeAllSubmissionsWidget muserId challenge evaluationMaps tests)
 
 challengeAllSubmissionsWidget muserId challenge submissions tests = $(widgetFile "challenge-all-submissions")
-    where submissionsWithCurrentUser = map (\e -> (e, muserId)) submissions
 
 challengeLayout withHeader challenge widget = do
   bc <- widgetToPageContent widget

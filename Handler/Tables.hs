@@ -32,27 +32,26 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardNumberOfSubmissions :: Int
 }
 
-submissionsTable :: Text -> [Entity Test] -> Table App ((Entity Submission, Entity User, Map (Key Test) Evaluation), Maybe UserId)
-submissionsTable challengeName tests = mempty
-  ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _) -> submitter) . fst)
-  ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _) -> s) . fst)
-  ++ Table.text "description" (submissionDescription . (\(Entity _ s, _,  _) -> s) . fst)
---  ++ mconcat (map (\(Entity k t) -> Table.string (testName t) ((submissionScore k t) . fst)) tests)
-  ++ mconcat (map (\(Entity k t) -> resultCell t ((extractScore k) . fst)) tests)
-  ++ statusCell challengeName (\((Entity submissionId submission, Entity userId _, _), mauthId) -> (submissionId, submission, userId, mauthId))
+submissionsTable :: Maybe UserId -> Text -> [Entity Test] -> Table App (Entity Submission, Entity User, Map (Key Test) Evaluation)
+submissionsTable mauthId challengeName tests = mempty
+  ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _) -> submitter))
+  ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _) -> s))
+  ++ Table.text "description" (submissionDescription . (\(Entity _ s, _,  _) -> s))
+  ++ mconcat (map (\(Entity k t) -> resultCell t (extractScore k)) tests)
+  ++ statusCell challengeName (\(Entity submissionId submission, Entity userId _, _) -> (submissionId, submission, userId, mauthId))
 
 extractScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation) -> Maybe Evaluation
 extractScore k (_, _, m) = lookup k m
 
-leaderboardTable :: Text -> Test -> Table App ((Int, LeaderboardEntry), Maybe UserId)
-leaderboardTable challengeName test = mempty
-  ++ Table.int "#" (fst . fst)
-  ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd . fst)
-  ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd . fst)
-  ++ Table.text "description" (submissionDescription . leaderboardBestSubmission . snd . fst)
-  ++ resultCell test ((\e -> Just e) . leaderboardEvaluation . snd . fst)
-  ++ Table.int "×" (leaderboardNumberOfSubmissions . snd . fst)
-  ++ statusCell challengeName (\((_, e), mauthId) -> (leaderboardBestSubmissionId e,
+leaderboardTable :: Maybe UserId -> Text -> Test -> Table App (Int, LeaderboardEntry)
+leaderboardTable mauthId challengeName test = mempty
+  ++ Table.int "#" fst
+  ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd)
+  ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
+  ++ Table.text "description" (submissionDescription . leaderboardBestSubmission . snd)
+  ++ resultCell test ((\e -> Just e) . leaderboardEvaluation . snd)
+  ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
+  ++ statusCell challengeName (\(_, e) -> (leaderboardBestSubmissionId e,
                                        leaderboardBestSubmission e,
                                        leaderboardUserId e,
                                        mauthId))
@@ -171,9 +170,3 @@ formatSubmitter user = if userIsAnonymous user
                             case userName user of
                               Just name -> name
                               Nothing -> "[name not given]"
-
-submissionScore :: Key Test -> Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation) -> String
-submissionScore k t (_, _, m) = fromMaybe "N/A" (presentScore t <$> lookup k m)
-
-presentScore :: Test -> Evaluation -> String
-presentScore test evaluation = fromMaybe "???" (show <$> evaluationScore evaluation)

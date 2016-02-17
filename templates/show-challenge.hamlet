@@ -5,7 +5,7 @@ $nothing
 
 <h2>Leaderboard
 
-^{Table.buildBootstrap (leaderboardTable (challengeName challenge) test) leaderboardWithRanksAndCurrentUser}
+^{Table.buildBootstrap (leaderboardTable muserId (challengeName challenge) test) leaderboardWithRanks}
 
 <div id="graph-container">
 
