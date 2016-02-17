@@ -21,6 +21,8 @@ import PersistSHA1
 
 import GEval.Core
 
+import Text.Printf
+
 data LeaderboardEntry = LeaderboardEntry {
   leaderboardUser :: User,
   leaderboardUserId :: UserId,
@@ -35,16 +37,20 @@ submissionsTable challengeName tests = mempty
   ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _) -> submitter) . fst)
   ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _) -> s) . fst)
   ++ Table.text "description" (submissionDescription . (\(Entity _ s, _,  _) -> s) . fst)
-  ++ mconcat (map (\(Entity k t) -> Table.string (testName t) ((submissionScore k) . fst)) tests)
+--  ++ mconcat (map (\(Entity k t) -> Table.string (testName t) ((submissionScore k t) . fst)) tests)
+  ++ mconcat (map (\(Entity k t) -> resultCell t ((extractScore k) . fst)) tests)
   ++ statusCell challengeName (\((Entity submissionId submission, Entity userId _, _), mauthId) -> (submissionId, submission, userId, mauthId))
 
-leaderboardTable :: Text -> Table App ((Int, LeaderboardEntry), Maybe UserId)
-leaderboardTable challengeName = mempty
+extractScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation) -> Maybe Evaluation
+extractScore k (_, _, m) = lookup k m
+
+leaderboardTable :: Text -> Test -> Table App ((Int, LeaderboardEntry), Maybe UserId)
+leaderboardTable challengeName test = mempty
   ++ Table.int "#" (fst . fst)
   ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd . fst)
   ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd . fst)
   ++ Table.text "description" (submissionDescription . leaderboardBestSubmission . snd . fst)
-  ++ Table.string "result" (presentScore . leaderboardEvaluation . snd . fst)
+  ++ resultCell test ((\e -> Just e) . leaderboardEvaluation . snd . fst)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd . fst)
   ++ statusCell challengeName (\((_, e), mauthId) -> (leaderboardBestSubmissionId e,
                                        leaderboardBestSubmission e,
@@ -62,6 +68,21 @@ timestampCell h timestampFun = hoverTextCell h (Data.Text.pack . shorterFormat .
 
 statusCell :: Text -> (a -> (SubmissionId, Submission, UserId, Maybe UserId)) -> Table App a
 statusCell challengeName fun = Table.widget "" (statusCellWidget challengeName . fun)
+
+resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
+resultCell test fun = hoverTextCell ((testName test) ++ "/" ++ (Data.Text.pack $ show $ testMetric test)) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
+
+formatFullScore :: Maybe Evaluation -> Text
+formatFullScore (Just evaluation) = fromMaybe "???" (Data.Text.pack <$> show <$> evaluationScore evaluation)
+formatFullScore Nothing = "N/A"
+
+formatTruncatedScore :: Maybe Int -> Maybe Evaluation -> Text
+formatTruncatedScore Nothing e = formatFullScore e
+formatTruncatedScore _ Nothing  = formatFullScore Nothing
+formatTruncatedScore (Just precision) (Just evaluation) = case evaluationScore evaluation of
+  Just score -> Data.Text.pack $ printf "%0.*f" precision score
+  Nothing -> formatFullScore Nothing
+
 
 statusCellWidget challengeName (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
@@ -94,7 +115,7 @@ getAuxSubmissionEnts testId evaluationMaps = map (processEvaluationMap testId) e
 
 
 
-getLeaderboardEntries :: Key Challenge -> Handler [LeaderboardEntry]
+getLeaderboardEntries :: Key Challenge -> Handler (Test, [LeaderboardEntry])
 getLeaderboardEntries challengeId = do
   (evaluationMaps, tests) <- getChallengeSubmissionInfos (\_ -> True) challengeId
   let mainTestEnt = getMainTest tests
@@ -103,7 +124,7 @@ getLeaderboardEntries challengeId = do
   let submissionsByUser = Map.fromListWith (\(u1, l1) (_, l2) -> (u1, l1++l2)) auxSubmissions
   let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluation a) (evaluationScore $ leaderboardEvaluation b)
   let entries = sortBy (flip entryComparator) $ map (toEntry mainTest) $ filter (\(_, (_, s)) -> not (null s)) $ Map.toList submissionsByUser
-  return entries
+  return (mainTest, entries)
     where submissionComparator mainTest (_, e1) (_, e2) = (compareResult mainTest) (evaluationScore e1) (evaluationScore e2)
           toEntry mainTest (ui, (u, ss)) = LeaderboardEntry {
               leaderboardUser = u,
@@ -151,8 +172,8 @@ formatSubmitter user = if userIsAnonymous user
                               Just name -> name
                               Nothing -> "[name not given]"
 
-submissionScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation) -> String
-submissionScore k (_, _, m) = fromMaybe "N/A" (presentScore <$> lookup k m)
+submissionScore :: Key Test -> Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation) -> String
+submissionScore k t (_, _, m) = fromMaybe "N/A" (presentScore t <$> lookup k m)
 
-presentScore :: Evaluation -> String
-presentScore evaluation = fromMaybe "???" (show <$> evaluationScore evaluation)
+presentScore :: Test -> Evaluation -> String
+presentScore test evaluation = fromMaybe "???" (show <$> evaluationScore evaluation)

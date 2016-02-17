@@ -33,10 +33,10 @@ getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   Just repo <- runDB $ get $ challengePublicRepo challenge
-  leaderboard <- getLeaderboardEntries challengeId
+  (mainTest, leaderboard) <- getLeaderboardEntries challengeId
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth
-  challengeLayout True challenge (showChallengeWidget muserId challenge repo leaderboard)
+  challengeLayout True challenge (showChallengeWidget muserId challenge mainTest repo leaderboard)
 
 getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR name = do
@@ -47,7 +47,7 @@ getChallengeReadmeR name = do
   contents <- readFile readmeFilePath
   challengeLayout False challenge $ toWidget $ markdown def $ TL.fromStrict contents
 
-showChallengeWidget muserId challenge repo leaderboard = $(widgetFile "show-challenge")
+showChallengeWidget muserId challenge test repo leaderboard = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
         leaderboardWithRanksAndCurrentUser = map (\e -> (e, muserId)) leaderboardWithRanks
         maybeRepoLink = getRepoLink repo

@@ -119,7 +119,8 @@ checkTestDir chan challengeId challenge commit testDir = do
            testName=T.pack $ takeFileName testDir,
            testChecksum=(SHA1 checksum),
            testCommit=commit,
-           testActive=True }
+           testActive=True,
+           testPrecision=Nothing }
          return ()
     else
       msg chan $ concat ["Test dir ", (T.pack testDir), " does not have expected results."]
