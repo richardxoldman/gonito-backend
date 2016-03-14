@@ -77,13 +77,16 @@ updateLocalIdAndPubKey userId (Just localId) maybeSshPubKey = do
           case userLocalId user of
              Just prevLocalId -> do
                unless (prevLocalId == localId) $ setMessage $ toHtml ("only the administrator can change your ID" :: Text)
-             Nothing -> runDB $ update userId [UserLocalId =. Just localId]
+             Nothing -> do
+               runDB $ update userId [UserLocalId =. Just localId]
+               setMessage $ toHtml ("ID set" :: Text)
           runDB $ deleteWhere [PublicKeyUser ==. userId]
           case maybeSshPubKey of
             Just key -> do
               runDB $ insert $ PublicKey {
                 publicKeyUser=userId,
                 publicKeyPubkey=key }
+              setMessage $ toHtml ("SSH public key added; now it may take 10 minutes for the keys to be active, please be patient" :: Text)
               return ()
             Nothing -> return ()
     else
