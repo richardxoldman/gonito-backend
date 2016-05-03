@@ -8,6 +8,7 @@
      <li role="presentation"><a href="@{ChallengeSubmissionR (challengeName challenge)}">Submit</a>
      <li role="presentation"><a href="@{ChallengeMySubmissionsR (challengeName challenge)}">My Submissions</a>
      <li role="presentation"><a href="@{ChallengeAllSubmissionsR (challengeName challenge)}">All Submissions</a>
+     <li role="presentation"><a href="@{ChallengeDiscussionR (challengeName challenge)}">Discussion</a>
   <div .col-md-10 role="main">
     <div class="panel panel-default">
       <div class="panel-body">

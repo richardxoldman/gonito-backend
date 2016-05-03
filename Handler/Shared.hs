@@ -315,3 +315,12 @@ gatherSHA1ForCollectionOfFiles :: [FilePath] -> IO ByteString
 gatherSHA1ForCollectionOfFiles files = do
   contentss <- mapM readFile $ sort files
   return $ CHS.finalize $ foldl' CHS.update CHS.init contentss
+
+formatSubmitter :: User -> Text
+formatSubmitter user = if userIsAnonymous user
+                          then
+                            "[anonymised]"
+                          else
+                            case userName user of
+                              Just name -> name
+                              Nothing -> "[name not given]"

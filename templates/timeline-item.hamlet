@@ -1,0 +1,12 @@
+$case item
+  $of TimelineItem when who what
+    <div class="row timeline-item">
+      <div class="col-sm-1">
+        <div class="timeline-item-thumbnail">
+          <img class="img-responsive user-photo" src="/static/images/male-avatar.svg">
+      <div class="col-sm-11">
+        <div .timeline-item-panel>
+          <div class="timeline-item-panel-heading">
+            <strong>#{formatSubmitter who}
+            <span class="text-muted">&nbsp;&nbsp;#{formatTime defaultTimeLocale "%Y-%m-%d %H:%M" when}
+          <div class="timeline-item-panel-body">#{what}

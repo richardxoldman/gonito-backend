@@ -36,6 +36,7 @@ import qualified Data.IntMap as IntMap
 -- Import all relevant handler modules here.
 -- Don't forget to add new modules to your cabal file!
 import Handler.Common
+import Handler.Discussion
 import Handler.Fay
 import Handler.Graph
 import Handler.Home

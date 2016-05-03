@@ -160,13 +160,3 @@ getEvaluationMap s@(Entity submissionId submission) = do
   let evaluations = catMaybes maybeEvaluations
   let m = Map.fromList $ map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
   return (s, Entity (submissionSubmitter submission) user, m)
-
-
-formatSubmitter :: User -> Text
-formatSubmitter user = if userIsAnonymous user
-                          then
-                            "[anonymised]"
-                          else
-                            case userName user of
-                              Just name -> name
-                              Nothing -> "[name not given]"

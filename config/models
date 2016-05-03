@@ -61,6 +61,11 @@ Evaluation
     errorMessage Text Maybe
     stamp UTCTime default=now()
     UniqueEvaluationTestChecksum test checksum
+Comment
+    challenge ChallengeId
+    author UserId
+    posted UTCTime default=now()
+    text Textarea
 Out
     submission SubmissionId
     test TestId

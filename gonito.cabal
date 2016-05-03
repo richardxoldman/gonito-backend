@@ -31,6 +31,7 @@ library
                      SharedTypes
                      Handler.Common
                      Handler.CreateChallenge
+                     Handler.Discussion
                      Handler.Fay
                      Handler.Graph
                      Handler.Home
@@ -120,6 +121,8 @@ library
                  , regex-tdfa
                  , optparse-applicative
                  , wai-handler-fastcgi
+                 , blaze-markup
+                 , blaze-html
 
 executable         gonito
     if flag(library-only)

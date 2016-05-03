@@ -14,3 +14,20 @@
     height: 400px;
     margin: auto;
 }
+
+.timeline-box {
+    padding-top: 20px
+}
+
+.timeline-item {
+    padding-bottom: 40px
+}
+
+.timeline-item-thumbnail {
+    padding:0px;
+}
+.timeline-item-panel {
+}
+.timeline-item-panel-heading {
+    padding-bottom: 13px
+}

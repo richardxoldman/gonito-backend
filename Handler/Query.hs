@@ -2,7 +2,6 @@ module Handler.Query where
 
 import Import
 
-import Handler.Tables (formatSubmitter)
 import Handler.Shared
 import PersistSHA1
 

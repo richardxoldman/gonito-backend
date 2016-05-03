@@ -18,6 +18,7 @@
 /challenge-all-submissions/#Text ChallengeAllSubmissionsR GET
 /challenge-how-to/#Text ChallengeHowToR GET
 /challenge-graph-data/#Text ChallengeGraphDataR GET
+/challenge-discussion/#Text ChallengeDiscussionR GET POST
 
 /q QueryFormR GET POST
 /q/#Text QueryResultsR  GET

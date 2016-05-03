@@ -21,3 +21,5 @@ SshPubKey: your SSH public key
 Home: home
 Search: search
 GitCommitSha1: Git commit SHA1 hash
+CommentText: Write a comment
+Send: Send

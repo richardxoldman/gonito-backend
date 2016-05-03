@@ -113,6 +113,7 @@ instance Yesod App where
     isAuthorized (ChallengeReadmeR _) _ = return Authorized
     isAuthorized (ChallengeAllSubmissionsR _) _ = return Authorized
     isAuthorized (ChallengeGraphDataR _) _ = return Authorized
+    isAuthorized (ChallengeDiscussionR _) _ = return Authorized
 
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
