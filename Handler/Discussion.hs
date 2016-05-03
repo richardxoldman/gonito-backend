@@ -51,13 +51,17 @@ getChallengeDiscussionR name = do
     (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
     maybeUser <- maybeAuth
     (formWidget, formEnctype) <- generateFormPost $ renderBootstrap3 BootstrapBasicForm (commentForm challengeId)
+    sortedTimelineItems <- getTimelineItems challengeId
+    challengeLayout True challenge (discussionWidget maybeUser formWidget formEnctype name sortedTimelineItems)
+
+getTimelineItems :: ChallengeId -> Handler [TimelineItem]
+getTimelineItems challengeId = do
     comments <- runDB $ selectList [CommentChallenge ==. challengeId] [Desc CommentPosted]
     submissions <-  runDB $ selectList [SubmissionChallenge ==. challengeId] [Desc SubmissionStamp]
     timelineItems' <-  mapM toTimelineItem comments
     timelineItems'' <- mapM toTimelineItem submissions
-    let sortedTimelineItems = sortBy (\item1 item2 -> (getTime item2 `compare` getTime item1)) (
-          timelineItems' ++ timelineItems'')
-    challengeLayout True challenge (discussionWidget maybeUser formWidget formEnctype name sortedTimelineItems)
+    return $ sortBy (\item1 item2 -> (getTime item2 `compare` getTime item1)) (
+      timelineItems' ++ timelineItems'')
 
 discussionWidget maybeUser formWidget formEnctype name sortedTimelineItems = $(widgetFile "challenge-discussion")
 
