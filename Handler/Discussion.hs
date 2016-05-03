@@ -49,6 +49,7 @@ instance ToTimelineItem (Entity Submission) where
 getChallengeDiscussionR :: Text -> Handler Html
 getChallengeDiscussionR name = do
     (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
+    maybeUser <- maybeAuth
     (formWidget, formEnctype) <- generateFormPost $ renderBootstrap3 BootstrapBasicForm (commentForm challengeId)
     comments <- runDB $ selectList [CommentChallenge ==. challengeId] [Desc CommentPosted]
     submissions <-  runDB $ selectList [SubmissionChallenge ==. challengeId] [Desc SubmissionStamp]
@@ -56,9 +57,9 @@ getChallengeDiscussionR name = do
     timelineItems'' <- mapM toTimelineItem submissions
     let sortedTimelineItems = sortBy (\item1 item2 -> (getTime item2 `compare` getTime item1)) (
           timelineItems' ++ timelineItems'')
-    challengeLayout True challenge (discussionWidget formWidget formEnctype name sortedTimelineItems)
+    challengeLayout True challenge (discussionWidget maybeUser formWidget formEnctype name sortedTimelineItems)
 
-discussionWidget formWidget formEnctype name sortedTimelineItems = $(widgetFile "challenge-discussion")
+discussionWidget maybeUser formWidget formEnctype name sortedTimelineItems = $(widgetFile "challenge-discussion")
 
 timelineItemWidget item = $(widgetFile "timeline-item")
 
@@ -66,28 +67,20 @@ postChallengeDiscussionR :: Text -> Handler TypedContent
 postChallengeDiscussionR name = do
     (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
     ((result, formWidget), formEnctype) <- runFormPost $ renderBootstrap3 BootstrapBasicForm (commentForm challengeId)
-    case result of
-      FormSuccess comment -> do
-        userId <- requireAuthId
+    stamp <- liftIO getCurrentTime
+    userId <- requireAuthId
 
-        if commentAuthor comment == userId
-          then
-           do
-            setMessage $ toHtml ("Comment submitted" :: Text)
-            _ <- runDB $ insert comment
-            return ()
-          else
-           do
-            setMessage $ toHtml ("Wrong user ID" :: Text)
-            return ()
+    case result of
+      FormSuccess (challengeId, commentContent) -> do
+        setMessage $ toHtml ("Comment submitted" :: Text)
+        _ <- runDB $ insert $ Comment challengeId userId stamp commentContent
+        return ()
       _ -> do
         setMessage $ toHtml ("Something went wrong" :: Text)
 
     redirect $ ChallengeDiscussionR name
 
-commentForm :: Key Challenge -> AForm Handler Comment
-commentForm challengeId = Comment
+commentForm :: Key Challenge -> AForm Handler (ChallengeId, Textarea)
+commentForm challengeId = (,)
     <$> pure challengeId
-    <*> lift requireAuthId
-    <*> lift (liftIO getCurrentTime)
     <*> areq textareaField (bfs MsgCommentText) Nothing

@@ -1,9 +1,12 @@
 
 <p>
-  <form method=post action=@{ChallengeDiscussionR name}#form enctype=#{formEnctype}>
-    ^{formWidget}
-    <button .btn .btn-primary type="submit">
-       _{MsgSend} <span class="glyphicon glyphicon-upload"></span>
+  $maybe user <- maybeUser
+    <form method=post action=@{ChallengeDiscussionR name}#form enctype=#{formEnctype}>
+      ^{formWidget}
+      <button .btn .btn-primary type="submit">
+         _{MsgSend} <span class="glyphicon glyphicon-upload"></span>
+  $nothing
+    <b>Log in to write a comment
 
 <div .timeline-box>
   $forall item <- sortedTimelineItems

@@ -266,6 +266,7 @@ getChallengeSubmissions condition name = do
 challengeAllSubmissionsWidget muserId challenge submissions tests = $(widgetFile "challenge-all-submissions")
 
 challengeLayout withHeader challenge widget = do
+  maybeUser <- maybeAuth
   bc <- widgetToPageContent widget
   defaultLayout $ do
     setTitle "Challenge"
