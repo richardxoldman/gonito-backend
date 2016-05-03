@@ -26,3 +26,4 @@
 /make-public/#SubmissionId MakePublicR GET
 
 /account YourAccountR GET POST
+/avatar/#UserId AvatarR GET

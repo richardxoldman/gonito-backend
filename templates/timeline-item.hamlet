@@ -1,9 +1,9 @@
 $case item
-  $of TimelineItem when who what
+  $of TimelineItem when (Entity whoId who) what
     <div class="row timeline-item">
       <div class="col-sm-1">
         <div class="timeline-item-thumbnail">
-          <img class="img-responsive user-photo" src="/static/images/male-avatar.svg">
+          <img class="img-responsive user-photo" src=@{AvatarR whoId}>
       <div class="col-sm-11">
         <div .timeline-item-panel>
           <div class="timeline-item-panel-heading">

@@ -11,7 +11,7 @@ import Handler.ShowChallenge
 
 import Yesod.Form.Bootstrap3
 
-data TimelineItem = TimelineItem UTCTime User Markup
+data TimelineItem = TimelineItem UTCTime (Entity User) Markup
 
 getTime (TimelineItem stamp _ _) = stamp
 
@@ -19,8 +19,11 @@ class ToTimelineItem a where
   timelineWhen :: a -> UTCTime
 
   timelineWhoId :: a -> UserId
-  timelineWho :: a -> Handler User
-  timelineWho sItem = runDB $ get404 $ timelineWhoId sItem
+  timelineWho :: a -> Handler (Entity User)
+  timelineWho sItem = do
+    let userId = timelineWhoId sItem
+    user <- runDB $ get404 userId
+    return $ Entity userId user
 
   timelineWhat :: a -> Handler Markup
   toTimelineItem :: a -> Handler TimelineItem

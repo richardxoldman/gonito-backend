@@ -123,6 +123,8 @@ library
                  , wai-handler-fastcgi
                  , blaze-markup
                  , blaze-html
+                 , conduit-extra
+                 , resourcet
 
 executable         gonito
     if flag(library-only)

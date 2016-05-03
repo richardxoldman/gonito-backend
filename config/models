@@ -6,6 +6,7 @@ User
     isAdmin Bool default=False
     localId Text Maybe
     isAnonymous Bool default=False
+    avatar ByteString Maybe
     deriving Typeable
 PublicKey
     user UserId

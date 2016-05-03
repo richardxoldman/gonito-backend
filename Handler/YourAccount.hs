@@ -9,6 +9,12 @@ import Handler.Extract
 
 import Text.Regex.TDFA
 
+import Data.Conduit
+import Data.Conduit.Binary
+import Control.Monad.Trans.Resource (runResourceT)
+import qualified Data.ByteString as S
+import qualified Data.ByteString.Lazy as L
+
 getYourAccountR :: Handler Html
 getYourAccountR = do
     userId <- requireAuthId
@@ -30,20 +36,21 @@ postYourAccountR = do
         accountData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
-        Just (name, localId, sshPubKey) = accountData
+        Just (name, localId, sshPubKey, avatarFile) = accountData
     userId <- requireAuthId
-    updateUserAccount userId name localId sshPubKey
+    updateUserAccount userId name localId sshPubKey avatarFile
     user <- runDB $ get404 userId
     defaultLayout $ do
         aDomId <- newIdent
         setTitle "Your account"
         $(widgetFile "your-account")
 
-yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Maybe Text)
-yourAccountForm maybeName maybeLocalId maybeSshPubKey = renderBootstrap3 BootstrapBasicForm $ (,,)
+yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo)
+yourAccountForm maybeName maybeLocalId maybeSshPubKey = renderBootstrap3 BootstrapBasicForm $ (,,,)
     <$> aopt textField (bfs MsgAccountName) (Just maybeName)
     <*> aopt textField (bfs MsgId) (Just maybeLocalId)
     <*> aopt textField (bfs MsgSshPubKey) (Just maybeSshPubKey)
+    <*> fileAFormOpt (bfs MsgAvatar)
 
 localIdRegexp = makeRegexOpts defaultCompOpt{newSyntax=True} defaultExecOpt ("\\`[a-z][-a-z0-9]{0,31}\\'" ::String)
 
@@ -58,10 +65,18 @@ isLocalIdAcceptable :: Text -> Bool
 isLocalIdAcceptable localId =
   match localIdRegexp (unpack localId) && not (localId `elem` unwantedLocalIds)
 
-updateUserAccount :: Key User -> Maybe Text -> Maybe Text -> Maybe Text -> Handler ()
-updateUserAccount userId name maybeLocalId maybeSshPubKey = do
+updateUserAccount :: Key User -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe FileInfo -> Handler ()
+updateUserAccount userId name maybeLocalId maybeSshPubKey maybeAvatarFile = do
   updateJustName userId name
+  updateAvatar userId maybeAvatarFile
   updateLocalIdAndPubKey userId maybeLocalId maybeSshPubKey
+
+
+updateAvatar :: Key User -> Maybe FileInfo -> Handler ()
+updateAvatar _ Nothing = return ()
+updateAvatar userId (Just avatarFile) = do
+  fileBytes <- runResourceT $ fileSource avatarFile $$ sinkLbs
+  runDB $ update userId [UserAvatar =. Just (S.pack . L.unpack $ fileBytes)]
 
 updateLocalIdAndPubKey :: Key User -> Maybe Text -> Maybe Text -> Handler ()
 updateLocalIdAndPubKey userId (Just localId) maybeSshPubKey = do
@@ -99,3 +114,14 @@ updateLocalIdAndPubKey _ Nothing Nothing = return ()
 
 updateJustName :: Key User -> Maybe Text -> Handler ()
 updateJustName userId name = runDB $ update userId [UserName =. name]
+
+
+getAvatarR :: UserId -> Handler TypedContent
+getAvatarR userId = do
+    user <- runDB $ get404 userId
+    case userAvatar user of
+     Just avatarBytes -> do
+       addHeader "Content-Disposition" "attachment; filename=\"avatar.png\""
+       sendResponse (typePng, toContent avatarBytes)
+     Nothing -> do
+       sendFile typeSvg "static/images/male-avatar.svg"

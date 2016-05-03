@@ -186,6 +186,7 @@ instance YesodAuth App where
                     , userIsAdmin = False
                     , userLocalId = Nothing
                     , userIsAnonymous = False
+                    , userAvatar = Nothing
                     }
 
     -- You can add other plugins like BrowserID, email or OAuth here
