@@ -125,6 +125,7 @@ library
                  , blaze-html
                  , conduit-extra
                  , resourcet
+                 , yesod-newsfeed
 
 executable         gonito
     if flag(library-only)

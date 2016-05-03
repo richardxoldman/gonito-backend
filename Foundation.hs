@@ -114,6 +114,7 @@ instance Yesod App where
     isAuthorized (ChallengeAllSubmissionsR _) _ = return Authorized
     isAuthorized (ChallengeGraphDataR _) _ = return Authorized
     isAuthorized (ChallengeDiscussionR _) _ = return Authorized
+    isAuthorized (ChallengeDiscussionFeedR _) _ = return Authorized
 
     isAuthorized (AvatarR _) _ = return Authorized
 

@@ -1,5 +1,6 @@
 $case item
-  $of TimelineItem when (Entity whoId who) what
+  $of TimelineItem identifier when (Entity whoId who) what
+    <a name="#{identifier}">
     <div class="row timeline-item">
       <div class="col-sm-1">
         <div class="timeline-item-thumbnail">

@@ -10,12 +10,18 @@ import Text.Blaze.Html4.Strict (i)
 import Handler.ShowChallenge
 
 import Yesod.Form.Bootstrap3
+import Yesod.RssFeed
 
-data TimelineItem = TimelineItem UTCTime (Entity User) Markup
+import Data.Text as T (pack)
+import Database.Persist.Sql
 
-getTime (TimelineItem stamp _ _) = stamp
+data TimelineItem = TimelineItem Text UTCTime (Entity User) Markup
+
+getTime (TimelineItem _ stamp _ _) = stamp
 
 class ToTimelineItem a where
+  getTimelineItemId :: a -> Text
+
   timelineWhen :: a -> UTCTime
 
   timelineWhoId :: a -> UserId
@@ -29,17 +35,20 @@ class ToTimelineItem a where
   toTimelineItem :: a -> Handler TimelineItem
 
   toTimelineItem sItem = do
+    let itemIdentifier = getTimelineItemId sItem
     let when = timelineWhen sItem
     who <- timelineWho sItem
     what <- timelineWhat sItem
-    return $ TimelineItem when who what
+    return $ TimelineItem itemIdentifier when who what
 
 instance ToTimelineItem (Entity Comment) where
+  getTimelineItemId (Entity commentId comment) = "comment-" ++ (T.pack $ show $ fromSqlKey $ commentId)
   timelineWhoId (Entity _ comment) = commentAuthor comment
   timelineWhen  (Entity _ comment) = commentPosted comment
   timelineWhat  (Entity _ comment) = return $ toMarkup $ commentText comment
 
 instance ToTimelineItem (Entity Submission) where
+  getTimelineItemId (Entity commentId comment) = "submission-" ++ (T.pack $ show $ fromSqlKey $ commentId)
   timelineWhoId (Entity _ submission) = submissionSubmitter submission
   timelineWhen  (Entity _ submission) = submissionStamp submission
   timelineWhat  (Entity _ submission) = return $ i $ toMarkup (
@@ -88,3 +97,36 @@ commentForm :: Key Challenge -> AForm Handler (ChallengeId, Textarea)
 commentForm challengeId = (,)
     <$> pure challengeId
     <*> areq textareaField (bfs MsgCommentText) Nothing
+
+
+numberOfItemsInFeed :: Int
+numberOfItemsInFeed = 20
+
+
+getChallengeDiscussionFeedR :: Text -> Handler RepRss
+getChallengeDiscussionFeedR name = do
+  (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
+  items <- getTimelineItems challengeId
+  now <- liftIO getCurrentTime
+  render <- getUrlRender
+  rssFeedText Feed {
+    feedTitle = "gonito.net / " ++ (challengeTitle challenge),
+    feedLinkSelf = render HomeR,
+    feedLinkHome = render (ChallengeDiscussionFeedR name),
+    feedAuthor = "gonito.net",
+    feedDescription = toMarkup $ "Comments and submission for a gonito.net challenge — " ++ (challengeTitle challenge),
+    feedLanguage = "en",
+    feedUpdated = case items of
+                   (latestItem : _) -> getTime latestItem
+                   _ -> now,
+    feedLogo = Nothing,
+    feedEntries = map (getFeedEntry render challenge) (take numberOfItemsInFeed items) }
+
+
+getFeedEntry :: (Route App -> Text) -> Challenge -> TimelineItem -> FeedEntry Text
+getFeedEntry render challenge (TimelineItem identifier stamp (Entity userId user) contents) = FeedEntry {
+  feedEntryLink = (render (ChallengeDiscussionR (challengeName challenge))) <> "#" <> identifier,
+  feedEntryUpdated = stamp,
+  feedEntryTitle = (challengeTitle challenge) ++ " / " ++ (formatSubmitter user),
+  feedEntryContent = contents,
+  feedEntryEnclosure = Nothing }

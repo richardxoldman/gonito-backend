@@ -8,6 +8,10 @@
   $nothing
     <b>Log in to write a comment
 
+<p>
+  <a href=@{ChallengeDiscussionFeedR name}>
+    <img src="/static/images/rss-icon.jpg">
+
 <div .timeline-box>
   $forall item <- sortedTimelineItems
     ^{timelineItemWidget item}
