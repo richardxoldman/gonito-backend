@@ -1,0 +1,30 @@
+$newline never
+\<!doctype html>
+\<!--[if lt IE 7]> <html class="no-js ie6 oldie" lang="en"> <![endif]-->
+\<!--[if IE 7]>    <html class="no-js ie7 oldie" lang="en"> <![endif]-->
+\<!--[if IE 8]>    <html class="no-js ie8 oldie" lang="en"> <![endif]-->
+\<!--[if gt IE 8]><!-->
+<html class="no-js" lang="en"> <!--<![endif]-->
+  <head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=1024" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+
+<link href="http://fonts.googleapis.com/css?family=Open+Sans:regular,semibold,italic,italicsemibold|PT+Sans:400,700,400italic,700italic|PT+Serif:400,700,400italic,700italic" rel="stylesheet" />
+
+  <link href="/static/css/impress-demo.css" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+          integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+
+  <body class="impress-not-supported">
+    <div class="fallback-message">
+         <p>Your browser <b>doesn't support the features required</b> by impress.js, so you are presented with a simplified version of this presentation.
+         <p>For the best experience please use the latest <b>Chrome</b>, <b>Safari</b> or <b>Firefox</b> browser.
+
+    <div id="impress">
+       ^{pageBody pc}
+
+    <script src="/static/js/impress.js"></script>
+    <script>impress().init();</script>

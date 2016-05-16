@@ -1,0 +1,71 @@
+<div id="title" class="step slide" data-x="0" data-y="-1500">
+   <h2>Gonito.net
+   <p>open platform for research competition, cooperation and reproducibility
+   <p>Filip Graliński, Rafał Jaworski, Łukasz Borchmann, Piotr Wierzchoń
+   <p>LREC 2016 / 4REAL Workshop
+
+<div class="step slide" data-x="0" data-y="0">
+   <h2>Motivation
+   <ul>
+     <li>We needed a place to keep track of our results for
+       <ul>
+          <li>our research
+          <li>teaching our students
+          <li>just playing with our data sets
+     <li>(but didn't want to save the world and earn $$$)
+
+<div class="step slide" data-x="0" data-y="1500">
+   <h2>Alternatives?
+   <ul>
+     <li><a href="https://www.kaggle.com">Kaggle</a>
+        <ul>
+           <li>you need to <em>ask</em> Kaggle people
+           <li>Kaggle in class only for teaching
+           <li>not fully open ☹
+     <li><a href="https://www.drivendata.org">DrivenData</a>
+        <ul>
+           <li>more or less similar to Kaggle</li>
+     <li><a href="https://codalab.org">CodaLab</a>
+        <ul>
+           <li>open!
+           <li>trying hard but didn't find it ☹
+           <li>no git
+
+<div class="step slide" data-x="1000" data-y="1500">
+   <p>That's why we created
+   <h1>Gonito.net
+   <p>open platform for machine learning competition
+   <ul>
+     <li>Be open
+        <ul>
+          <li>GNU Affero General Public License
+          <li>Anyone can set up their own instance
+          <li>Users are encouraged to share source codes
+          <li>Users are free to use whatever programming language and tools
+     <li>Use git
+        <ul>
+           <li>Challenges are created as Git repositories
+           <li>Solutions uploaded with Git
+           <li>Solutions can be forked and reused
+           <li>Even if a Gonito.net ceases to exist, Git repos may live
+
+<div class="step slide" data-x="2000" data-y="1500">
+   <p>… and
+   <h1>GEval
+   <p>companion Haskell library and stand-alone tool for machine learning evaluation
+   <ul>
+      <li>accuracy
+      <li>(R)MSE
+      <li>BLEU
+      <li>… more to come
+
+<div class="step slide" data-x="1000" data-y="3000">
+   <h2>A challenge…
+   <div style="font-size: 50%">
+     ^{readme}
+
+<div class="step slide" data-x="1000" data-y="4000">
+   <h2>Current status…
+
+   <div style="font-size: 50%">
+     ^{Table.buildBootstrap (leaderboardTable Nothing (challengeName challenge) test) leaderboardWithRanks}

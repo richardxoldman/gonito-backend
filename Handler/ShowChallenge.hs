@@ -41,11 +41,16 @@ getShowChallengeR name = do
 getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR name = do
   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
+  readme <- challengeReadme name
+  challengeLayout False challenge $ toWidget readme
+
+challengeReadme name = do
+  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
   let repoId = challengePublicRepo challenge
   repoDir <- getRepoDir repoId
   let readmeFilePath = repoDir </> readmeFile
   contents <- readFile readmeFilePath
-  challengeLayout False challenge $ toWidget $ markdown def $ TL.fromStrict contents
+  return $ markdown def $ TL.fromStrict contents
 
 showChallengeWidget muserId challenge test repo leaderboard = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard

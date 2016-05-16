@@ -116,6 +116,8 @@ instance Yesod App where
     isAuthorized (ChallengeDiscussionR _) _ = return Authorized
     isAuthorized (ChallengeDiscussionFeedR _) _ = return Authorized
 
+    isAuthorized Presentation4RealR _ = return Authorized
+
     isAuthorized (AvatarR _) _ = return Authorized
 
     -- Default to Authorized for now.

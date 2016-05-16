@@ -43,6 +43,7 @@ library
                      Handler.Query
                      Handler.Tables
                      Handler.YourAccount
+                     Handler.Presentation
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
