@@ -1,20 +1,23 @@
-<div id="title" class="step slide" data-x="0" data-y="-1500">
-   <h2>Gonito.net
-   <p>open platform for research competition, cooperation and reproducibility
-   <p>Filip Graliński, Rafał Jaworski, Łukasz Borchmann, Piotr Wierzchoń
-   <p>LREC 2016 / 4REAL Workshop
+<script src="/static/js/sigma.min.js">
+<script src="/static/js/sigma.parsers.json.min.js">
 
-<div class="step slide" data-x="0" data-y="0">
+<div id="title" class="step" data-x="0" data-y="-1500">
+   <h1>Gonito.net
+   <p>open platform for research competition, cooperation and reproducibility
+   <p class="footnote">Filip Graliński, Rafał Jaworski,<br/>Łukasz Borchmann, Piotr Wierzchoń
+   <p class="footnote">LREC 2016 / 4REAL Workshop
+
+<div class="step slide" data-x="0" data-y="-500">
    <h2>Motivation
    <ul>
-     <li>We needed a place to keep track of our results for
+     <li>We needed a place to keep track of our results for:
        <ul>
           <li>our research
           <li>teaching our students
           <li>just playing with our data sets
      <li>(but didn't want to save the world and earn $$$)
 
-<div class="step slide" data-x="0" data-y="1500">
+<div class="step slide" data-x="0" data-y="500">
    <h2>Alternatives?
    <ul>
      <li><a href="https://www.kaggle.com">Kaggle</a>
@@ -27,11 +30,11 @@
            <li>more or less similar to Kaggle</li>
      <li><a href="https://codalab.org">CodaLab</a>
         <ul>
+           <li>trying hard but hadn't found it ☹
            <li>open!
-           <li>trying hard but didn't find it ☹
            <li>no git
 
-<div class="step slide" data-x="1000" data-y="1500">
+<div class="step slide" data-x="1000" data-y="500">
    <p>That's why we created
    <h1>Gonito.net
    <p>open platform for machine learning competition
@@ -49,7 +52,7 @@
            <li>Solutions can be forked and reused
            <li>Even if a Gonito.net ceases to exist, Git repos may live
 
-<div class="step slide" data-x="2000" data-y="1500">
+<div class="step slide" data-x="2000" data-y="500">
    <p>… and
    <h1>GEval
    <p>companion Haskell library and stand-alone tool for machine learning evaluation
@@ -59,13 +62,115 @@
       <li>BLEU
       <li>… more to come
 
-<div class="step slide" data-x="1000" data-y="3000">
+<div class="step slide" style="height: 800px;" data-x="1000" data-y="1500">
    <h2>A challenge…
-   <div style="font-size: 50%">
+   <div style="font-size: 50%" class="readme">
      ^{readme}
 
-<div class="step slide" data-x="1000" data-y="4000">
+<div class="step slide" data-x="2000" data-y="2000">
+   <h2>Install GEval
+
+   <pre>
+     git clone git://gonito.net/geval
+     cd geval
+     stack setup
+     stack install
+     # add ~/.local/bin to $PATH
+
+<div class="step slide" style="height: 800px;" data-x="1000" data-y="2500">
    <h2>Current status…
 
    <div style="font-size: 50%">
-     ^{Table.buildBootstrap (leaderboardTable Nothing (challengeName challenge) test) leaderboardWithRanks}
+     ^{sampleLeaderboard}
+
+<div class="step slide" data-x="2000" data-y="3000">
+   <h2>How to replicate the best result?
+
+   <ul>
+     <li>Let's assume you know Git commit hash
+       <ul>
+         <li>(e.g. you found it in the paper)
+     <li>see the submission number at http://gonito.net/q/db43f2
+
+   <pre>
+     git clone git://gonito.net/petite-difference-challenge -b submission-00115
+     cd petite-difference-challenge
+     make clean
+     make
+     geval --test-name dev-0
+
+<div class="step slide" data-x="2000" data-y="4000">
+   <h2>I wanna do something better
+
+   <p>Sign up, add SSH key etc.
+
+   <p>Clone the repo:
+
+   <pre>
+     git clone ssh://gitolite@gonito.net/john/petite-difference-challenge
+     cd petite-difference-challenge
+     git pull ssh://gitolite@gonito.net/petite-difference-challenge
+     git push origin master
+     cd petite-difference-challenge
+
+   <p>Work on your solution and check locally:
+
+   <pre>
+     geval --test-name dev-0
+
+   <p>Push your brilliant solution:
+
+   <pre>
+     git add dev-0/out.tsv test-A/out.tsv # ...
+     git commit -m 'my brilliant solution'
+     git push origin master
+
+   <p>… and let Gonito.net know about your submission (or configure a Git hook)
+
+<div class="step slide" style="height: 800px;" data-x="1000" data-y="4500">
+   <h2>… and see your results
+
+   <div style="font-size: 50%">
+     ^{Table.buildBootstrap (submissionsTable Nothing (challengeName challenge) tests) evaluationMaps}
+
+<div class="step slide" data-x="2000" data-y="5000">
+   <h2>Be open!</h2>
+
+   <p>You can open <span class="glyphicon glyphicon-share"></span>&nbsp; your submission so that everybody could see it
+
+   <p>… and you fork somebody else's submission <span class="glyphicon glyphicon-folder-open"></span>&nbsp; and build on it
+
+   <pre>
+     git clone ssh://gitolite@gonito.net/john/petite-difference-challenge
+     cd petite-difference-challenge
+     git fetch ssh://gitolite@gonito.net/petite-difference-challenge submission-00115
+     git reset --hard FETCH_HEAD
+
+<div class="step slide" data-x="1000" data-y="5500">
+   <h2>Who forked and submitted what and when?
+
+   <div id="graph-container">
+
+<div class="step slide" style="height: 800px;" data-x="1000" data-y="6500">
+   <h2>Yet another challenge
+
+   <div style="font-size: 50%">
+     ^{sampleLeaderboard'}
+
+<div class="step slide" data-x="0" data-y="7000">
+   <h2>Future?
+
+   <ul>
+     <li>works for us!
+       <ul>
+         <li>as an auxiliary teaching tool
+         <li>for keeping track of our research
+         <li>when writing a paper in a team
+     <li>why not for other people?
+       <ul>
+         <li>for organizing shared tasks
+         <li>for tracking effort of a research community in a longer-term perspective
+     <li>TODOs
+       <ul>
+         <li>Git annex for storing models
+         <li>?

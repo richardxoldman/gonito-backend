@@ -13,16 +13,38 @@ import Text.Hamlet (hamletFile)
 sampleChallengeName :: Text
 sampleChallengeName = "petite-difference-challenge"
 
+sampleChallengeName' :: Text
+sampleChallengeName' = "retroc"
+
+
+sampleUserIdent :: Text
+sampleUserIdent = "ptlen@ceti.pl"
+
 getPresentation4RealR :: Handler Html
 getPresentation4RealR = do
   readme <- challengeReadme sampleChallengeName
 
-  (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName sampleChallengeName
-  Just repo <- runDB $ get $ challengePublicRepo challenge
-  (test, leaderboard) <- getLeaderboardEntries challengeId
-  let leaderboardWithRanks = zip [1..] leaderboard
+  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName sampleChallengeName
+
+  (Just (Entity sampleUserId _)) <- runDB $ getBy $ UniqueUser sampleUserIdent
+  let condition = (\(Entity _ submission) -> (submissionSubmitter submission == sampleUserId))
+  (evaluationMaps', tests) <- getChallengeSubmissionInfos condition challengeId
+  let evaluationMaps = take 10 evaluationMaps'
+
+  sampleLeaderboard <- getSampleLeaderboard sampleChallengeName
+  sampleLeaderboard' <- getSampleLeaderboard sampleChallengeName'
 
   presentationLayout $(widgetFile "presentation-4real")
+
+
+getSampleLeaderboard name = do
+  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName sampleChallengeName
+
+  Just repo <- runDB $ get $ challengePublicRepo challenge
+  (test, leaderboard) <- getLeaderboardEntries challengeId
+  let leaderboardWithRanks = zip [1..] (take 10 leaderboard)
+
+  return $ Table.buildBootstrap (leaderboardTable Nothing (challengeName challenge) test) leaderboardWithRanks
 
 presentationLayout widget = do
   master <- getYesod

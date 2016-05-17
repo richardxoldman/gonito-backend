@@ -59,6 +59,10 @@ h2 {
     font-weight: bold;
 }
 
+ul {
+    padding-bottom: 10px;
+}
+
 /* HTML5 display-role reset for older browsers */
 article, aside, details, figcaption, figure,
 footer, header, hgroup, menu, nav, section {
@@ -704,3 +708,7 @@ a:focus {
     Thanks for reading. I hope you enjoyed it at least as much as I enjoyed writing it
     for you.
 */
+
+.readme {
+    line-height: 130%;
+}

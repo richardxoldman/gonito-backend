@@ -1,0 +1,6 @@
+  sigma.parsers.json("@{ChallengeGraphDataR $ challengeName challenge}", {
+    container: 'graph-container',
+    settings: {
+      defaultNodeColor: '#ec5148'
+    }
+  });
