@@ -38,7 +38,7 @@ getPresentation4RealR = do
 
 
 getSampleLeaderboard name = do
-  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName sampleChallengeName
+  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
 
   Just repo <- runDB $ get $ challengePublicRepo challenge
   (test, leaderboard) <- getLeaderboardEntries challengeId

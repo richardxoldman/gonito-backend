@@ -138,7 +138,7 @@
 
    <p>You can open <span class="glyphicon glyphicon-share"></span>&nbsp; your submission so that everybody could see it
 
-   <p>… and you fork somebody else's submission <span class="glyphicon glyphicon-folder-open"></span>&nbsp; and build on it
+   <p>… and you fork somebody else's submission <span class="glyphicon glyphicon-folder-open"></span>&nbsp; and build upon it
 
    <pre>
      git clone ssh://gitolite@gonito.net/john/petite-difference-challenge
@@ -146,12 +146,15 @@
      git fetch ssh://gitolite@gonito.net/petite-difference-challenge submission-00115
      git reset --hard FETCH_HEAD
 
+   <p>… or you can browse the code at <a href="http://gonito.net/gitlist/petite-difference-challenge.git/submission-00115">http://gonito.net/gitlist/petite-difference-challenge.git/submission-00115</a>
+
 <div class="step slide" data-x="1000" data-y="5500">
    <h2>Who forked and submitted what and when?
 
-   <div id="graph-container">
+   <p><a href="http://gonito.net/challenge/petite-difference-challenge">Click here to see the graph</a>
+   <!-- <div id="graph-container"> -->
 
-<div class="step slide" style="height: 800px;" data-x="1000" data-y="6500">
+<div class="step slide" style="height: 500px;" data-x="1000" data-y="6500">
    <h2>Yet another challenge
 
    <div style="font-size: 50%">

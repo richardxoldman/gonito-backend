@@ -50,17 +50,17 @@ time, mark, audio, video {
 }
 
 h1 {
-    padding-bottom: 10px;
+    padding-bottom: 12px;
     font-weight: bold;
 }
 
 h2 {
-    padding-bottom: 10px;
+    padding-bottom: 12px;
     font-weight: bold;
 }
 
 ul {
-    padding-bottom: 10px;
+    padding-bottom: 12px;
 }
 
 /* HTML5 display-role reset for older browsers */
