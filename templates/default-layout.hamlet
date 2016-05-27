@@ -7,6 +7,7 @@
 
                 <li><a href="@{HomeR}">_{MsgHome}</a>
                 $if userIsAdmin $ entityVal user
+                    <li><a href="@{Presentation4RealR}">_{MsgAbout}</a>
                     <li><a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
                 <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a>
 

@@ -24,3 +24,4 @@ GitCommitSha1: Git commit SHA1 hash
 CommentText: Write a comment
 Send: Send
 Avatar: avatar
+About: about
