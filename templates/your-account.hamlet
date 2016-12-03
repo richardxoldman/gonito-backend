@@ -2,6 +2,11 @@
     <div id="main" role="main">
         <h2>Your account
         <hr>
+        $maybe _ <- userPassword user
+        $nothing
+            <div class="alert alert-info" role="alert">
+                <p>
+                    <strong>Please set up your password below so that you could log in when <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system is shut down.
         <img style="max-width:80px;padding-bottom:30px" src=@{AvatarR userId}>
         <form method=post action=@{YourAccountR}#form enctype=#{formEnctype}>
            ^{formWidget}

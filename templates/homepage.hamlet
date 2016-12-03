@@ -14,7 +14,7 @@
         $nothing
             <div class="alert alert-info" role="alert">
                 <p>
-                    <strong>Please set up your password at <a href="@{YourAccountR}">your account</a> so that you could log in when <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system.
+                    <strong>Please set up your password at <a href="@{YourAccountR}">your account</a> so that you could log in when <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system is shut down.
 
         $maybe _ <- maybeLocalId
             <p>Go to the <a href="@{ListChallengesR}">challenge list</a> and choose a challenge for you!

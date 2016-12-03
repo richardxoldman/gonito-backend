@@ -26,6 +26,7 @@ postYourAccountR :: Handler Html
 postYourAccountR = do
     ((result, formWidget), formEnctype) <- runFormPost (yourAccountForm Nothing Nothing Nothing)
     userId <- requireAuthId
+    user <- runDB $ get404 userId
     let accountData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
@@ -73,6 +74,7 @@ updatePassword _ Nothing = return ()
 updatePassword userId (Just password) = do
   encodedPassword <- liftIO $ makePassword (encodeUtf8 password) defaultStrength
   runDB $ update userId [UserPassword =. Just (decodeUtf8 encodedPassword)]
+  setMessage $ toHtml ("Password set!" :: Text)
 
 updateAvatar :: Key User -> Maybe FileInfo -> Handler ()
 updateAvatar _ Nothing = return ()
@@ -140,7 +142,7 @@ passwordConfirmField = Field
     , fieldView = \idAttr nameAttr otherAttrs _ _ ->
         [whamlet|
             <input id=#{idAttr} name=#{nameAttr} *{otherAttrs} type=password>
-            <div>confirm:
+            <div>confirm new password:
             <input id=#{idAttr}-confirm name=#{nameAttr} *{otherAttrs} type=password>
         |]
     , fieldEnctype = UrlEncoded
