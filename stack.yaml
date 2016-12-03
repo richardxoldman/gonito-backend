@@ -5,6 +5,5 @@ flags:
 packages:
 - '.'
 - '../geval'
-extra-deps: [markdown-0.1.13.2,geval-0.2.4.0,cond-0.4.1.1,wai-handler-fastcgi-3.0.0.2]
-compiler-check: newer-minor
-resolver: lts-6.10
+extra-deps: [markdown-0.1.13.2,geval-0.2.5.0,cond-0.4.1.1,wai-handler-fastcgi-3.0.0.2]
+resolver: lts-6.24
