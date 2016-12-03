@@ -25,15 +25,19 @@ getYourAccountR = do
 postYourAccountR :: Handler Html
 postYourAccountR = do
     ((result, formWidget), formEnctype) <- runFormPost (yourAccountForm Nothing Nothing Nothing)
+    userId <- requireAuthId
     let accountData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
-        Just (name, localId, mPassword, sshPubKey, avatarFile) = accountData
-    userId <- requireAuthId
-    updateUserAccount userId name localId mPassword sshPubKey avatarFile
+    case accountData of
+        Just (name, localId, mPassword, sshPubKey, avatarFile) -> do
+          updateUserAccount userId name localId mPassword sshPubKey avatarFile
+        Nothing -> do
+          setMessage $ toHtml ("Something went wrong, probably the password did not match" :: Text)
     defaultLayout $ do
-        setTitle "Your account"
-        $(widgetFile "your-account")
+      setTitle "Your account"
+      $(widgetFile "your-account")
+
 
 yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo)
 yourAccountForm maybeName maybeLocalId maybeSshPubKey = renderBootstrap3 BootstrapBasicForm $ (,,,,)
@@ -133,7 +137,7 @@ passwordConfirmField = Field
                 | otherwise -> return $ Left "Passwords don't match"
             [] -> return $ Right Nothing
             _ -> return $ Left "You must enter two values"
-    , fieldView = \idAttr nameAttr otherAttrs eResult isReq ->
+    , fieldView = \idAttr nameAttr otherAttrs _ _ ->
         [whamlet|
             <input id=#{idAttr} name=#{nameAttr} *{otherAttrs} type=password>
             <div>confirm:
