@@ -1,17 +1,11 @@
 module Handler.YourAccount where
 
 import Import
-import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
-                              withSmallInput, bfs)
-
-import Handler.Shared
-import Handler.Extract
+import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
 import Text.Regex.TDFA
 
-import Data.Conduit
 import Data.Conduit.Binary
-import Control.Monad.Trans.Resource (runResourceT)
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
 
@@ -22,26 +16,20 @@ getYourAccountR = do
     keyS <- runDB $ selectFirst [PublicKeyUser ==. userId] []
     let key = publicKeyPubkey <$> entityVal <$> keyS
     (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) key)
-    let submission = Nothing :: Maybe (Import.FileInfo, Text)
-        handlerName = "getYourAccountR" :: Text
     defaultLayout $ do
-        aDomId <- newIdent
         setTitle "Your account"
         $(widgetFile "your-account")
 
 postYourAccountR :: Handler Html
 postYourAccountR = do
     ((result, formWidget), formEnctype) <- runFormPost (yourAccountForm Nothing Nothing Nothing)
-    let handlerName = "postYourAccountR" :: Text
-        accountData = case result of
+    let accountData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
         Just (name, localId, sshPubKey, avatarFile) = accountData
     userId <- requireAuthId
     updateUserAccount userId name localId sshPubKey avatarFile
-    user <- runDB $ get404 userId
     defaultLayout $ do
-        aDomId <- newIdent
         setTitle "Your account"
         $(widgetFile "your-account")
 
@@ -52,6 +40,7 @@ yourAccountForm maybeName maybeLocalId maybeSshPubKey = renderBootstrap3 Bootstr
     <*> aopt textField (bfs MsgSshPubKey) (Just maybeSshPubKey)
     <*> fileAFormOpt (bfs MsgAvatar)
 
+localIdRegexp :: Regex
 localIdRegexp = makeRegexOpts defaultCompOpt{newSyntax=True} defaultExecOpt ("\\`[a-z][-a-z0-9]{0,31}\\'" ::String)
 
 unwantedLocalIds :: [Text]
@@ -98,7 +87,7 @@ updateLocalIdAndPubKey userId (Just localId) maybeSshPubKey = do
           runDB $ deleteWhere [PublicKeyUser ==. userId]
           case maybeSshPubKey of
             Just key -> do
-              runDB $ insert $ PublicKey {
+              _ <- runDB $ insert $ PublicKey {
                 publicKeyUser=userId,
                 publicKeyPubkey=key }
               setMessage $ toHtml ("SSH public key added; now it may take 10 minutes for the keys to be active, please be patient" :: Text)
