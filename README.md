@@ -41,3 +41,15 @@ Authors
 -------
 
 * Filip Graliński
+
+References
+----------
+
+    @inproceedings{gralinski:2016:gonito,
+      title="{Gonito.net - Open Platform for Research Competition, Cooperation and Reproducibility}",
+      author={Grali{\'n}ski, Filip and Jaworski, Rafa{\l} and Borchmann, {\L}ukasz and Wierzcho{\'n}, Piotr},
+      booktitle="{Branco, Ant{\'o}nio and Nicoletta Calzolari and Khalid Choukri (eds.), Proceedings of the 4REAL Workshop: Workshop on Research Results Reproducibility and Resources Citation in Science and Technology of Language}",
+      pages={13--20},
+      year=2016,
+      url="http://4real.di.fc.ul.pt/wp-content/uploads/2016/04/4REALWorkshopProceedings.pdf"
+    }
