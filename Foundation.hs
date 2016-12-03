@@ -4,11 +4,16 @@ import Database.Persist.Sql        (ConnectionPool, runSqlPool)
 import Import.NoFoundation
 import Text.Hamlet                 (hamletFile)
 import Yesod.Auth.BrowserId        (authBrowserId)
+import Yesod.Auth.HashDB           (HashDBUser(..),authHashDB)
 import Yesod.Auth.Message          (AuthMessage (InvalidLogin))
 import qualified Yesod.Core.Unsafe as Unsafe
 import Yesod.Core.Types            (Logger)
 import Yesod.Default.Util          (addStaticContentExternal)
 import Yesod.Fay
+
+instance HashDBUser User where
+    userPasswordHash = userPassword
+    setPasswordHash h u = u { userPassword = Just h }
 
 -- | The foundation datatype for your application. This can be a good place to
 -- keep settings and values requiring initialization before your application
@@ -195,7 +200,8 @@ instance YesodAuth App where
                     }
 
     -- You can add other plugins like BrowserID, email or OAuth here
-    authPlugins _ = [authBrowserId def]
+    authPlugins _ = [authBrowserId def,
+                     authHashDB (Just . UniqueUser)]
 
     authHttpManager = getHttpManager
 

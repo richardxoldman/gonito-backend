@@ -127,6 +127,8 @@ library
                  , conduit-extra
                  , resourcet
                  , yesod-newsfeed
+                 , yesod-auth-hashdb
+                 , pwstore-fast
 
 executable         gonito
     if flag(library-only)

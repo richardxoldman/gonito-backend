@@ -25,3 +25,4 @@ CommentText: Write a comment
 Send: Send
 Avatar: avatar
 About: about
+Password: password
