@@ -7,6 +7,7 @@ port:           "_env:PORT:3000"
 approot:        "_env:APPROOT:http://localhost:3000"
 ip-from-header: "_env:IP_FROM_HEADER:false"
 var-dir:        "_env:VAR_DIR:."
+contact-email:  "_env:CONTACT_EMAIL:filipg@amu.edu.pl"
 
 # Optional values with the following production defaults.
 # In development, they default to the inverse.

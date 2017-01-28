@@ -1,0 +1,10 @@
+<h2>Login
+<div id="login">
+  <form method="post" action="@{action}">
+    <table>
+      <tr><th>Username:</th><td><input id="x" name="username" autofocus="" required></td>
+      <tr><th>Password:</th><td><input type="password" name="password" required></td>
+      <tr><td>&nbsp;</td><td><input type="submit" value="Login"></td>
+<p>&nbsp;
+<div class="alert alert-info" role="alert">
+     <p>Don't have an account yet? Forgot the password? Please get in touch with the site admin#{contactEmailLabel site}.

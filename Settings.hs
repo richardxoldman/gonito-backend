@@ -54,6 +54,8 @@ data AppSettings = AppSettings
     , appAnalytics              :: Maybe Text
     -- ^ Google Analytics code
     , appVarDir                 :: String
+    -- ^ Contact (admin) e-mail
+    , appContactEmail           :: Maybe Text
     }
 
 instance FromJSON AppSettings where
@@ -80,6 +82,7 @@ instance FromJSON AppSettings where
         appCopyright              <- o .: "copyright"
         appAnalytics              <- o .:? "analytics"
         appVarDir                 <- o .: "var-dir"
+        appContactEmail           <- o .:? "contact-email"
 
         return AppSettings {..}
 

@@ -14,6 +14,7 @@ import Handler.Shared
 getHomeR :: Handler Html
 getHomeR = do
   maybeUser <- maybeAuth
+  master <- getYesod
   let maybeLocalId = case maybeUser of
         Just user -> userLocalId $ entityVal user
         Nothing -> Nothing

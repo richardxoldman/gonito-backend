@@ -14,8 +14,7 @@
         $nothing
             <div class="alert alert-info" role="alert">
                 <p>
-                    <strong>Please set up your password at <a href="@{YourAccountR}">your account</a> so that you could log in when <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system is shut down.
-
+                    <strong>You have an empty password</strong> (probably because you used <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system before). Get in touch with the site admin to set up the password.
         $maybe _ <- maybeLocalId
             <p>Go to the <a href="@{ListChallengesR}">challenge list</a> and choose a challenge for you!
         $nothing
@@ -27,10 +26,6 @@
 
         <div class="alert alert-info" role="alert">
             <p>
-                <strong>How to log in?
-                Gonito uses <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system available in Mozilla Firefox. Other authentication systems are on the way, but for the time being you need to use Firefox.
-
-            <p>So, just click <a href="@{AuthR LoginR}">log in</a>, then "Sign in with Persona" button and Firefox will guide you!
-            <p>Unfortunately, Persona will be shut down soon :( Don't worry, just sign in with Persona and then set up a password, so that you could log in even when Persona is closed.
+                <strong>How to log in?</strong> If you already have an account, just click <a href="@{AuthR LoginR}">log in</a>. Otherwise, please get in touch with the site admin#{contactEmailLabel master}.
 
 <p class="text-muted text-right"><sup>*</sup>Disclaimer: Gonito is neither affiliated with nor endorsed by <a href="https://www.kaggle.com">Kaggle</a>.
