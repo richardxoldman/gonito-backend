@@ -101,9 +101,8 @@ doResetPassword' :: Bool -> Text -> Key User -> Text -> Handler Html
 doResetPassword' True _ userId password = do
   updatePassword userId (Just password)
   runDB $ update userId removeVerificationKeyStatement
-  defaultLayout $ do
-    setTitle "Reset password"
-    $(widgetFile "password-reset")
+  setMessage $ toHtml ("Password set! You can log in now." :: Text)
+  redirect HomeR
 
 doResetPassword' False key _ _ = do
   tooWeakPasswordMessage
