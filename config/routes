@@ -28,5 +28,7 @@
 
 /account YourAccountR GET POST
 /avatar/#UserId AvatarR GET
+/create-reset-link CreateResetLinkR GET POST
+/reset-password/#Text ResetPasswordR GET POST
 
 /presentation/4real Presentation4RealR GET

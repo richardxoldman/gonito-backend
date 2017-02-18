@@ -8,8 +8,8 @@ import Text.Regex.TDFA
 import Data.Conduit.Binary
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
-import Crypto.PasswordStore
-import Yesod.Auth.HashDB (defaultStrength)
+
+import Handler.Common (passwordConfirmField, updatePassword)
 
 getYourAccountR :: Handler Html
 getYourAccountR = do
@@ -69,13 +69,6 @@ updateUserAccount userId name maybeLocalId maybePassword maybeSshPubKey maybeAva
   updateLocalIdAndPubKey userId maybeLocalId maybeSshPubKey
   updatePassword userId maybePassword
 
-updatePassword :: Key User -> Maybe Text -> Handler ()
-updatePassword _ Nothing = return ()
-updatePassword userId (Just password) = do
-  encodedPassword <- liftIO $ makePassword (encodeUtf8 password) defaultStrength
-  runDB $ update userId [UserPassword =. Just (decodeUtf8 encodedPassword)]
-  setMessage $ toHtml ("Password set!" :: Text)
-
 updateAvatar :: Key User -> Maybe FileInfo -> Handler ()
 updateAvatar _ Nothing = return ()
 updateAvatar userId (Just avatarFile) = do
@@ -129,21 +122,3 @@ getAvatarR userId = do
        sendResponse (typePng, toContent avatarBytes)
      Nothing -> do
        sendFile typeSvg "static/images/male-avatar.svg"
-
-passwordConfirmField :: Field Handler Text
-passwordConfirmField = Field
-    { fieldParse = \rawVals _fileVals ->
-        case rawVals of
-            [a, b]
-                | a == b -> return $ Right $ Just a
-                | otherwise -> return $ Left "Passwords don't match"
-            [] -> return $ Right Nothing
-            _ -> return $ Left "You must enter two values"
-    , fieldView = \idAttr nameAttr otherAttrs _ _ ->
-        [whamlet|
-            <input id=#{idAttr} name=#{nameAttr} *{otherAttrs} type=password>
-            <div>confirm new password:
-            <input id=#{idAttr}-confirm name=#{nameAttr} *{otherAttrs} type=password>
-        |]
-    , fieldEnctype = UrlEncoded
-    }

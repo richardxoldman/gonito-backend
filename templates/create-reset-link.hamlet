@@ -1,0 +1,6 @@
+<h2>Create a link for account creation or password reset
+
+<form method=post action=@{CreateResetLinkR}#form enctype=#{formEnctype}>
+    ^{formWidget}
+    <button .btn .btn-primary type="submit">
+      _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>

@@ -4,6 +4,10 @@ module Handler.Common where
 import Data.FileEmbed (embedFile)
 import Import
 
+import Crypto.PasswordStore
+import Yesod.Auth.HashDB (defaultStrength)
+
+
 -- These handlers embed files in the executable at compile time to avoid a
 -- runtime dependency, and for efficiency.
 
@@ -14,3 +18,29 @@ getFaviconR = return $ TypedContent "image/x-icon"
 getRobotsR :: Handler TypedContent
 getRobotsR = return $ TypedContent typePlain
                     $ toContent $(embedFile "config/robots.txt")
+
+
+passwordConfirmField :: Field Handler Text
+passwordConfirmField = Field
+    { fieldParse = \rawVals _fileVals ->
+        case rawVals of
+            [a, b]
+                | a == b -> return $ Right $ Just a
+                | otherwise -> return $ Left "Passwords don't match"
+            [] -> return $ Right Nothing
+            _ -> return $ Left "You must enter two values"
+    , fieldView = \idAttr nameAttr otherAttrs _ _ ->
+        [whamlet|
+            <input id=#{idAttr} name=#{nameAttr} *{otherAttrs} type=password>
+            <div>confirm new password:
+            <input id=#{idAttr}-confirm name=#{nameAttr} *{otherAttrs} type=password>
+        |]
+    , fieldEnctype = UrlEncoded
+    }
+
+updatePassword :: Key User -> Maybe Text -> Handler ()
+updatePassword _ Nothing = return ()
+updatePassword userId (Just password) = do
+  encodedPassword <- liftIO $ makePassword (encodeUtf8 password) defaultStrength
+  runDB $ update userId [UserPassword =. Just (decodeUtf8 encodedPassword)]
+  setMessage $ toHtml ("Password set!" :: Text)

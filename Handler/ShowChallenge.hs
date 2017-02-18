@@ -13,7 +13,6 @@ import System.Directory (doesFileExist)
 import qualified Data.Text as T
 
 import qualified Yesod.Table as Table
-import Yesod.Table (Table)
 
 import Handler.Extract
 import Handler.Shared
@@ -22,7 +21,6 @@ import Handler.Tables
 import GEval.Core
 import GEval.OptionsParser
 
-import Data.Map (Map)
 import qualified Data.Map as Map
 
 import PersistSHA1

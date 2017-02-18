@@ -43,6 +43,7 @@ library
                      Handler.Query
                      Handler.Tables
                      Handler.YourAccount
+                     Handler.AccountReset
                      Handler.Presentation
 
     if flag(dev) || flag(library-only)
@@ -129,6 +130,7 @@ library
                  , yesod-newsfeed
                  , yesod-auth-hashdb
                  , pwstore-fast
+                 , nonce
 
 executable         gonito
     if flag(library-only)

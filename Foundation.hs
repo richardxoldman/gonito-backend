@@ -58,6 +58,13 @@ isTrustedAuthorized = do
       | isTrusted user -> return Authorized
       | otherwise    -> return $ Unauthorized "???"
 
+isAdmin = do
+  mauth <- maybeAuth
+  case mauth of
+    Nothing -> return AuthenticationRequired
+    Just (Entity _ user)
+      | userIsAdmin user -> return Authorized
+      | otherwise  -> return $ Unauthorized "only permitted for the admin"
 
 isTrusted :: User -> Bool
 isTrusted user =
@@ -123,6 +130,9 @@ instance Yesod App where
     isAuthorized Presentation4RealR _ = return Authorized
 
     isAuthorized (AvatarR _) _ = return Authorized
+
+    isAuthorized CreateResetLinkR _ = isAdmin
+    isAuthorized (ResetPasswordR _) _ = return Authorized
 
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
@@ -196,6 +206,8 @@ instance YesodAuth App where
                     , userLocalId = Nothing
                     , userIsAnonymous = False
                     , userAvatar = Nothing
+                    , userVerificationKey = Nothing
+                    , userKeyExpirationDate = Nothing
                     }
 
     -- You can add other plugins like BrowserID, email or OAuth here

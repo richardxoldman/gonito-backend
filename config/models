@@ -7,6 +7,8 @@ User
     localId Text Maybe
     isAnonymous Bool default=False
     avatar ByteString Maybe
+    verificationKey Text Maybe
+    keyExpirationDate UTCTime Maybe
     deriving Typeable
 PublicKey
     user UserId
