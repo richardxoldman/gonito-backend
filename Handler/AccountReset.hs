@@ -91,7 +91,7 @@ doResetPassword key (Just userId) (Just password) = do
   doResetPassword' (isPasswordAcceptable password) key userId password
 
 doResetPassword key Nothing _ = do
-  runDB $ updateWhere [UserVerificationKey ==. Just key] removeVerificationKeyStatement
+  runDB $ updateWhere [UserVerificationKey ==. Just key, UserIsAdmin ==. False] removeVerificationKeyStatement
   master <- getYesod
   defaultLayout $ do
     setTitle "Reset password"
