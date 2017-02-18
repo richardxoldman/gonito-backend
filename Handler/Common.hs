@@ -49,8 +49,8 @@ minPasswordLength :: Int
 minPasswordLength = 10
 
 isPasswordAcceptable :: Text -> Bool
-isPasswordAcceptable p = length p >= minPasswordLength
+isPasswordAcceptable p = length p >= minPasswordLength && (p /= "0123456789") && (p /= "1234567890")
 
 tooWeakPasswordMessage :: Handler ()
 tooWeakPasswordMessage =
-  setMessage $ toHtml ("Password is too weak!!! A password needs to have at least " ++ (show minPasswordLength) ++ " characters")
+  setMessage $ toHtml ("Password is too weak!!! A password needs to have at least " ++ (show minPasswordLength) ++ " characters.")

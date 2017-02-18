@@ -9,7 +9,7 @@ import Data.Conduit.Binary
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
 
-import Handler.Common (passwordConfirmField, updatePassword)
+import Handler.Common (passwordConfirmField, updatePassword, isPasswordAcceptable, tooWeakPasswordMessage)
 
 getYourAccountR :: Handler Html
 getYourAccountR = do
@@ -32,13 +32,20 @@ postYourAccountR = do
             _ -> Nothing
     case accountData of
         Just (name, localId, mPassword, sshPubKey, avatarFile) -> do
-          updateUserAccount userId name localId mPassword sshPubKey avatarFile
+          if checkPassword mPassword
+            then
+              updateUserAccount userId name localId mPassword sshPubKey avatarFile
+            else
+              tooWeakPasswordMessage
         Nothing -> do
           setMessage $ toHtml ("Something went wrong, probably the password did not match" :: Text)
     defaultLayout $ do
       setTitle "Your account"
       $(widgetFile "your-account")
 
+checkPassword :: Maybe Text -> Bool
+checkPassword (Just passwd) = isPasswordAcceptable passwd
+checkPassword Nothing = False
 
 yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo)
 yourAccountForm maybeName maybeLocalId maybeSshPubKey = renderBootstrap3 BootstrapBasicForm $ (,,,,)
