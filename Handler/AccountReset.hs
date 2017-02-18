@@ -8,7 +8,7 @@ import System.IO.Unsafe (unsafePerformIO)
 
 import Data.Time.Clock (addUTCTime)
 
-import Handler.Common (passwordConfirmField, updatePassword)
+import Handler.Common (passwordConfirmField, updatePassword, isPasswordAcceptable, tooWeakPasswordMessage)
 
 getCreateResetLinkR :: Handler Html
 getCreateResetLinkR = do
@@ -87,12 +87,8 @@ doResetPassword key _ Nothing = do
   setMessage $ toHtml ("Password not given or does not match! Make sure you entered the same password" :: Text)
   getResetPasswordR key
 
-doResetPassword _ (Just userId) (Just password) = do
-  updatePassword userId (Just password)
-  runDB $ update userId removeVerificationKeyStatement
-  defaultLayout $ do
-    setTitle "Reset password"
-    $(widgetFile "password-reset")
+doResetPassword key (Just userId) (Just password) = do
+  doResetPassword' (isPasswordAcceptable password) key userId password
 
 doResetPassword key Nothing _ = do
   runDB $ updateWhere [UserVerificationKey ==. Just key] removeVerificationKeyStatement
@@ -100,6 +96,18 @@ doResetPassword key Nothing _ = do
   defaultLayout $ do
     setTitle "Reset password"
     $(widgetFile "password-reset-failed")
+
+doResetPassword' :: Bool -> Text -> Key User -> Text -> Handler Html
+doResetPassword' True _ userId password = do
+  updatePassword userId (Just password)
+  runDB $ update userId removeVerificationKeyStatement
+  defaultLayout $ do
+    setTitle "Reset password"
+    $(widgetFile "password-reset")
+
+doResetPassword' False key _ _ = do
+  tooWeakPasswordMessage
+  getResetPasswordR key
 
 removeVerificationKeyStatement :: [Update User]
 removeVerificationKeyStatement = [UserVerificationKey =. Nothing,                                                         UserKeyExpirationDate =. Nothing]

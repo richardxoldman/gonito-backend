@@ -44,3 +44,13 @@ updatePassword userId (Just password) = do
   encodedPassword <- liftIO $ makePassword (encodeUtf8 password) defaultStrength
   runDB $ update userId [UserPassword =. Just (decodeUtf8 encodedPassword)]
   setMessage $ toHtml ("Password set!" :: Text)
+
+minPasswordLength :: Int
+minPasswordLength = 10
+
+isPasswordAcceptable :: Text -> Bool
+isPasswordAcceptable p = length p >= minPasswordLength
+
+tooWeakPasswordMessage :: Handler ()
+tooWeakPasswordMessage =
+  setMessage $ toHtml ("Password is too weak!!! A password needs to have at least " ++ (show minPasswordLength) ++ " characters")
