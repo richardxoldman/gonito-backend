@@ -54,3 +54,11 @@ isPasswordAcceptable p = length p >= minPasswordLength && (p /= "0123456789") &&
 tooWeakPasswordMessage :: Handler ()
 tooWeakPasswordMessage =
   setMessage $ toHtml ("Password is too weak!!! A password needs to have at least " ++ (show minPasswordLength) ++ " characters.")
+
+checkIfCanEdit :: SubmissionId -> Handler Bool
+checkIfCanEdit submissionId = do
+  submission <- runDB $ get404 submissionId
+  mUser <- maybeAuth
+  return $ case mUser of
+      Just (Entity userId user) -> userId == submissionSubmitter submission || userIsAdmin user
+      Nothing -> False
