@@ -66,7 +66,6 @@ processQuery :: Text -> Handler Html
 processQuery query = do
   submissions <- findSubmissions query
   defaultLayout $ do
-    aDomId <- newIdent
     setTitle "query results"
     $(widgetFile "query-results")
 
