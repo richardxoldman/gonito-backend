@@ -46,6 +46,7 @@ library
                      Handler.AccountReset
                      Handler.Presentation
                      Handler.Tags
+                     Handler.EditSubmission
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

@@ -33,4 +33,6 @@
 
 /tags TagsR GET POST
 
+/edit-submission/#SubmissionId EditSubmissionR GET POST
+
 /presentation/4real Presentation4RealR GET

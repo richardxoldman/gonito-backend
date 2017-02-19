@@ -1,0 +1,6 @@
+<p>#{show $ submissionStamp $ submission}
+
+<form method=post action=@{EditSubmissionR submissionId}#form enctype=#{formEnctype}>
+  ^{formWidget}
+  <button .btn .btn-primary type="submit">
+    _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
