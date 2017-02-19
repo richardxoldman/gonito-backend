@@ -29,3 +29,6 @@ Password: new password
 EMail: e-mail
 CreateResetLink: create reset link
 LinkWrongOrExpired: Link wrong or expired, please ask the site admin again
+TagName: tag
+TagDescription: description
+ListTags: list tags

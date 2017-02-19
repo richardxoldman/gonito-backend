@@ -45,6 +45,7 @@ library
                      Handler.YourAccount
                      Handler.AccountReset
                      Handler.Presentation
+                     Handler.Tags
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

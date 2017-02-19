@@ -31,4 +31,6 @@
 /create-reset-link CreateResetLinkR GET POST
 /reset-password/#Text ResetPasswordR GET POST
 
+/tags TagsR GET POST
+
 /presentation/4real Presentation4RealR GET

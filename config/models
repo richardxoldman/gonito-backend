@@ -74,4 +74,8 @@ Out
     test TestId
     checksum SHA1
     UniqueOutSubmissionTestChecksum submission test checksum
+Tag
+    name Text
+    description Text Maybe
+    UniqueTagName name
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)

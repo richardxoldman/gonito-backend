@@ -120,6 +120,8 @@ instance Yesod App where
     isAuthorized (QueryResultsR _) _ = return Authorized
     isAuthorized ListChallengesR _ = return Authorized
 
+    isAuthorized TagsR _ = return Authorized
+
     isAuthorized (ShowChallengeR _) _ = return Authorized
     isAuthorized (ChallengeReadmeR _) _ = return Authorized
     isAuthorized (ChallengeAllSubmissionsR _) _ = return Authorized
