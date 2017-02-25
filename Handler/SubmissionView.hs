@@ -36,5 +36,6 @@ queryResult submission = do
 
 getTags submissionId = do
   sts <- selectList [SubmissionTagSubmission ==. submissionId] []
-  tags <- mapM get $ Import.map (submissionTagTag . entityVal) sts
-  return tags
+  let tagIds = Import.map (submissionTagTag . entityVal) sts
+  tags <- mapM get404 $ tagIds
+  return $ Import.map (\(k, v) -> Entity k v) $ Import.zip tagIds tags

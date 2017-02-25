@@ -15,7 +15,7 @@ getEditSubmissionR submissionId = do
   tags <- runDB $ getTags submissionId
   let mTagsAsText = case tags of
         [] -> Nothing
-        _ -> Just $ T.intercalate ", " $ Import.map tagName $ Import.catMaybes tags
+        _ -> Just $ T.intercalate ", " $ Import.map (tagName . entityVal) tags
   (formWidget, formEnctype) <- generateFormPost $ editSubmissionForm (submissionDescription submission) mTagsAsText
   doEditSubmission formWidget formEnctype submissionId
 

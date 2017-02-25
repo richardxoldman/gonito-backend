@@ -4,14 +4,12 @@ module Handler.Tables where
 
 import Import
 import Handler.Shared
+import Handler.SubmissionView
 
 import qualified Yesod.Table as Table
 import Yesod.Table (Table)
 
-import Data.Map (Map)
 import qualified Data.Map as Map
-
-import qualified Data.Maybe as DM
 
 import qualified Data.List as DL
 
@@ -32,16 +30,26 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardNumberOfSubmissions :: Int
 }
 
-submissionsTable :: Maybe UserId -> Text -> [Entity Test] -> Table App (Entity Submission, Entity User, Map (Key Test) Evaluation)
+submissionsTable :: Maybe UserId -> Text -> [Entity Test] -> Table App (Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag])
 submissionsTable mauthId challengeName tests = mempty
-  ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _) -> submitter))
-  ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _) -> s))
-  ++ Table.text "description" (submissionDescription . (\(Entity _ s, _,  _) -> s))
+  ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _, _) -> submitter))
+  ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _, _) -> s))
+  ++ descriptionCell
   ++ mconcat (map (\(Entity k t) -> resultCell t (extractScore k)) tests)
-  ++ statusCell challengeName (\(Entity submissionId submission, Entity userId _, _) -> (submissionId, submission, userId, mauthId))
+  ++ statusCell challengeName (\(Entity submissionId submission, Entity userId _, _, _) -> (submissionId, submission, userId, mauthId))
 
-extractScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation) -> Maybe Evaluation
-extractScore k (_, _, m) = lookup k m
+descriptionCell = Table.widget "description" (
+  \(Entity _ s, _, _ ,tagEnts) -> [whamlet|
+#{submissionDescription s}
+
+$forall (Entity _ v) <- tagEnts
+  \ <span class="labal label-primary">#{tagName v}</span>
+|])
+
+--  Table.text "description" (submissionDescription . (\(Entity _ s, _,  _, _) -> s))
+
+extractScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag]) -> Maybe Evaluation
+extractScore k (_, _, m, _) = lookup k m
 
 leaderboardTable :: Maybe UserId -> Text -> Test -> Table App (Int, LeaderboardEntry)
 leaderboardTable mauthId challengeName test = mempty
@@ -105,9 +113,9 @@ getAuxSubmissions testId evaluationMaps = map (processEvaluationMap testId) eval
                                                                                        Nothing -> []))
 
 
-getAuxSubmissionEnts :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation)] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
+getAuxSubmissionEnts :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag])] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
 getAuxSubmissionEnts testId evaluationMaps = map (processEvaluationMap testId) evaluationMaps
-   where processEvaluationMap testId (s, (Entity ui u), m) = (ui, (u, case Map.lookup testId m of
+   where processEvaluationMap testId (s, (Entity ui u), m, _) = (ui, (u, case Map.lookup testId m of
                                                                                        Just e -> [(s, e)]
                                                                                        Nothing -> []))
 
@@ -131,8 +139,11 @@ getLeaderboardEntries challengeId = do
               leaderboardBestSubmission = (\(Entity _ s) -> s) $ fst bestOne,
               leaderboardBestSubmissionId = (\(Entity si _) -> si) $ fst bestOne,
               leaderboardEvaluation = snd bestOne,
-              leaderboardNumberOfSubmissions = length ss }
+              leaderboardNumberOfSubmissions = length ss
+              }
                   where bestOne = DL.maximumBy (submissionComparator mainTest) ss
+
+
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
 compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ testMetric test) x y
@@ -144,7 +155,7 @@ compareFun :: MetricOrdering -> Double -> Double -> Ordering
 compareFun TheLowerTheBetter = flip compare
 compareFun TheHigherTheBetter = compare
 
-getChallengeSubmissionInfos :: ((Entity Submission) -> Bool) -> Key Challenge -> Handler ([(Entity Submission, Entity User, Map (Key Test) Evaluation)], [Entity Test])
+getChallengeSubmissionInfos :: ((Entity Submission) -> Bool) -> Key Challenge -> Handler ([(Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag])], [Entity Test])
 getChallengeSubmissionInfos condition challengeId = do
   allSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId] [Desc SubmissionStamp]
   let submissions = filter condition allSubmissions
@@ -152,11 +163,12 @@ getChallengeSubmissionInfos condition challengeId = do
   evaluationMaps <- mapM getEvaluationMap submissions
   return (evaluationMaps, tests)
 
-getEvaluationMap :: Entity Submission -> Handler (Entity Submission, Entity User, Map (Key Test) Evaluation)
+getEvaluationMap :: Entity Submission -> Handler (Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag])
 getEvaluationMap s@(Entity submissionId submission) = do
   outs <- runDB $ selectList [OutSubmission ==. submissionId] []
   user <- runDB $ get404 $ submissionSubmitter submission
   maybeEvaluations <- runDB $ mapM (\(Entity _ o) -> getBy $ UniqueEvaluationTestChecksum (outTest o) (outChecksum o)) outs
   let evaluations = catMaybes maybeEvaluations
   let m = Map.fromList $ map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
-  return (s, Entity (submissionSubmitter submission) user, m)
+  tagEnts <- runDB $ getTags submissionId
+  return (s, Entity (submissionSubmitter submission) user, m, tagEnts)
