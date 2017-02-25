@@ -1,6 +1,11 @@
+$if isOwner
+  <a href="@{EditSubmissionR submissionId}">
+    <span class="glyphicon glyphicon-pencil" title="click to edit the submission" aria-hidden="true">
+
 $if isVisible
   <a href="@{QueryResultsR commitHash}">
     <span class="glyphicon glyphicon-info-sign" title="click to see the detailed information" aria-hidden="true">
+
 $maybe browsableUrl <- maybeBrowsableUrl
   <a href="#{browsableUrl}">
     <span class="glyphicon glyphicon-folder-open" title="click to see the files aria-hidden="true">
