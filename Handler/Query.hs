@@ -3,6 +3,7 @@ module Handler.Query where
 import Import
 
 import Handler.Shared
+import Handler.SubmissionView
 import PersistSHA1
 
 import Database.Persist.Sql
@@ -11,24 +12,6 @@ import Data.Text as T(pack)
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
                               withSmallInput)
 
-data FullSubmissionInfo = FullSubmissionInfo {
-  fsiSubmissionId :: SubmissionId,
-  fsiSubmission :: Submission,
-  fsiUser :: User,
-  fsiRepo :: Repo,
-  fsiChallenge :: Challenge }
-
-getFullInfo :: Entity Submission -> Handler FullSubmissionInfo
-getFullInfo (Entity submissionId submission) = do
-  repo <- runDB $ get404 $ submissionRepo submission
-  user <- runDB $ get404 $ submissionSubmitter submission
-  challenge <- runDB $ get404 $ submissionChallenge submission
-  return $ FullSubmissionInfo {
-    fsiSubmissionId = submissionId,
-    fsiSubmission = submission,
-    fsiUser = user,
-    fsiRepo = repo,
-    fsiChallenge = challenge }
 
 findSubmissions :: Text -> Handler [FullSubmissionInfo]
 findSubmissions sha1Prefix = do
@@ -68,15 +51,6 @@ processQuery query = do
   defaultLayout $ do
     setTitle "query results"
     $(widgetFile "query-results")
-
-queryResult submission = do
-  $(widgetFile "query-result")
-    where commitSha1AsText = fromSHA1ToText $ submissionCommit $ fsiSubmission submission
-          submitter = formatSubmitter $ fsiUser submission
-          publicSubmissionBranch = getPublicSubmissionBranch $ fsiSubmissionId submission
-          publicSubmissionRepo = getReadOnlySubmissionUrl $ challengeName $ fsiChallenge submission
-          browsableUrl = browsableGitRepoBranch (challengeName $ fsiChallenge submission) publicSubmissionBranch
-          stamp = T.pack $ show $ submissionStamp $ fsiSubmission submission
 
 queryForm :: Form Text
 queryForm = renderBootstrap3 BootstrapBasicForm $ areq textField (fieldSettingsLabel MsgGitCommitSha1) Nothing

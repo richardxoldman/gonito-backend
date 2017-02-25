@@ -78,4 +78,9 @@ Tag
     name Text
     description Text Maybe
     UniqueTagName name
+SubmissionTag
+    submission SubmissionId
+    tag TagId
+    accepted Bool Maybe
+    UniqueSubmissionTag submission tag
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)

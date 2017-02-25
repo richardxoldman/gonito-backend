@@ -1,0 +1,6 @@
+   var input = document.querySelector('input[data-role=tagsinput]'),
+       tagify = new Tagify( input, {
+              whitelist: #{tagsAvailableAsJSON},
+              autocomplete: true,
+              enforeWhitelist: true});
+   input.style.display = 'none';

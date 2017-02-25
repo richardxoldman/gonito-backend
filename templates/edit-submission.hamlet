@@ -1,4 +1,4 @@
-<p>#{show $ submissionStamp $ submission}
+^{view}
 
 <form method=post action=@{EditSubmissionR submissionId}#form enctype=#{formEnctype}>
   ^{formWidget}
