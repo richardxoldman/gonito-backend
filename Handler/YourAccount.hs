@@ -44,8 +44,9 @@ postYourAccountR = do
       $(widgetFile "your-account")
 
 checkPassword :: Maybe Text -> Bool
+checkPassword Nothing = True
+checkPassword (Just "") = True
 checkPassword (Just passwd) = isPasswordAcceptable passwd
-checkPassword Nothing = False
 
 yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo)
 yourAccountForm maybeName maybeLocalId maybeSshPubKey = renderBootstrap3 BootstrapBasicForm $ (,,,,)
@@ -74,7 +75,10 @@ updateUserAccount userId name maybeLocalId maybePassword maybeSshPubKey maybeAva
   updateJustName userId name
   updateAvatar userId maybeAvatarFile
   updateLocalIdAndPubKey userId maybeLocalId maybeSshPubKey
-  updatePassword userId maybePassword
+  case maybePassword of
+    Nothing -> return ()
+    Just "" -> return ()
+    Just p -> updatePassword userId (Just p)
 
 updateAvatar :: Key User -> Maybe FileInfo -> Handler ()
 updateAvatar _ Nothing = return ()

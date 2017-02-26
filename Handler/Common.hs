@@ -40,6 +40,7 @@ passwordConfirmField = Field
 
 updatePassword :: Key User -> Maybe Text -> Handler ()
 updatePassword _ Nothing = return ()
+updatePassword _ (Just "") = return ()
 updatePassword userId (Just password) = do
   encodedPassword <- liftIO $ makePassword (encodeUtf8 password) defaultStrength
   runDB $ update userId [UserPassword =. Just (decodeUtf8 encodedPassword)]
