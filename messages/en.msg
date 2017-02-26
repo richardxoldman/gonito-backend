@@ -40,3 +40,4 @@ AchievementDeadlineTime: achievement deadline hour
 AchievementMaxWinners: maximum number of submitters
 AchievementTags: tags required for an achievement
 Achievements: achievements
+AchievementPoints: points

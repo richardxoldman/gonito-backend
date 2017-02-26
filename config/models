@@ -86,6 +86,7 @@ SubmissionTag
 Achievement
     name Text
     challenge ChallengeId
+    points Int
     description Text Maybe
     deadline UTCTime
     maxWinners Int Maybe

@@ -25,11 +25,11 @@ postAchievementsR = do
   mUser <- maybeAuth
   when (checkIfAdmin mUser) $ do
      case result of
-      FormSuccess (name, description, deadlineDay, deadlineTime, maxSubmitters, mTags) -> do
+      FormSuccess (name, description, points, deadlineDay, deadlineTime, maxSubmitters, mTags) -> do
                             -- @TODO for the time being hardcoded
                             Just challengeEnt <- runDB $ getBy $ UniqueName "petite-difference-challenge2"
 
-                            achievementId <- runDB $ insert $ Achievement name (entityKey challengeEnt) description (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) maxSubmitters
+                            achievementId <- runDB $ insert $ Achievement name (entityKey challengeEnt) points description (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) maxSubmitters
 
                             tids <- runDB $ tagsAsTextToTagIds mTags
 
@@ -53,12 +53,14 @@ achievementsTable :: Table.Table App (Entity Achievement)
 achievementsTable = mempty
   ++ Table.text "achievement" (\(Entity _ achievement) -> achievementName achievement)
   ++ Table.text "description" (\(Entity _ achievement) -> (fromMaybe (""::Text) (achievementDescription achievement)))
+  ++ Table.int "points" (\(Entity _ achievement) -> achievementPoints achievement)
   ++ timestampCell "deadline" (\(Entity _ achievement) -> achievementDeadline achievement)
 
-achievementForm :: Form (Text, Maybe Text, Day, TimeOfDay, Maybe Int, Maybe Text)
-achievementForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,)
+achievementForm :: Form (Text, Maybe Text, Int, Day, TimeOfDay, Maybe Int, Maybe Text)
+achievementForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
     <$> areq textField (bfs MsgAchievementName) Nothing
     <*> aopt textField (bfs MsgAchievementDescription) Nothing
+    <*> areq intField (bfs MsgAchievementPoints) Nothing
     <*> areq dayField (bfs MsgAchievementDeadlineDay) Nothing
     <*> areq timeFieldTypeTime (bfs MsgAchievementDeadlineTime) Nothing
     <*> aopt intField (bfs MsgAchievementMaxWinners) Nothing
