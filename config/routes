@@ -32,6 +32,7 @@
 /reset-password/#Text ResetPasswordR GET POST
 
 /tags TagsR GET POST
+/achievements AchievementsR GET POST
 
 /edit-submission/#SubmissionId EditSubmissionR GET POST
 

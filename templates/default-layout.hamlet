@@ -9,6 +9,7 @@
                 <li><a href="@{Presentation4RealR}">_{MsgAbout}</a>
                 <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a>
                 <li><a href="@{TagsR}">_{MsgListTags}</a>
+                <li><a href="@{AchievementsR}">_{MsgAchievements}</a>
                 $if userIsAdmin $ entityVal user
                     <li><a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
                     <li><a href="@{CreateResetLinkR}">_{MsgCreateResetLink}</a>

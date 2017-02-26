@@ -33,3 +33,10 @@ LinkWrongOrExpired: Link wrong or expired, please ask the site admin again
 TagName: tag
 TagDescription: description
 ListTags: list tags
+AchievementName: achievement name
+AchievementDescription: optional description
+AchievementDeadlineDay: achievement deadline day
+AchievementDeadlineTime: achievement deadline hour
+AchievementMaxWinners: maximum number of submitters
+AchievementTags: tags required for an achievement
+Achievements: achievements

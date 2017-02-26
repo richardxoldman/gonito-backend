@@ -48,6 +48,8 @@ library
                      Handler.Tags
                      Handler.EditSubmission
                      Handler.SubmissionView
+                     Handler.Achievements
+                     Handler.TagUtils
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

@@ -1,0 +1,13 @@
+<h1>Achievements
+
+^{Table.buildBootstrap achievementsTable achievements}
+
+<hr>
+
+$if (checkIfAdmin mUser)
+  <h2>Create a new achievement
+
+  <form method=post action=@{AchievementsR}#form enctype=#{formEnctype}>
+    ^{formWidget}
+    <button .btn .btn-primary type="submit">
+      _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>

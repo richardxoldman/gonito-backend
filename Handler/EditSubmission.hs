@@ -7,6 +7,8 @@ import Handler.Common (checkIfCanEdit)
 import Handler.SubmissionView
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
+import Handler.TagUtils
+
 import Data.Text as T
 
 getEditSubmissionR :: SubmissionId -> Handler Html
@@ -44,11 +46,7 @@ postEditSubmissionR submissionId = do
 
 
 addTags submissionId tagsAsText existingOnes = do
-  let newTags = case tagsAsText of
-                       Just tags' -> Import.map T.strip $ T.split (== ',') tags'
-                       Nothing -> []
-  mTs <- mapM (\t -> getBy $ UniqueTagName t) newTags
-  let tids = Import.map entityKey $ Import.catMaybes mTs
+  tids <- tagsAsTextToTagIds tagsAsText
 
   deleteWhere [SubmissionTagSubmission ==. submissionId, SubmissionTagTag /<-. tids]
 
@@ -62,8 +60,7 @@ doEditSubmission formWidget formEnctype submissionId = do
   submissionFull <- getFullInfo (Entity submissionId submission)
   let view = queryResult submissionFull
 
-  tagsAvailable <- runDB $ selectList [] [Asc TagName]
-  let tagsAvailableAsJSON = toJSON $ Import.map (tagName . entityVal) tagsAvailable
+  tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
 
   defaultLayout $ do
     setTitle "Edit a submission"
@@ -73,7 +70,3 @@ editSubmissionForm :: Text -> Maybe Text -> Form (Text, Maybe Text)
 editSubmissionForm description mTags = renderBootstrap3 BootstrapBasicForm $ (,)
     <$> areq textField (bfs MsgSubmissionDescription) (Just description)
     <*> aopt textField (tagsfs MsgSubmissionTags) (Just mTags)
-
-tagsfs :: RenderMessage site msg => msg -> FieldSettings site
-tagsfs msg = attrs { fsAttrs = ("data-role"::Text,"tagsinput"::Text):(fsAttrs attrs)}
-   where attrs = bfs msg

@@ -1,6 +1,7 @@
 module Handler.Tags where
 
 import Import
+import Handler.Common (checkIfAdmin)
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
 import qualified Yesod.Table as Table
@@ -40,7 +41,3 @@ tagForm :: Form (Text, Maybe Text)
 tagForm = renderBootstrap3 BootstrapBasicForm $ (,)
     <$> areq textField (bfs MsgTagName) Nothing
     <*> aopt textField (bfs MsgTagDescription) Nothing
-
-checkIfAdmin :: Maybe (Entity User) -> Bool
-checkIfAdmin (Just (Entity _ user)) = userIsAdmin user
-checkIfAdmin Nothing = False

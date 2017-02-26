@@ -63,3 +63,7 @@ checkIfCanEdit submissionId = do
   return $ case mUser of
       Just (Entity userId user) -> userId == submissionSubmitter submission || userIsAdmin user
       Nothing -> False
+
+checkIfAdmin :: Maybe (Entity User) -> Bool
+checkIfAdmin (Just (Entity _ user)) = userIsAdmin user
+checkIfAdmin Nothing = False

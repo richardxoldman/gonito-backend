@@ -83,4 +83,15 @@ SubmissionTag
     tag TagId
     accepted Bool Maybe
     UniqueSubmissionTag submission tag
+Achievement
+    name Text
+    challenge ChallengeId
+    description Text Maybe
+    deadline UTCTime
+    maxWinners Int Maybe
+    UniqueAchievementName name
+AchievementTag
+    achievement AchievementId
+    tag TagId
+    UniqueAchievementTag achievement tag
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)
