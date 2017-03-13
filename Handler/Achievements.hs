@@ -55,6 +55,11 @@ achievementsTable = mempty
   ++ Table.text "description" (\(Entity _ achievement) -> (fromMaybe (""::Text) (achievementDescription achievement)))
   ++ Table.int "points" (\(Entity _ achievement) -> achievementPoints achievement)
   ++ timestampCell "deadline" (\(Entity _ achievement) -> achievementDeadline achievement)
+  ++ Table.string "max submitters" (\(Entity _ achievement) -> formatMaxSubmitters $ achievementMaxWinners achievement)
+
+formatMaxSubmitters :: Maybe Int -> String
+formatMaxSubmitters Nothing = "no limit"
+formatMaxSubmitters (Just m) = show m
 
 achievementForm :: Form (Text, Maybe Text, Int, Day, TimeOfDay, Maybe Int, Maybe Text)
 achievementForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
