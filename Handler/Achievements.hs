@@ -7,11 +7,25 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 import Handler.TagUtils
 
 import Handler.Tables
+import Handler.Shared
 
 import Data.Time.Clock
 import Data.Time.LocalTime
 
+import Data.Text
+
 import qualified Yesod.Table as Table
+
+data AchievementInfo = AchievementInfo {
+  achievementInfoName :: Text,
+  achievementInfoDescription :: Maybe Text,
+  achievementInfoPoints :: Int,
+  achievementInfoDeadline :: UTCTime,
+  achievementInfoMaxWinners :: Maybe Int,
+  achievementInfoWorkingOn :: [Entity User],
+  achievementInfoCurrentUser :: Maybe (Entity User) }
+
+
 
 getAchievementsR :: Handler Html
 getAchievementsR = do
@@ -42,6 +56,8 @@ postAchievementsR = do
 
 doAchievements mUser formWidget formEnctype = do
   achievements <- runDB $ selectList [] [Asc AchievementName]
+  mUser <- maybeAuth
+  achievementInfos <- runDB $ mapM (getAchievementInfo mUser) achievements
 
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
 
@@ -49,13 +65,30 @@ doAchievements mUser formWidget formEnctype = do
     setTitle "Achievements"
     $(widgetFile "achievements")
 
-achievementsTable :: Table.Table App (Entity Achievement)
+getAchievementInfo mUser (Entity achievementId achievement) = do
+  es <- selectList [WorkingOnAchievement ==. achievementId] []
+  let userIds = Import.map (workingOnUser . entityVal) es
+  users <- mapM get404 userIds
+
+  return $ AchievementInfo {
+    achievementInfoName = achievementName achievement,
+    achievementInfoDescription = achievementDescription achievement,
+    achievementInfoPoints = achievementPoints achievement,
+    achievementInfoDeadline = achievementDeadline achievement,
+    achievementInfoMaxWinners = achievementMaxWinners achievement,
+    achievementInfoWorkingOn = Import.map (\(i,v) -> Entity i v) $ Import.zip userIds users,
+    achievementInfoCurrentUser = mUser }
+
+achievementsTable :: Table.Table App (AchievementInfo)
 achievementsTable = mempty
-  ++ Table.text "achievement" (\(Entity _ achievement) -> achievementName achievement)
-  ++ Table.text "description" (\(Entity _ achievement) -> (fromMaybe (""::Text) (achievementDescription achievement)))
-  ++ Table.int "points" (\(Entity _ achievement) -> achievementPoints achievement)
-  ++ timestampCell "deadline" (\(Entity _ achievement) -> achievementDeadline achievement)
-  ++ Table.string "max submitters" (\(Entity _ achievement) -> formatMaxSubmitters $ achievementMaxWinners achievement)
+  ++ Table.text "achievement" achievementInfoName
+  ++ Table.text "description" (fromMaybe (""::Text) . achievementInfoDescription)
+  ++ Table.int "points" achievementInfoPoints
+  ++ timestampCell "deadline" achievementInfoDeadline
+  ++ Table.string "max submitters" (formatMaxSubmitters . achievementInfoMaxWinners)
+  ++ Table.text "who's working on it?" (formatSubmitters . achievementInfoWorkingOn)
+
+formatSubmitters userEnts = Data.Text.intercalate ", " $ Import.map (formatSubmitter . entityVal) userEnts
 
 formatMaxSubmitters :: Maybe Int -> String
 formatMaxSubmitters Nothing = "no limit"

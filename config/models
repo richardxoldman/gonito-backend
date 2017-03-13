@@ -95,4 +95,8 @@ AchievementTag
     achievement AchievementId
     tag TagId
     UniqueAchievementTag achievement tag
+WorkingOn
+    achievement AchievementId
+    user UserId
+    UniqueWorkingOnAchievementUser achievement user
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)

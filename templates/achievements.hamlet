@@ -1,6 +1,6 @@
 <h1>Achievements
 
-^{Table.buildBootstrap achievementsTable achievements}
+^{Table.buildBootstrap achievementsTable achievementInfos}
 
 <hr>
 
