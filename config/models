@@ -98,5 +98,6 @@ AchievementTag
 WorkingOn
     achievement AchievementId
     user UserId
+    finalSubmission SubmissionId Maybe
     UniqueWorkingOnAchievementUser achievement user
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)

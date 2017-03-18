@@ -17,6 +17,7 @@ import Data.Text
 import qualified Yesod.Table as Table
 
 data AchievementInfo = AchievementInfo {
+  achievementInfoId :: AchievementId,
   achievementInfoName :: Text,
   achievementInfoChallenge :: Entity Challenge,
   achievementInfoDescription :: Maybe Text,
@@ -78,6 +79,7 @@ getAchievementInfo mUser (Entity achievementId achievement) = do
   challenge <- get404 challengeId
 
   return $ AchievementInfo {
+    achievementInfoId = achievementId,
     achievementInfoName = achievementName achievement,
     achievementInfoChallenge = Entity challengeId challenge,
     achievementInfoDescription = achievementDescription achievement,
@@ -103,7 +105,55 @@ achievementsTable = mempty
   ++ Table.int "points" achievementInfoPoints
   ++ timestampCell "deadline" achievementInfoDeadline
   ++ Table.string "max submitters" (formatMaxSubmitters . achievementInfoMaxWinners)
-  ++ Table.text "who's working on it?" (formatSubmitters . achievementInfoWorkingOn)
+  ++ workingOnCell
+
+workingOnCell = Table.widget "who's working on it?" workingOnWidget
+
+workingOnWidget ainfo = [whamlet|
+#{srs}
+
+$if canStartWorkingOn
+   \ <a href=@{StartWorkingOnR (achievementInfoId ainfo)}>start working</a>
+|]
+  where srs = formatSubmitters $ achievementInfoWorkingOn ainfo
+        canStartWorkingOn = determineWhetherCanStartWorkingOn (achievementInfoCurrentUser ainfo) (achievementInfoWorkingOn ainfo) (achievementInfoMaxWinners ainfo)
+
+getStartWorkingOnR :: AchievementId -> Handler Html
+getStartWorkingOnR achievementId = do
+  (Entity userId user) <- requireAuth
+
+  alreadyWorkingOn <- runDB $ selectList [WorkingOnUser ==. userId, WorkingOnFinalSubmission ==. Nothing] []
+  if Import.null alreadyWorkingOn
+    then
+       do
+        es <- runDB $ selectList [WorkingOnAchievement ==. achievementId] []
+        let userIds = Import.map (workingOnUser . entityVal) es
+        users <- runDB $ mapM get404 userIds
+        let userEnts = Import.map (\(k,v) -> (Entity k v)) $ Import.zip userIds users
+
+        achievement <- runDB $ get404 achievementId
+
+        if determineWhetherCanStartWorkingOn (Just (Entity userId user)) userEnts (achievementMaxWinners achievement)
+          then
+           do
+            _ <- runDB $ insert $ WorkingOn achievementId userId Nothing
+            setMessage $ toHtml ("OK!" :: Text)
+          else
+           do
+            setMessage $ toHtml ("Too many people working on the achievement!" :: Text)
+    else
+       do
+        setMessage $ toHtml ("Already working on another achievement!" :: Text)
+  redirect $ AchievementsR
+
+
+determineWhetherCanStartWorkingOn Nothing _ _ = False
+determineWhetherCanStartWorkingOn (Just (Entity userId user)) peopleWorkingOn maxWinners =
+  (Import.all (\e -> (userId /= entityKey e)) peopleWorkingOn) && (checkLimit peopleWorkingOn maxWinners)
+
+checkLimit _ Nothing = True
+checkLimit peopleWorkingOn (Just m) = (Import.length peopleWorkingOn) < m
+
 
 achievementDescriptionCell = Table.widget "description" (
   \ainfo -> fragmentWithTags (fromMaybe (""::Text) $ achievementInfoDescription ainfo) (achievementInfoTags ainfo))
