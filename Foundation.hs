@@ -104,7 +104,6 @@ instance Yesod App where
         maybeUser <- maybeAuth
 
         pc <- widgetToPageContent $ do
-            addStylesheet $ StaticR css_bootstrap_css
             $(widgetFile "default-layout")
         withUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
 
