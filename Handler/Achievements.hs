@@ -18,6 +18,7 @@ import qualified Yesod.Table as Table
 
 data AchievementInfo = AchievementInfo {
   achievementInfoName :: Text,
+  achievementInfoChallenge :: Entity Challenge,
   achievementInfoDescription :: Maybe Text,
   achievementInfoPoints :: Int,
   achievementInfoDeadline :: UTCTime,
@@ -73,8 +74,12 @@ getAchievementInfo mUser (Entity achievementId achievement) = do
 
   tags <- getAchievementTags achievementId
 
+  let challengeId = achievementChallenge achievement
+  challenge <- get404 challengeId
+
   return $ AchievementInfo {
     achievementInfoName = achievementName achievement,
+    achievementInfoChallenge = Entity challengeId challenge,
     achievementInfoDescription = achievementDescription achievement,
     achievementInfoPoints = achievementPoints achievement,
     achievementInfoDeadline = achievementDeadline achievement,
@@ -93,6 +98,7 @@ getAchievementTags achievementId = do
 achievementsTable :: Table.Table App (AchievementInfo)
 achievementsTable = mempty
   ++ Table.text "achievement" achievementInfoName
+  ++ Table.linked "challenge" (challengeTitle . entityVal . achievementInfoChallenge) (ShowChallengeR . challengeName . entityVal . achievementInfoChallenge)
   ++ achievementDescriptionCell
   ++ Table.int "points" achievementInfoPoints
   ++ timestampCell "deadline" achievementInfoDeadline
