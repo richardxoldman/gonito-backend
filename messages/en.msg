@@ -41,3 +41,4 @@ AchievementMaxWinners: maximum number of submitters
 AchievementTags: tags required for an achievement
 Achievements: achievements
 AchievementPoints: points
+WantToBeAnonimised: I want to stay anonymous for other user of Gonito.net

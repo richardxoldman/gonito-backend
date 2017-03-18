@@ -17,24 +17,24 @@ getYourAccountR = do
     user <- runDB $ get404 userId
     keyS <- runDB $ selectFirst [PublicKeyUser ==. userId] []
     let key = publicKeyPubkey <$> entityVal <$> keyS
-    (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) key)
+    (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) key (userIsAnonymous user))
     defaultLayout $ do
         setTitle "Your account"
         $(widgetFile "your-account")
 
 postYourAccountR :: Handler Html
 postYourAccountR = do
-    ((result, formWidget), formEnctype) <- runFormPost (yourAccountForm Nothing Nothing Nothing)
+    ((result, formWidget), formEnctype) <- runFormPost (yourAccountForm Nothing Nothing Nothing False)
     userId <- requireAuthId
     user <- runDB $ get404 userId
     let accountData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
     case accountData of
-        Just (name, localId, mPassword, sshPubKey, avatarFile) -> do
+        Just (name, localId, mPassword, sshPubKey, avatarFile, anonimised) -> do
           if checkPassword mPassword
             then
-              updateUserAccount userId name localId mPassword sshPubKey avatarFile
+              updateUserAccount userId name localId mPassword sshPubKey avatarFile anonimised
             else
               tooWeakPasswordMessage
         Nothing -> do
@@ -48,13 +48,14 @@ checkPassword Nothing = True
 checkPassword (Just "") = True
 checkPassword (Just passwd) = isPasswordAcceptable passwd
 
-yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo)
-yourAccountForm maybeName maybeLocalId maybeSshPubKey = renderBootstrap3 BootstrapBasicForm $ (,,,,)
+yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Bool -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo, Bool)
+yourAccountForm maybeName maybeLocalId maybeSshPubKey anonimised = renderBootstrap3 BootstrapBasicForm $ (,,,,,)
     <$> aopt textField (bfs MsgAccountName) (Just maybeName)
     <*> aopt textField (bfs MsgId) (Just maybeLocalId)
     <*> aopt passwordConfirmField (bfs MsgPassword) Nothing
     <*> aopt textField (bfs MsgSshPubKey) (Just maybeSshPubKey)
     <*> fileAFormOpt (bfs MsgAvatar)
+    <*> areq checkBoxField (bfs MsgWantToBeAnonimised) (Just anonimised)
 
 localIdRegexp :: Regex
 localIdRegexp = makeRegexOpts defaultCompOpt{newSyntax=True} defaultExecOpt ("\\`[a-z][-a-z0-9]{0,31}\\'" ::String)
@@ -70,11 +71,12 @@ isLocalIdAcceptable :: Text -> Bool
 isLocalIdAcceptable localId =
   match localIdRegexp (unpack localId) && not (localId `elem` unwantedLocalIds)
 
-updateUserAccount :: Key User -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe FileInfo -> Handler ()
-updateUserAccount userId name maybeLocalId maybePassword maybeSshPubKey maybeAvatarFile = do
+updateUserAccount :: Key User -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe FileInfo -> Bool -> Handler ()
+updateUserAccount userId name maybeLocalId maybePassword maybeSshPubKey maybeAvatarFile anonimised = do
   updateJustName userId name
   updateAvatar userId maybeAvatarFile
   updateLocalIdAndPubKey userId maybeLocalId maybeSshPubKey
+  updateAnonimity userId anonimised
   case maybePassword of
     Nothing -> return ()
     Just "" -> return ()
@@ -123,6 +125,8 @@ updateLocalIdAndPubKey _ Nothing Nothing = return ()
 updateJustName :: Key User -> Maybe Text -> Handler ()
 updateJustName userId name = runDB $ update userId [UserName =. name]
 
+updateAnonimity :: Key User -> Bool -> Handler ()
+updateAnonimity userId anonimised = runDB $ update userId [UserIsAnonymous =. anonimised]
 
 getAvatarR :: UserId -> Handler TypedContent
 getAvatarR userId = do
