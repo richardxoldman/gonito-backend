@@ -43,7 +43,7 @@ descriptionCell = Table.widget "description" (
 #{submissionDescription s}
 
 $forall (Entity _ v) <- tagEnts
-  \ <span class="labal label-primary">#{tagName v}</span>
+  \ <span class="label label-primary">#{tagName v}</span>
 |])
 
 --  Table.text "description" (submissionDescription . (\(Entity _ s, _,  _, _) -> s))
