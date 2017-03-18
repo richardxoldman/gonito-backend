@@ -23,7 +23,8 @@ data AchievementInfo = AchievementInfo {
   achievementInfoDeadline :: UTCTime,
   achievementInfoMaxWinners :: Maybe Int,
   achievementInfoWorkingOn :: [Entity User],
-  achievementInfoCurrentUser :: Maybe (Entity User) }
+  achievementInfoCurrentUser :: Maybe (Entity User),
+  achievementInfoTags :: [Entity Tag] }
 
 
 
@@ -70,6 +71,8 @@ getAchievementInfo mUser (Entity achievementId achievement) = do
   let userIds = Import.map (workingOnUser . entityVal) es
   users <- mapM get404 userIds
 
+  tags <- getAchievementTags achievementId
+
   return $ AchievementInfo {
     achievementInfoName = achievementName achievement,
     achievementInfoDescription = achievementDescription achievement,
@@ -77,16 +80,27 @@ getAchievementInfo mUser (Entity achievementId achievement) = do
     achievementInfoDeadline = achievementDeadline achievement,
     achievementInfoMaxWinners = achievementMaxWinners achievement,
     achievementInfoWorkingOn = Import.map (\(i,v) -> Entity i v) $ Import.zip userIds users,
-    achievementInfoCurrentUser = mUser }
+    achievementInfoCurrentUser = mUser,
+    achievementInfoTags = tags }
+
+getAchievementTags achievementId = do
+  sts <- selectList [AchievementTagAchievement ==. achievementId] []
+  let tagIds = Import.map (achievementTagTag . entityVal) sts
+  tags <- mapM get404 $ tagIds
+  return $ Import.map (\(k, v) -> Entity k v) $ Import.zip tagIds tags
+
 
 achievementsTable :: Table.Table App (AchievementInfo)
 achievementsTable = mempty
   ++ Table.text "achievement" achievementInfoName
-  ++ Table.text "description" (fromMaybe (""::Text) . achievementInfoDescription)
+  ++ achievementDescriptionCell
   ++ Table.int "points" achievementInfoPoints
   ++ timestampCell "deadline" achievementInfoDeadline
   ++ Table.string "max submitters" (formatMaxSubmitters . achievementInfoMaxWinners)
   ++ Table.text "who's working on it?" (formatSubmitters . achievementInfoWorkingOn)
+
+achievementDescriptionCell = Table.widget "description" (
+  \ainfo -> fragmentWithTags (fromMaybe (""::Text) $ achievementInfoDescription ainfo) (achievementInfoTags ainfo))
 
 formatSubmitters userEnts = Data.Text.intercalate ", " $ Import.map (formatSubmitter . entityVal) userEnts
 
