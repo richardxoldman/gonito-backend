@@ -20,3 +20,10 @@ tagsAsTextToTagIds mTagsAsText = do
                        Nothing -> []
   mTs <- mapM (\t -> getBy $ UniqueTagName t) newTags
   return $ Import.map entityKey $ Import.catMaybes mTs
+
+fragmentWithTags t tagEnts = [whamlet|
+#{t}
+
+$forall (Entity _ v) <- tagEnts
+  \ <span class="label label-primary">#{tagName v}</span>
+|]

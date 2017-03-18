@@ -5,6 +5,7 @@ module Handler.Tables where
 import Import
 import Handler.Shared
 import Handler.SubmissionView
+import Handler.TagUtils
 
 import qualified Yesod.Table as Table
 import Yesod.Table (Table)
@@ -27,7 +28,8 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardBestSubmission :: Submission,
   leaderboardBestSubmissionId :: SubmissionId,
   leaderboardEvaluation :: Evaluation,
-  leaderboardNumberOfSubmissions :: Int
+  leaderboardNumberOfSubmissions :: Int,
+  leaderboardTags :: [Entity Tag]
 }
 
 submissionsTable :: Maybe UserId -> Text -> [Entity Test] -> Table App (Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag])
@@ -39,14 +41,7 @@ submissionsTable mauthId challengeName tests = mempty
   ++ statusCell challengeName (\(Entity submissionId submission, Entity userId _, _, _) -> (submissionId, submission, userId, mauthId))
 
 descriptionCell = Table.widget "description" (
-  \(Entity _ s, _, _ ,tagEnts) -> [whamlet|
-#{submissionDescription s}
-
-$forall (Entity _ v) <- tagEnts
-  \ <span class="label label-primary">#{tagName v}</span>
-|])
-
---  Table.text "description" (submissionDescription . (\(Entity _ s, _,  _, _) -> s))
+  \(Entity _ s, _, _ ,tagEnts) -> fragmentWithTags (submissionDescription s) tagEnts)
 
 extractScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag]) -> Maybe Evaluation
 extractScore k (_, _, m, _) = lookup k m
@@ -56,13 +51,17 @@ leaderboardTable mauthId challengeName test = mempty
   ++ Table.int "#" fst
   ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd)
   ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
-  ++ Table.text "description" (submissionDescription . leaderboardBestSubmission . snd)
+  ++ leaderboardDescriptionCell
   ++ resultCell test ((\e -> Just e) . leaderboardEvaluation . snd)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
   ++ statusCell challengeName (\(_, e) -> (leaderboardBestSubmissionId e,
                                        leaderboardBestSubmission e,
                                        leaderboardUserId e,
                                        mauthId))
+
+leaderboardDescriptionCell = Table.widget "description" (
+  \(_,entry) -> fragmentWithTags (submissionDescription $ leaderboardBestSubmission entry) (leaderboardTags entry))
+
 
 
 hoverTextCell :: Text -> (a -> Text) -> (a -> Text) -> Table site a
@@ -130,19 +129,25 @@ getLeaderboardEntries challengeId = do
   let auxSubmissions = getAuxSubmissionEnts mainTestId evaluationMaps
   let submissionsByUser = Map.fromListWith (\(u1, l1) (_, l2) -> (u1, l1++l2)) auxSubmissions
   let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluation a) (evaluationScore $ leaderboardEvaluation b)
-  let entries = sortBy (flip entryComparator) $ map (toEntry mainTest) $ filter (\(_, (_, s)) -> not (null s)) $ Map.toList submissionsByUser
+  entries' <- mapM (toEntry mainTest) $ filter (\(_, (_, s)) -> not (null s)) $ Map.toList submissionsByUser
+  let entries = sortBy (flip entryComparator) entries'
   return (mainTest, entries)
-    where submissionComparator mainTest (_, e1) (_, e2) = (compareResult mainTest) (evaluationScore e1) (evaluationScore e2)
-          toEntry mainTest (ui, (u, ss)) = LeaderboardEntry {
+
+
+toEntry mainTest (ui, (u, ss)) = do
+  let bestOne = DL.maximumBy (submissionComparator mainTest) ss
+  let submissionId = entityKey $ fst bestOne
+  tagEnts <- runDB $ getTags submissionId
+  return $ LeaderboardEntry {
               leaderboardUser = u,
               leaderboardUserId = ui,
               leaderboardBestSubmission = (\(Entity _ s) -> s) $ fst bestOne,
               leaderboardBestSubmissionId = (\(Entity si _) -> si) $ fst bestOne,
               leaderboardEvaluation = snd bestOne,
-              leaderboardNumberOfSubmissions = length ss
+              leaderboardNumberOfSubmissions = length ss,
+              leaderboardTags = tagEnts
               }
-                  where bestOne = DL.maximumBy (submissionComparator mainTest) ss
-
+     where submissionComparator mainTest (_, e1) (_, e2) = (compareResult mainTest) (evaluationScore e1) (evaluationScore e2)
 
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
