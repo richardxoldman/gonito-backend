@@ -33,13 +33,13 @@ $newline never
 
     <script>
       document.documentElement.className = document.documentElement.className.replace(/\bno-js\b/,'js');
-  <body>
+  <body style="padding-top: 100px">
     <div class="container">
       <header>
       <div id="main" role="main">
         ^{pageBody pc}
 
-    <footer class="footer">
+    <footer class="footer" style="padding-top: 30px">
        <div class="container">
          <p class="text-muted">#{appCopyright $ appSettings master}
 
