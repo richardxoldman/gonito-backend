@@ -45,6 +45,14 @@ postEditSubmissionR submissionId = do
   getEditSubmissionR submissionId
 
 
+getPossibleAchievements userId submissionId = do
+  (Just submission) <- get submissionId
+  let challengeId = submissionChallenge submission
+  achievements <- selectList [AchievementChallenge ==. challengeId] []
+  workingOns <- mapM (\a -> getBy $ UniqueWorkingOnAchievementUser (entityKey a) userId) achievements
+  let rets = Import.zip achievements workingOns
+  return $ Import.map (\(a, (Just w)) -> (a, entityKey w)) $ Import.filter (\(_, mw) -> isJust mw) $ rets
+
 addTags submissionId tagsAsText existingOnes = do
   tids <- tagsAsTextToTagIds tagsAsText
 
@@ -61,6 +69,10 @@ doEditSubmission formWidget formEnctype submissionId = do
   let view = queryResult submissionFull
 
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
+
+  (Entity userId user) <- requireAuth
+
+  achievements <- runDB $ getPossibleAchievements userId submissionId
 
   defaultLayout $ do
     setTitle "Edit a submission"

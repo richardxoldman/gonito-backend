@@ -121,6 +121,21 @@ $if canGiveUpWorkingOn
         canStartWorkingOn = determineWhetherCanStartWorkingOn (achievementInfoCurrentUser ainfo) (achievementInfoWorkingOn ainfo) (achievementInfoMaxWinners ainfo)
         canGiveUpWorkingOn = determineWhetherCanGiveUpWorkingOn (achievementInfoCurrentUser ainfo) (achievementInfoWorkingOn ainfo)
 
+getSubmissionForAchievementR :: SubmissionId -> WorkingOnId -> Handler Html
+getSubmissionForAchievementR submissionId workingOnId = do
+   (Entity userId user) <- requireAuth
+   submission <- runDB $ get404 submissionId
+   workingOn <- runDB $ get404 workingOnId
+   if submissionSubmitter submission == userId && workingOnUser workingOn == userId
+     then
+       do
+        runDB $ update workingOnId [WorkingOnFinalSubmission =. Just submissionId]
+        setMessage $ toHtml ("OK! Your submission now awaits being accepted by a human reviewer" :: Text)
+     else
+       do
+        setMessage $ toHtml ("Not your submission" :: Text)
+   redirect $ EditSubmissionR submissionId
+
 getStartWorkingOnR :: AchievementId -> Handler Html
 getStartWorkingOnR achievementId = do
   (Entity userId user) <- requireAuth

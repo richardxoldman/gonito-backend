@@ -4,3 +4,9 @@
   ^{formWidget}
   <button .btn .btn-primary type="submit">
     _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
+
+<hr>
+
+<ul>
+ $forall (achievement, workingOnId) <- achievements
+  <li><a href=@{SubmissionForAchievementR submissionId workingOnId}>send to review for #{achievementName $ entityVal achievement} achievement

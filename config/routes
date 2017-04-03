@@ -35,6 +35,7 @@
 /achievements AchievementsR GET POST
 /start-working-on/#AchievementId StartWorkingOnR GET
 /give-up-working-on/#AchievementId GiveUpWorkingOnR GET
+/submission-for-achievement/#SubmissionId/#WorkingOnId SubmissionForAchievementR GET
 
 /edit-submission/#SubmissionId EditSubmissionR GET POST
 
