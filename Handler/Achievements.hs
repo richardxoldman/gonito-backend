@@ -114,9 +114,12 @@ workingOnWidget ainfo = [whamlet|
 
 $if canStartWorkingOn
    \ <a href=@{StartWorkingOnR (achievementInfoId ainfo)}>start working</a>
+$if canGiveUpWorkingOn
+   \ <a href=@{GiveUpWorkingOnR (achievementInfoId ainfo)}>give up</a>
 |]
   where srs = formatSubmitters $ achievementInfoWorkingOn ainfo
         canStartWorkingOn = determineWhetherCanStartWorkingOn (achievementInfoCurrentUser ainfo) (achievementInfoWorkingOn ainfo) (achievementInfoMaxWinners ainfo)
+        canGiveUpWorkingOn = determineWhetherCanGiveUpWorkingOn (achievementInfoCurrentUser ainfo) (achievementInfoWorkingOn ainfo)
 
 getStartWorkingOnR :: AchievementId -> Handler Html
 getStartWorkingOnR achievementId = do
@@ -147,9 +150,34 @@ getStartWorkingOnR achievementId = do
   redirect $ AchievementsR
 
 
+getGiveUpWorkingOnR :: AchievementId -> Handler Html
+getGiveUpWorkingOnR achievementId = do
+  (Entity userId user) <- requireAuth
+
+  alreadyWorkingOn <- runDB $ selectList [WorkingOnUser ==. userId,
+                                         WorkingOnAchievement ==. achievementId,
+                                         WorkingOnFinalSubmission ==. Nothing] []
+  if not (Import.null alreadyWorkingOn)
+    then
+       do
+        runDB $ deleteWhere [WorkingOnUser ==. userId,
+                             WorkingOnAchievement ==. achievementId,
+                             WorkingOnFinalSubmission ==. Nothing]
+        setMessage $ toHtml ("OK, you can take another achievement now!" :: Text)
+    else
+       do
+        setMessage $ toHtml ("Not working on this achievement!" :: Text)
+  redirect $ AchievementsR
+
+
+
 determineWhetherCanStartWorkingOn Nothing _ _ = False
 determineWhetherCanStartWorkingOn (Just (Entity userId user)) peopleWorkingOn maxWinners =
   (Import.all (\e -> (userId /= entityKey e)) peopleWorkingOn) && (checkLimit peopleWorkingOn maxWinners)
+
+determineWhetherCanGiveUpWorkingOn Nothing _ = False
+determineWhetherCanGiveUpWorkingOn (Just (Entity userId user)) peopleWorkingOn =
+  (Import.any (\e -> (userId == entityKey e)) peopleWorkingOn)
 
 checkLimit _ Nothing = True
 checkLimit peopleWorkingOn (Just m) = (Import.length peopleWorkingOn) < m

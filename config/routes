@@ -34,6 +34,7 @@
 /tags TagsR GET POST
 /achievements AchievementsR GET POST
 /start-working-on/#AchievementId StartWorkingOnR GET
+/give-up-working-on/#AchievementId GiveUpWorkingOnR GET
 
 /edit-submission/#SubmissionId EditSubmissionR GET POST
 
