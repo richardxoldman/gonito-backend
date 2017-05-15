@@ -19,6 +19,7 @@
                 <a href="@{AuthR LoginR}" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">#{userIdent $ entityVal user}<span class="caret"></span>
                 <ul class="dropdown-menu">
                     <li><a href="@{YourAccountR}">_{MsgYourAccount}</a></li>
+                    <li><a href="@{MyScoreR}">_{MsgYourScore}</a></li>
                     <li><a href="@{AuthR LogoutR}">_{MsgLogOut}</a></li>
         $nothing
             <ul class="nav navbar-nav">

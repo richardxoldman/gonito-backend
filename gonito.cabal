@@ -139,6 +139,7 @@ library
                  , pwstore-fast
                  , nonce
                  , esqueleto
+                 , extra
 
 executable         gonito
     if flag(library-only)
