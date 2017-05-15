@@ -134,6 +134,10 @@ instance Yesod App where
     isAuthorized (AvatarR _) _ = return Authorized
 
     isAuthorized CreateResetLinkR _ = isAdmin
+    isAuthorized (ScoreR _) _ = isAdmin
+
+    isAuthorized MyScoreR _ = return Authorized
+
     isAuthorized (ResetPasswordR _) _ = return Authorized
 
     -- Default to Authorized for now.

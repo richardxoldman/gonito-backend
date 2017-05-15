@@ -37,6 +37,9 @@
 /give-up-working-on/#AchievementId GiveUpWorkingOnR GET
 /submission-for-achievement/#SubmissionId/#WorkingOnId SubmissionForAchievementR GET
 
+/score/#UserId ScoreR GET
+/my-score MyScoreR GET
+
 /edit-submission/#SubmissionId EditSubmissionR GET POST
 
 /presentation/4real Presentation4RealR GET

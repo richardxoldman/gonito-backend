@@ -1,0 +1,3 @@
+<h1>Score for #{formatSubmitter user}
+
+^{Table.buildBootstrap scoreTable entries'}

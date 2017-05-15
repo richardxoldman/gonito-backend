@@ -50,6 +50,8 @@ library
                      Handler.SubmissionView
                      Handler.Achievements
                      Handler.TagUtils
+                     Handler.Score
+                     Handler.AchievementUtils
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -136,6 +138,7 @@ library
                  , yesod-auth-hashdb
                  , pwstore-fast
                  , nonce
+                 , esqueleto
 
 executable         gonito
     if flag(library-only)
