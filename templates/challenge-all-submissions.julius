@@ -4,3 +4,9 @@
       defaultNodeColor: '#ec5148'
     }
   });
+
+  $(document).ready(function() {
+     $("table").DataTable({
+       'pageLength': 50,
+       'order': [[1, 'desc']]});
+  } );
