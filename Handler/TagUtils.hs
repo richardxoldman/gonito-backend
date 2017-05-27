@@ -27,3 +27,15 @@ fragmentWithTags t tagEnts = [whamlet|
 $forall (Entity _ v) <- tagEnts
   \ <span class="label label-primary">#{tagName v}</span>
 |]
+
+fragmentWithSubmissionTags t tagEnts = [whamlet|
+#{t}
+
+$forall ((Entity _ v), (Entity _ s)) <- tagEnts
+  \ <span class="label #{tagClass $ submissionTagAccepted s}">#{tagName v}</span>
+|]
+
+tagClass :: Maybe Bool -> Text
+tagClass (Just True) = "label-success"
+tagClass (Just False) = "label-default"
+tagClass Nothing = "label-primary"

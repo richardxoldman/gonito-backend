@@ -29,10 +29,10 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardBestSubmissionId :: SubmissionId,
   leaderboardEvaluation :: Evaluation,
   leaderboardNumberOfSubmissions :: Int,
-  leaderboardTags :: [Entity Tag]
+  leaderboardTags :: [(Entity Tag, Entity SubmissionTag)]
 }
 
-submissionsTable :: Maybe UserId -> Text -> [Entity Test] -> Table App (Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag])
+submissionsTable :: Maybe UserId -> Text -> [Entity Test] -> Table App (Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])
 submissionsTable mauthId challengeName tests = mempty
   ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _, _) -> submitter))
   ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _, _) -> s))
@@ -41,9 +41,9 @@ submissionsTable mauthId challengeName tests = mempty
   ++ statusCell challengeName (\(Entity submissionId submission, Entity userId _, _, _) -> (submissionId, submission, userId, mauthId))
 
 descriptionCell = Table.widget "description" (
-  \(Entity _ s, _, _ ,tagEnts) -> fragmentWithTags (submissionDescription s) tagEnts)
+  \(Entity _ s, _, _ ,tagEnts) -> fragmentWithSubmissionTags (submissionDescription s) tagEnts)
 
-extractScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag]) -> Maybe Evaluation
+extractScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)]) -> Maybe Evaluation
 extractScore k (_, _, m, _) = lookup k m
 
 leaderboardTable :: Maybe UserId -> Text -> Test -> Table App (Int, LeaderboardEntry)
@@ -60,7 +60,7 @@ leaderboardTable mauthId challengeName test = mempty
                                        mauthId))
 
 leaderboardDescriptionCell = Table.widget "description" (
-  \(_,entry) -> fragmentWithTags (submissionDescription $ leaderboardBestSubmission entry) (leaderboardTags entry))
+  \(_,entry) -> fragmentWithSubmissionTags (submissionDescription $ leaderboardBestSubmission entry) (leaderboardTags entry))
 
 
 
@@ -112,7 +112,7 @@ getAuxSubmissions testId evaluationMaps = map (processEvaluationMap testId) eval
                                                                                        Nothing -> []))
 
 
-getAuxSubmissionEnts :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag])] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
+getAuxSubmissionEnts :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
 getAuxSubmissionEnts testId evaluationMaps = map (processEvaluationMap testId) evaluationMaps
    where processEvaluationMap testId (s, (Entity ui u), m, _) = (ui, (u, case Map.lookup testId m of
                                                                                        Just e -> [(s, e)]
@@ -160,7 +160,7 @@ compareFun :: MetricOrdering -> Double -> Double -> Ordering
 compareFun TheLowerTheBetter = flip compare
 compareFun TheHigherTheBetter = compare
 
-getChallengeSubmissionInfos :: ((Entity Submission) -> Bool) -> Key Challenge -> Handler ([(Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag])], [Entity Test])
+getChallengeSubmissionInfos :: ((Entity Submission) -> Bool) -> Key Challenge -> Handler ([(Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])], [Entity Test])
 getChallengeSubmissionInfos condition challengeId = do
   allSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId] [Desc SubmissionStamp]
   let submissions = filter condition allSubmissions
@@ -168,7 +168,7 @@ getChallengeSubmissionInfos condition challengeId = do
   evaluationMaps <- mapM getEvaluationMap submissions
   return (evaluationMaps, tests)
 
-getEvaluationMap :: Entity Submission -> Handler (Entity Submission, Entity User, Map (Key Test) Evaluation, [Entity Tag])
+getEvaluationMap :: Entity Submission -> Handler (Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])
 getEvaluationMap s@(Entity submissionId submission) = do
   outs <- runDB $ selectList [OutSubmission ==. submissionId] []
   user <- runDB $ get404 $ submissionSubmitter submission
