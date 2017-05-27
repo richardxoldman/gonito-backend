@@ -1,0 +1,37 @@
+<script src="/static/js/sigma.min.js">
+<script src="/static/js/sigma.parsers.json.min.js">
+
+<div id="title" class="step" data-x="0" data-y="0">
+   <h1>RetroC challenge
+   <p>how to guess the publication year of a text?
+   <p class="footnote">Filip Graliński, Rafał Jaworski,<br/>Łukasz Borchmann, Piotr Wierzchoń
+   <p class="footnote">DATeCH 2017
+
+<div class="step slide" data-x="0" data-y="1000">
+   <h2>Overview
+   <ol>
+     <li>Raw data used
+     <li>The RetroC challenge
+     <ul>
+        <li><i>jetzt neu!</i> RetrocC2
+     <li>Results
+
+<div class="step slide" data-x="0" data-y="2000">
+   <h2>Raw corpus
+   <ul>
+     <li>Polish digital libraries (OCRed DjVus/PDFs)
+     <li>digital-born material, (pre-)history of Polish Internet, manually transcribed, grassroots digitization efforts, <i>samiskan</i> etc.
+     <ul>
+        <li>… anything that is timestamped
+
+<div class="step slide" data-x="1000" data-y="2000">
+   <h2>Raw corpus in numbers
+   <ul>
+     <li>3.3M publications
+     <li>24M pages
+     <li>19.5G words
+     <li>98.8G characters
+     <li>18th century till today
+     <li>mostly Polish
+     <ul>
+       <li>… also German
