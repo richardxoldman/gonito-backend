@@ -31,11 +31,19 @@ $forall (Entity _ v) <- tagEnts
 fragmentWithSubmissionTags t tagEnts = [whamlet|
 #{t}
 
-$forall ((Entity _ v), (Entity _ s)) <- tagEnts
-  \ <span class="label #{tagClass $ submissionTagAccepted s}">#{tagName v}</span>
+$forall ((Entity _ v), (Entity sid s)) <- tagEnts
+  \ <span class="label #{tagClass $ submissionTagAccepted s}" onclick="t=$(this); $.get('/toggle-submission-tag/#{toPathPiece sid}', function(data){ if (!(data == 'BLOCKED')) {t.removeClass('#{allTagClasses}'); t.addClass(data);} }); ">#{tagName v}</span>
 |]
+
+allTagClasses :: Text
+allTagClasses = (tagClass $ Just True) <> " " <> (tagClass $ Just False) <> " " <> (tagClass $ Nothing);
+
 
 tagClass :: Maybe Bool -> Text
 tagClass (Just True) = "label-success"
 tagClass (Just False) = "label-default"
 tagClass Nothing = "label-primary"
+
+toggleTag :: Maybe Bool -> Maybe Bool
+toggleTag (Just True) = Just False
+toggleTag _ = Just True

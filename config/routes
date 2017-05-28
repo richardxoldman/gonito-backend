@@ -36,6 +36,7 @@
 /start-working-on/#AchievementId StartWorkingOnR GET
 /give-up-working-on/#AchievementId GiveUpWorkingOnR GET
 /submission-for-achievement/#SubmissionId/#WorkingOnId SubmissionForAchievementR GET
+/toggle-submission-tag/#SubmissionTagId ToggleSubmissionTagR GET
 
 /score/#UserId ScoreR GET
 /my-score MyScoreR GET

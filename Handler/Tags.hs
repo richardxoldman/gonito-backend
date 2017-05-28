@@ -6,6 +6,8 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
 import qualified Yesod.Table as Table
 
+import Handler.TagUtils
+
 getTagsR :: Handler Html
 getTagsR = do
   (formWidget, formEnctype) <- generateFormPost tagForm
@@ -41,3 +43,17 @@ tagForm :: Form (Text, Maybe Text)
 tagForm = renderBootstrap3 BootstrapBasicForm $ (,)
     <$> areq textField (bfs MsgTagName) Nothing
     <*> aopt textField (bfs MsgTagDescription) Nothing
+
+getToggleSubmissionTagR :: SubmissionTagId -> Handler RepPlain
+getToggleSubmissionTagR submissionTagId = do
+  mUser <- maybeAuth
+  if (checkIfAdmin mUser)
+   then
+      do
+       submissionTag <- runDB $ get404 submissionTagId
+       let newState = toggleTag $ submissionTagAccepted submissionTag
+       runDB $ update submissionTagId [SubmissionTagAccepted =. newState]
+       return $ RepPlain $ toContent $ tagClass newState
+   else
+      do
+       return $ RepPlain $ toContent ("BLOCKED" :: Text)

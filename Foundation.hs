@@ -139,6 +139,8 @@ instance Yesod App where
     isAuthorized MyScoreR _ = return Authorized
 
     isAuthorized (ResetPasswordR _) _ = return Authorized
+    isAuthorized (ToggleSubmissionTagR _) _ = return Authorized
+
 
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
