@@ -37,7 +37,7 @@ getPresentation4RealR = do
   presentationLayout $(widgetFile "presentation-4real")
 
 getPresentationDATeCH2017R = do
-  readme <- challengeReadme sampleChallengeName
+  readme <- challengeReadme sampleChallengeName'
   sampleLeaderboard <- getSampleLeaderboard sampleChallengeName'
   presentationLayout $(widgetFile "presentation-datech-2017")
 
