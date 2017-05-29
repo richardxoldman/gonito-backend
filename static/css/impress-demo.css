@@ -49,6 +49,10 @@ time, mark, audio, video {
     vertical-align: baseline;
 }
 
+.stats tr td {
+    padding: 12px
+}
+
 h1 {
     padding-bottom: 12px;
     font-weight: bold;

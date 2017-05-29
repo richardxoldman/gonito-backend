@@ -34,4 +34,63 @@
      <li>18th century till today
      <li>mostly Polish
      <ul>
-       <li>… also German
+       <li>… (also German if you're interested — 350K publications)
+
+<div class="step slide" data-x="0" data-y="3000">
+   <h2>The challenge…
+
+   <div style="font-size: 50%" class="readme">
+     ^{readme}
+
+   <p>Available at <a href="http://gonito.net/retroc">Gonito.net platform</a> or just:
+
+   <pre>
+      git clone git://gonito.net/retroc
+
+<div class="step slide" data-x="1000" data-y="3000">
+   <p>Core assumption
+   <ul>
+     <li>the temporal classifier will be used to date historical texts with no publication date given in metadata
+
+   <h2>Assumptions
+   <ul>
+     <li>random sample of the whole corpus
+     <ul>
+       <li>stable random so the corpus can grow
+     <li>test set balanced for years (1814-2013)
+     <ul>
+       <li>but train set — not
+     <li><b>different</b> sources used in the train and test set
+     <li>500-word text snippets
+     <li>OCR noise kept as it is
+
+<div class="step slide" data-x="2000" data-y="3000">
+   <h2>RetroC(2) in numbers
+
+   <p>Number of texts:
+
+   <table class="stats">
+     <tr>
+       <th>
+       <th>train
+       <th>dev-0
+       <th>dev-1
+       <th>test
+     <tr>
+       <td>RetroC
+       <td>40K
+       <td>9.9K
+       <td>-
+       <td>10K
+     <tr>
+       <td>RetroC2
+       <td>107.4K
+       <td>20K
+       <td>11.5K
+       <td>14.2K
+
+<div class="step slide" style="height: 800px;" data-x="0" data-y="4000">
+   <h2>Current status…
+
+   <div style="font-size: 50%">
+     ^{sampleLeaderboard}
