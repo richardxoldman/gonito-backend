@@ -4,7 +4,13 @@
 <div id="title" class="step" data-x="0" data-y="0">
    <h1>RetroC challenge
    <p>how to guess the publication year of a text?
-   <p class="footnote">Filip Graliński, Rafał Jaworski,<br/>Łukasz Borchmann, Piotr Wierzchoń
+   <table>
+     <tr>
+       <td>
+         <p class="footnote">Filip Graliński, Rafał Jaworski,<br/>Łukasz Borchmann, Piotr Wierzchoń&nbsp;&nbsp;&nbsp;
+       <td>
+        <center>
+         <img src="https://siw.amu.edu.pl/__data/assets/file/0006/162987/logotyp_wersja-pozioma_granat_ENG_1.jpg" width="300">
    <p class="footnote">DATeCH 2017
 
 <div class="step slide" data-x="0" data-y="1000">
@@ -32,7 +38,7 @@
      <li>19.5G words
      <li>98.8G characters
      <li>18th century till today
-     <li>mostly Polish
+     <li>language: Polish
      <ul>
        <li>… (also German if you're interested — 350K publications)
 
@@ -89,7 +95,11 @@
        <td align="right">11.5K
        <td align="right">14.2K
 
-   <p>RetroC2 train set contains more information (source is given for each entry), but this is <b>not</b> present in the test set.
+   <p style="padding-top: 20px">RetroC2
+   <ul>
+     <li>train set contains more information (source is given for each entry),<br/>but this is <b>not</b> present in the test set
+     <li>timestamps given as years with possible fractions<br/> (if publication day/month is known)
+
 
 <div class="step slide" style="height: 800px;" data-x="0" data-y="4000">
    <h2>Current status…
@@ -110,7 +120,13 @@
      <li>weights inversely proportional to (the root of) year frequency in the train set
 
 <div class="step slide" style="height: 800px;" data-x="2000" data-y="4000">
-   <h2>Current status…
+   <h2>RetroC2
 
    <div style="font-size: 50%">
      ^{retroc2Leaderboard}
+
+<div class="step slide" style="height: 800px;" data-x="2000" data-y="5000">
+   <h2>Thank you!
+
+   <p style="padding-top: 40px">This work was partially funded by:
+   <img width="400" src="/static/images/nprh-logo.jpg">
