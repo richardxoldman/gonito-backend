@@ -16,6 +16,12 @@ sampleChallengeName = "petite-difference-challenge"
 sampleChallengeName' :: Text
 sampleChallengeName' = "retroc"
 
+retrocChallengeName :: Text
+retrocChallengeName = "retroc"
+
+retroc2ChallengeName :: Text
+retroc2ChallengeName = "retroc2"
+
 
 sampleUserIdent :: Text
 sampleUserIdent = "ptlen@ceti.pl"
@@ -37,8 +43,9 @@ getPresentation4RealR = do
   presentationLayout $(widgetFile "presentation-4real")
 
 getPresentationDATeCH2017R = do
-  readme <- challengeReadme sampleChallengeName'
-  sampleLeaderboard <- getSampleLeaderboard sampleChallengeName'
+  readme <- challengeReadme retrocChallengeName
+  retrocLeaderboard <- getSampleLeaderboard retrocChallengeName
+  retroc2Leaderboard <- getSampleLeaderboard retroc2ChallengeName
   presentationLayout $(widgetFile "presentation-datech-2017")
 
 

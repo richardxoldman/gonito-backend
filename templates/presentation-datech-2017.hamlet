@@ -72,25 +72,45 @@
    <table class="stats">
      <tr>
        <th>
-       <th>train
-       <th>dev-0
-       <th>dev-1
-       <th>test
+       <th align="right">train
+       <th align="right">dev-0
+       <th align="right">dev-1
+       <th align="right">test
      <tr>
        <td>RetroC
-       <td>40K
-       <td>9.9K
-       <td>-
-       <td>10K
+       <td align="right">40K
+       <td align="right">9.9K
+       <td align="right">-
+       <td align="right">10K
      <tr>
        <td>RetroC2
-       <td>107.4K
-       <td>20K
-       <td>11.5K
-       <td>14.2K
+       <td align="right">107.4K
+       <td align="right">20K
+       <td align="right">11.5K
+       <td align="right">14.2K
+
+   <p>RetroC2 train set contains more information (source is given for each entry), but this is <b>not</b> present in the test set.
 
 <div class="step slide" style="height: 800px;" data-x="0" data-y="4000">
    <h2>Current status…
 
    <div style="font-size: 50%">
-     ^{sampleLeaderboard}
+     ^{retrocLeaderboard}
+
+<div class="step slide" style="height: 800px;" data-x="1000" data-y="4000">
+   <h2>The best solution so far…
+
+   <ul>
+     <li>based on Vowpal Wabbit
+     <li>features:
+     <ul>
+       <li>character 1-, 2-, 3- and 4-grams
+       <li>tokens cut at 7th letter
+     <li>small NN (6 units)
+     <li>weights inversely proportional to (the root of) year frequency in the train set
+
+<div class="step slide" style="height: 800px;" data-x="2000" data-y="4000">
+   <h2>Current status…
+
+   <div style="font-size: 50%">
+     ^{retroc2Leaderboard}
