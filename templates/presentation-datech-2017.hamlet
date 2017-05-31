@@ -1,16 +1,19 @@
 <script src="/static/js/sigma.min.js">
 <script src="/static/js/sigma.parsers.json.min.js">
 
+<script type="text/javascript" src="/static/js/jquery-1.11.3.min.js">
+<script type="text/javascript" src="http://code.highcharts.com/highcharts.js">
+
 <div id="title" class="step" data-x="0" data-y="0">
    <h1>RetroC challenge
-   <p>how to guess the publication year of a text?
+   <p>how to guess the publication year of a text?
    <table>
      <tr>
        <td>
          <p class="footnote">Filip Graliński, Rafał Jaworski,<br/>Łukasz Borchmann, Piotr Wierzchoń&nbsp;&nbsp;&nbsp;
        <td>
         <center>
-         <img src="https://siw.amu.edu.pl/__data/assets/file/0006/162987/logotyp_wersja-pozioma_granat_ENG_1.jpg" width="300">
+         <img src="/static/images/amu-logo.jpg" width="300">
    <p class="footnote">DATeCH 2017
 
 <div class="step slide" data-x="0" data-y="1000">
@@ -28,7 +31,10 @@
      <li>Polish digital libraries (OCRed DjVus/PDFs)
      <li>digital-born material, (pre-)history of Polish Internet, manually transcribed, grassroots digitization efforts, <i>samiskan</i> etc.
      <ul>
-        <li>… anything that is timestamped
+        <li>… anything in Polish that is timestamped
+   <center>
+     <img src="/static/images/sample1.png">
+
 
 <div class="step slide" data-x="1000" data-y="2000">
    <h2>Raw corpus in numbers
@@ -42,6 +48,10 @@
      <ul>
        <li>… (also German if you're interested — 350K publications)
 
+     <div class="graph">
+      <div id="gcontainerX01" style="width:100%; height:300px;">
+      <script type="text/javascript" src="/static/js/years-stats-draw.js">
+
 <div class="step slide" data-x="0" data-y="3000">
    <h2>The challenge…
 
@@ -54,9 +64,9 @@
       git clone git://gonito.net/retroc
 
 <div class="step slide" data-x="1000" data-y="3000">
-   <p>Core assumption
+   <p>Core motivation
    <ul>
-     <li>the temporal classifier will be used to date historical texts with no publication date given in metadata
+     <li>temporal classifier will be used to date historical texts with no publication date given in metadata
 
    <h2>Assumptions
    <ul>
@@ -95,7 +105,7 @@
        <td align="right">11.5K
        <td align="right">14.2K
 
-   <p style="padding-top: 20px">RetroC2
+   <p style="padding-top: 30px">RetroC2
    <ul>
      <li>train set contains more information (source is given for each entry),<br/>but this is <b>not</b> present in the test set
      <li>timestamps given as years with possible fractions<br/> (if publication day/month is known)
@@ -118,6 +128,8 @@
        <li>tokens cut at 7th letter
      <li>small NN (6 units)
      <li>weights inversely proportional to (the root of) year frequency in the train set
+
+   <p style="padding-top: 30px">The result to beat:&nbsp;&nbsp;<span style="font-size:64px">RMSE=24.8 years</span>
 
 <div class="step slide" style="height: 800px;" data-x="2000" data-y="4000">
    <h2>RetroC2
