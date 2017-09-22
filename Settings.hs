@@ -6,7 +6,7 @@
 module Settings where
 
 import ClassyPrelude.Yesod
-import Control.Exception           (throw)
+import qualified Control.Exception           as Exception
 import Data.Aeson                  (Result (..), fromJSON, withObject, (.!=),
                                     (.:?))
 import Data.FileEmbed              (embedFile)
@@ -17,7 +17,6 @@ import Network.Wai.Handler.Warp    (HostPreference)
 import Yesod.Default.Config2       (applyEnvValue, configSettingsYml)
 import Yesod.Default.Util          (WidgetFileSettings, widgetFileNoReload,
                                     widgetFileReload)
-import Yesod.Fay
 
 -- | Runtime settings to configure this application. These settings can be
 -- loaded from various sources: defaults, environment variables, config files,
@@ -108,27 +107,14 @@ widgetFile = (if appReloadTemplates compileTimeAppSettings
                 else widgetFileNoReload)
               widgetFileSettings
 
-fayFile' :: Exp -> FayFile
-fayFile' staticR moduleName =
-    (if appReloadTemplates compileTimeAppSettings
-        then fayFileReload
-        else fayFileProd)
-     settings
-  where
-    settings = (yesodFaySettings moduleName)
-        { yfsSeparateRuntime = Just ("static", staticR)
-        -- , yfsPostProcess = readProcess "java" ["-jar", "closure-compiler.jar"]
-        , yfsExternal = Just ("static", staticR)
-        , yfsPackages = ["fay-dom"]
-        }
-
 -- | Raw bytes at compile time of @config/settings.yml@
 configSettingsYmlBS :: ByteString
 configSettingsYmlBS = $(embedFile configSettingsYml)
 
 -- | @config/settings.yml@, parsed to a @Value@.
 configSettingsYmlValue :: Value
-configSettingsYmlValue = either throw id $ decodeEither' configSettingsYmlBS
+configSettingsYmlValue = either Exception.throw id
+                       $ decodeEither' configSettingsYmlBS
 
 -- | A version of @AppSettings@ parsed at compile time from @config/settings.yml@.
 compileTimeAppSettings :: AppSettings

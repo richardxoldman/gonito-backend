@@ -6,7 +6,7 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
 
 import Data.Monoid
 
-import qualified Data.Text.Lazy          as TL
+import qualified Data.Text.Lazy as TL
 import           Text.Markdown
 
 import System.Directory (doesFileExist)
@@ -26,6 +26,8 @@ import qualified Data.Map as Map
 import PersistSHA1
 
 import Options.Applicative
+
+import System.IO (readFile)
 
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
@@ -47,8 +49,8 @@ challengeReadme name = do
   let repoId = challengePublicRepo challenge
   repoDir <- getRepoDir repoId
   let readmeFilePath = repoDir </> readmeFile
-  contents <- readFile readmeFilePath
-  return $ markdown def $ TL.fromStrict contents
+  contents <- liftIO $ System.IO.readFile readmeFilePath
+  return $ markdown def $ TL.pack contents
 
 showChallengeWidget muserId challenge test repo leaderboard = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard

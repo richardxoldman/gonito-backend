@@ -22,4 +22,3 @@ getHomeR = do
         aDomId <- newIdent
         setTitle "Welcome To Gonito.net!"
         $(widgetFile "homepage")
-        $(fayFile "Home")

@@ -29,7 +29,6 @@ import Network.Wai.Middleware.RequestLogger (Destination (Logger),
                                              mkRequestLogger, outputFormat)
 import System.Log.FastLogger                (defaultBufSize, newStdoutLoggerSet,
                                              toLogStr)
-import Yesod.Fay                            (getFaySite)
 
 import qualified Data.IntMap as IntMap
 
@@ -37,7 +36,6 @@ import qualified Data.IntMap as IntMap
 -- Don't forget to add new modules to your cabal file!
 import Handler.Common
 import Handler.Discussion
-import Handler.Fay
 import Handler.Graph
 import Handler.Home
 import Handler.CreateChallenge
@@ -72,7 +70,6 @@ makeFoundation appSettings = do
     appStatic <-
         (if appMutableStatic appSettings then staticDevel else static)
         (appStaticDir appSettings)
-    let appFayCommandHandler = onCommand
 
     jobs <- newTVarIO IntMap.empty
     nextJob <- newTVarIO 1

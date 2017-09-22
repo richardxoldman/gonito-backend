@@ -8,7 +8,7 @@ import Text.Pandoc.Shared (stringify)
 
 import Data.Maybe
 
-import System.IO (withFile, IOMode(..))
+import System.IO (withFile, IOMode(..), readFile)
 
 extractHeaders :: Block -> [String]
 extractHeaders (Header 1 _ x) = [stringify x]
@@ -50,5 +50,5 @@ getTitleAndDescription contents = (title, description)
 
 extractTitleAndDescription :: FilePath -> IO (String, String)
 extractTitleAndDescription fp = do
-  contents <- readFile fp
+  contents <- System.IO.readFile fp
   return $ getTitleAndDescription contents

@@ -8,7 +8,6 @@ import Yesod.Auth.Message          (AuthMessage (InvalidLogin))
 import qualified Yesod.Core.Unsafe as Unsafe
 import Yesod.Core.Types            (Logger)
 import Yesod.Default.Util          (addStaticContentExternal)
-import Yesod.Fay
 
 instance HashDBUser User where
     userPasswordHash = userPassword
@@ -24,7 +23,6 @@ data App = App
     , appConnPool          :: ConnectionPool -- ^ Database connection pool.
     , appHttpManager       :: Manager
     , appLogger            :: Logger
-    , appFayCommandHandler :: CommandHandler App
     , jobs                 :: TVar (IntMap (TChan (Maybe Text)))
     , nextJob              :: TVar Int
     }
@@ -172,15 +170,6 @@ instance Yesod App where
             || level == LevelError
 
     makeLogger = return . appLogger
-
-instance YesodJquery App
-instance YesodFay App where
-
-    fayRoute = FaySiteR
-
-    yesodFayCommand render command = do
-        master <- getYesod
-        appFayCommandHandler master render command
 
 -- How to run database actions.
 instance YesodPersist App where
