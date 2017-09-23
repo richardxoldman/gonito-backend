@@ -112,7 +112,7 @@ doResetPassword' :: Bool -> Text -> Key User -> Text -> Handler Html
 doResetPassword' True _ userId password = do
   updatePassword userId (Just password)
   runDB $ update userId removeVerificationKeyStatement
-  setMessage $ toHtml ("Password set! You can log in now." :: Text)
+  setMessage $ toHtml ("Password set! Now, you can log in with your e-mail address." :: Text)
   redirect HomeR
 
 doResetPassword' False key _ _ = do

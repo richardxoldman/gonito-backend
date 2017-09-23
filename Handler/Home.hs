@@ -18,7 +18,13 @@ getHomeR = do
   let maybeLocalId = case maybeUser of
         Just user -> userLocalId $ entityVal user
         Nothing -> Nothing
-  defaultLayout $ do
+  if maybe False ((\u -> isNothing (userLocalId u) && isNothing (userName u)) . entityVal) maybeUser
+    then
+     do
+      setMessage $ toHtml ("First, set up your name and/or ID!" :: Text)
+      redirect $ YourAccountR
+    else
+      defaultLayout $ do
         aDomId <- newIdent
         setTitle "Welcome To Gonito.net!"
         $(widgetFile "homepage")
