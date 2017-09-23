@@ -2,13 +2,20 @@
 
 <h2>Install GEval
 
-<p>In order to evaluate your work locally, you need the GEval tool. First install <a href="https://github.com/commercialhaskell/stack">Haskell Stack</a> and then install GEval itselt:
+<p>In order to evaluate your work locally, you need the GEval tool. First, install <a href="https://docs.haskellstack.org/en/stable/README/">Haskell Stack</a>:
+
+<pre>
+  curl -sSL https://get.haskellstack.org/ | sh
+
+<p>and then install GEval itself:
 
 <pre>
   git clone git://gonito.net/geval
   cd geval
   stack setup
   stack install
+
+<p>(GEval will make your life easier, but is not obligatory, so if you have any trouble with installing GEval, you can skip this step, for the time being.)
 
 <h2>Get your repo
 
@@ -19,6 +26,8 @@
   cd #{challengeName challenge}
   git pull ssh://gitolite@gonito.net/#{challengeName challenge}
   git push origin master
+
+<p>(Alternatively, you can use any other Git repo, e.g. GitHub, make sure Gonito.net has access to your repo.)
 
 <h2>Work on your solution
 
