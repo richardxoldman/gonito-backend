@@ -43,7 +43,7 @@ gitPath :: FilePath
 gitPath = "/usr/bin/git"
 
 browsableGitSite :: Text
-browsableGitSite = "http://gonito.net/gitlist/"
+browsableGitSite = "https://gonito.net/gitlist/"
 
 serverAddress :: Text
 serverAddress = "gonito.net"
