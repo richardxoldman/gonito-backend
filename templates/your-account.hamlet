@@ -6,7 +6,7 @@
         $nothing
             <div class="alert alert-info" role="alert">
                 <p>
-                    <strong>Please set up your password below so that you could log in when <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system is shut down.
+                    <strong>Please set up your password below so that you could log in.
         <img style="max-width:80px;padding-bottom:30px" src=@{AvatarR userId}>
         <form method=post action=@{YourAccountR}#form enctype=#{formEnctype} autocomplete="off">
            ^{formWidget}
@@ -14,9 +14,4 @@
               _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
         <hr>
         <ul class="list-group">
-            <li class="list-group-item"><b>Name</b> is your human-readable name (to be shown on the leaderboard).
-            <li class="list-group-item"><b>ID</b> is used in the URLs for your repos (must be composed of lower-case letters, digits or hyphyns, must start with a lower-case letter).
-            <li class="list-group-item"><b>Password</b> is needed when Persona is closed.
-            <li class="list-group-item"><b>SSH public key</b> is needed if you want to access repos hosted on Gonito.net (usually it is <tt>.ssh/id_rsa.pub</tt> in your home directory after you generated private/public key pair).
-            <li class="list-group-item">ID cannot be changed once it is set up.
             <li class="list-group-item">You don't need to specify your ID and SSH public key, if you don't use private repos hosted on Gonito.net.

@@ -48,15 +48,18 @@ checkPassword Nothing = True
 checkPassword (Just "") = True
 checkPassword (Just passwd) = isPasswordAcceptable passwd
 
-autocompleteOff name = setts { fsAttrs = (fsAttrs setts) ++ [("autocomplete", "nope")]}
-   where setts = (bfs name)
+autocompleteOff name tooltip = setts { fsAttrs = (fsAttrs setts) ++ [("autocomplete", "nope")]}
+   where setts = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }
+
+fieldWithTooltip :: forall master msg msg1. (RenderMessage master msg, RenderMessage master msg1) => msg -> msg1 -> FieldSettings master
+fieldWithTooltip name tooltip = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }
 
 yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Bool -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo, Bool)
 yourAccountForm maybeName maybeLocalId maybeSshPubKey anonimised = renderBootstrap3 BootstrapBasicForm $ (,,,,,)
-    <$> aopt textField (bfs MsgAccountName) (Just maybeName)
-    <*> aopt textField (autocompleteOff MsgId) (Just maybeLocalId)
+    <$> aopt textField (fieldWithTooltip MsgAccountName MsgAccountNameTooltip) (Just maybeName)
+    <*> aopt textField (autocompleteOff MsgId MsgIdTooltip) (Just maybeLocalId)
     <*> aopt passwordConfirmField (bfs MsgPassword) Nothing
-    <*> aopt textField (bfs MsgSshPubKey) (Just maybeSshPubKey)
+    <*> aopt textField (fieldWithTooltip MsgSshPubKey MsgSshPubKeyTooltip) (Just maybeSshPubKey)
     <*> fileAFormOpt (bfs MsgAvatar)
     <*> areq checkBoxField (bfs MsgWantToBeAnonimised) (Just anonimised)
 
