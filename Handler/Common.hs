@@ -32,7 +32,7 @@ passwordConfirmField = Field
     , fieldView = \idAttr nameAttr otherAttrs _ _ ->
         [whamlet|
             <input id=#{idAttr} name=#{nameAttr} *{otherAttrs} type=password>
-            <div>confirm new password:
+            <div>re-enter the password
             <input id=#{idAttr}-confirm name=#{nameAttr} *{otherAttrs} type=password>
         |]
     , fieldEnctype = UrlEncoded

@@ -26,7 +26,7 @@ CommentText: Write a comment
 Send: Send
 Avatar: avatar
 About: about
-Password: new password
+Password: enter a new password for your account
 EMail: e-mail
 CreateResetLink: create reset link
 LinkWrongOrExpired: Link wrong or expired, please ask the site admin again
@@ -43,3 +43,4 @@ Achievements: achievements
 AchievementPoints: points
 WantToBeAnonimised: I want to stay anonymous for other user of Gonito.net
 YourScore: your score
+PasswordForNewAccount: enter a password for your new account

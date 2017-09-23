@@ -1,1 +1,3 @@
 <p>Reset link created: <a href=@{ResetPasswordR key}>@{ResetPasswordR key}</a>
+
+<p>Now you can send the link to the user.

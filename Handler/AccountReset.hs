@@ -10,6 +10,8 @@ import Data.Time.Clock (addUTCTime)
 
 import Handler.Common (passwordConfirmField, updatePassword, isPasswordAcceptable, tooWeakPasswordMessage)
 
+data AccountStatus = NewlyCreated | PasswordReset
+
 getCreateResetLinkR :: Handler Html
 getCreateResetLinkR = do
   (formWidget, formEnctype) <- generateFormPost createResetLinkForm
@@ -66,8 +68,17 @@ newVerifyKey = Nonce.nonce128urlT nonceGen
 
 getResetPasswordR :: Text -> Handler Html
 getResetPasswordR key = do
-  (formWidget, formEnctype) <- generateFormPost changePasswordForm
   mUserId <- checkVerificationKey key
+  accountStatus <- case mUserId of
+    (Just userId) -> do
+      user <- runDB$ get404 userId
+      return $ if isJust (userPassword user)
+               then
+                 PasswordReset
+               else
+                 NewlyCreated
+    _ -> return PasswordReset
+  (formWidget, formEnctype) <- generateFormPost $ changePasswordForm accountStatus
   master <- getYesod
   defaultLayout $ do
     setTitle "Reset password"
@@ -75,7 +86,7 @@ getResetPasswordR key = do
 
 postResetPasswordR :: Text -> Handler Html
 postResetPasswordR key = do
-  ((result, _), _) <- runFormPost changePasswordForm
+  ((result, _), _) <- runFormPost $ changePasswordForm PasswordReset
   mUserId <- checkVerificationKey key
   let mPassword = case result of
                     FormSuccess password -> Just password
@@ -120,6 +131,9 @@ checkVerificationKey key = do
                  [Entity k _] -> Just k
                  _ -> Nothing
 
-changePasswordForm :: Form Text
-changePasswordForm = renderBootstrap3 BootstrapBasicForm
-    $ areq passwordConfirmField (bfs MsgPassword) Nothing
+changePasswordForm :: AccountStatus -> Form Text
+changePasswordForm accountStatus = renderBootstrap3 BootstrapBasicForm
+    $ areq passwordConfirmField (bfs $ passwordFormHeader accountStatus) Nothing
+
+passwordFormHeader NewlyCreated = MsgPasswordForNewAccount
+passwordFormHeader PasswordReset = MsgPassword
