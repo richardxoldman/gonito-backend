@@ -48,10 +48,13 @@ checkPassword Nothing = True
 checkPassword (Just "") = True
 checkPassword (Just passwd) = isPasswordAcceptable passwd
 
+autocompleteOff name = setts { fsAttrs = (fsAttrs setts) ++ [("autocomplete", "nope")]}
+   where setts = (bfs name)
+
 yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Bool -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo, Bool)
 yourAccountForm maybeName maybeLocalId maybeSshPubKey anonimised = renderBootstrap3 BootstrapBasicForm $ (,,,,,)
     <$> aopt textField (bfs MsgAccountName) (Just maybeName)
-    <*> aopt textField (bfs MsgId) (Just maybeLocalId)
+    <*> aopt textField (autocompleteOff MsgId) (Just maybeLocalId)
     <*> aopt passwordConfirmField (bfs MsgPassword) Nothing
     <*> aopt textField (bfs MsgSshPubKey) (Just maybeSshPubKey)
     <*> fileAFormOpt (bfs MsgAvatar)

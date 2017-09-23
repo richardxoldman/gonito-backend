@@ -31,9 +31,9 @@ passwordConfirmField = Field
             _ -> return $ Left "You must enter two values"
     , fieldView = \idAttr nameAttr otherAttrs _ _ ->
         [whamlet|
-            <input id=#{idAttr} name=#{nameAttr} *{otherAttrs} type=password>
+            <input id=#{idAttr} name=#{nameAttr} *{otherAttrs} type=text autocomplete="new-password" onfocus="$(this).attr('type', 'password');">
             <div>re-enter the password
-            <input id=#{idAttr}-confirm name=#{nameAttr} *{otherAttrs} type=password>
+            <input id=#{idAttr}-confirm name=#{nameAttr} *{otherAttrs} type=text autocomplete="new-password" onfocus="$(this).attr('type', 'password');">
         |]
     , fieldEnctype = UrlEncoded
     }

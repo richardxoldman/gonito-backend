@@ -8,7 +8,7 @@
                 <p>
                     <strong>Please set up your password below so that you could log in when <a href="https://developer.mozilla.org/en-US/Persona">Persona</a> authentication system is shut down.
         <img style="max-width:80px;padding-bottom:30px" src=@{AvatarR userId}>
-        <form method=post action=@{YourAccountR}#form enctype=#{formEnctype}>
+        <form method=post action=@{YourAccountR}#form enctype=#{formEnctype} autocomplete="off">
            ^{formWidget}
            <button .btn .btn-primary type="submit">
               _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
