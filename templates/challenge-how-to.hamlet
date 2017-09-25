@@ -19,7 +19,15 @@
 
 <h2>Get your repo
 
-<p>You need to upload your SSH public key (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
+$if not isIDSet || not isSSHUploaded
+  <p>You need to
+     $if not isIDSet
+        \ set up your ID
+        $if not isSSHUploaded
+          \ and
+     $if not isSSHUploaded
+        \ upload your SSH public key
+     \ (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
 
 <pre>
   git clone ssh://gitolite@gonito.net/#{idToBeShown}/#{challengeName challenge}
