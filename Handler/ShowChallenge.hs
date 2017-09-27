@@ -17,6 +17,7 @@ import qualified Yesod.Table as Table
 import Handler.Extract
 import Handler.Shared
 import Handler.Tables
+import Handler.TagUtils
 
 import GEval.Core
 import GEval.OptionsParser
@@ -106,18 +107,19 @@ postChallengeSubmissionR name = do
     let submissionData = case result of
           FormSuccess res -> Just res
           _ -> Nothing
-        Just (description, submissionUrl, submissionBranch) = submissionData
+        Just (description, mTags, submissionUrl, submissionBranch) = submissionData
 
-    runViewProgress $ doCreateSubmission challengeId description submissionUrl submissionBranch
+    runViewProgress $ doCreateSubmission challengeId description mTags submissionUrl submissionBranch
 
-doCreateSubmission :: Key Challenge -> Text -> Text -> Text -> Channel -> Handler ()
-doCreateSubmission challengeId description url branch chan = do
+doCreateSubmission :: Key Challenge -> Text -> Maybe Text -> Text -> Text -> Channel -> Handler ()
+doCreateSubmission challengeId description mTags url branch chan = do
   maybeRepoKey <- getSubmissionRepo challengeId url branch chan
   case maybeRepoKey of
     Just repoId -> do
       repo <- runDB $ get404 repoId
       submissionId <- getSubmission repoId (repoCurrentCommit repo) challengeId description chan
       _ <- getOuts chan submissionId
+      runDB $ addTags submissionId mTags []
       msg chan "Done"
     Nothing -> return ()
 
@@ -254,9 +256,10 @@ checkRepoAvailibility challengeId repoId chan = do
 
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
-submissionForm :: Maybe Text -> Form (Text, Text, Text)
-submissionForm defaultUrl = renderBootstrap3 BootstrapBasicForm $ (,,)
+submissionForm :: Maybe Text -> Form (Text, Maybe Text, Text, Text)
+submissionForm defaultUrl = renderBootstrap3 BootstrapBasicForm $ (,,,)
     <$> areq textField (bfs MsgSubmissionDescription) Nothing
+    <*> aopt textField (tagsfs MsgSubmissionTags) Nothing
     <*> areq textField (bfs MsgSubmissionUrl) defaultUrl
     <*> areq textField (bfs MsgSubmissionBranch) (Just "master")
 
@@ -279,6 +282,7 @@ getChallengeSubmissions condition name = do
 challengeAllSubmissionsWidget muserId challenge submissions tests = $(widgetFile "challenge-all-submissions")
 
 challengeLayout withHeader challenge widget = do
+  tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
   maybeUser <- maybeAuth
   bc <- widgetToPageContent widget
   defaultLayout $ do

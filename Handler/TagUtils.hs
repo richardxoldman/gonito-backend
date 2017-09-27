@@ -13,6 +13,13 @@ tagsfs :: RenderMessage site msg => msg -> FieldSettings site
 tagsfs msg = attrs { fsAttrs = ("data-role"::Text,"tagsinput"::Text):(fsAttrs attrs)}
    where attrs = bfs msg
 
+addTags submissionId tagsAsText existingOnes = do
+  tids <- tagsAsTextToTagIds tagsAsText
+
+  deleteWhere [SubmissionTagSubmission ==. submissionId, SubmissionTagTag /<-. tids]
+
+  _ <- mapM (\tid -> insert $ SubmissionTag submissionId tid Nothing) (Import.filter (not . (`elem` existingOnes)) tids)
+  return ()
 
 tagsAsTextToTagIds mTagsAsText = do
   let newTags = case mTagsAsText of

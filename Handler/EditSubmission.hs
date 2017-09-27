@@ -53,16 +53,6 @@ getPossibleAchievements userId submissionId = do
   let rets = Import.zip achievements workingOns
   return $ Import.map (\(a, (Just w)) -> (a, entityKey w)) $ Import.filter (\(_, mw) -> isJust mw) $ rets
 
-addTags submissionId tagsAsText existingOnes = do
-  tids <- tagsAsTextToTagIds tagsAsText
-
-  deleteWhere [SubmissionTagSubmission ==. submissionId, SubmissionTagTag /<-. tids]
-
-  _ <- mapM (\tid -> insert $ SubmissionTag submissionId tid Nothing) (Import.filter (not . (`elem` existingOnes)) tids)
-  return ()
-
-
-
 doEditSubmission formWidget formEnctype submissionId = do
   submission <- runDB $ get404 submissionId
   submissionFull <- getFullInfo (Entity submissionId submission)
