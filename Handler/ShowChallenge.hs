@@ -30,6 +30,10 @@ import Options.Applicative
 
 import System.IO (readFile)
 
+import Data.Attoparsec.Text
+
+import Data.Text (pack)
+
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
@@ -107,19 +111,25 @@ postChallengeSubmissionR name = do
     let submissionData = case result of
           FormSuccess res -> Just res
           _ -> Nothing
-        Just (description, mTags, submissionUrl, submissionBranch) = submissionData
+        Just (mDescription, mTags, submissionUrl, submissionBranch) = submissionData
 
-    runViewProgress $ doCreateSubmission challengeId description mTags submissionUrl submissionBranch
+    runViewProgress $ doCreateSubmission challengeId mDescription mTags submissionUrl submissionBranch
 
-doCreateSubmission :: Key Challenge -> Text -> Maybe Text -> Text -> Text -> Channel -> Handler ()
-doCreateSubmission challengeId description mTags url branch chan = do
+doCreateSubmission :: Key Challenge -> Maybe Text -> Maybe Text -> Text -> Text -> Channel -> Handler ()
+doCreateSubmission challengeId mDescription mTags url branch chan = do
   maybeRepoKey <- getSubmissionRepo challengeId url branch chan
   case maybeRepoKey of
     Just repoId -> do
       repo <- runDB $ get404 repoId
-      submissionId <- getSubmission repoId (repoCurrentCommit repo) challengeId description chan
+
+      repoDir <- getRepoDir repoId
+      commitMessage <- getLastCommitMessage repoDir chan
+      let (mCommitDescription, mCommitTags) = parseCommitMessage commitMessage
+
+      submissionId <- getSubmission repoId (repoCurrentCommit repo) challengeId (fromMaybe (fromMaybe "???" mCommitDescription) mDescription) chan
       _ <- getOuts chan submissionId
-      runDB $ addTags submissionId mTags []
+
+      runDB $ addTags submissionId (if isNothing mTags then mCommitTags else mTags) []
       msg chan "Done"
     Nothing -> return ()
 
@@ -128,7 +138,7 @@ getSubmission repoId commit challengeId description chan = do
   maybeSubmission <- runDB $ getBy $ UniqueSubmissionRepoCommitChallenge repoId commit challengeId
   userId <- requireAuthId
   case maybeSubmission of
-    Just (Entity submissionId submission) -> do
+    Just (Entity submissionId _) -> do
       msg chan "Submission already there, re-checking"
       return submissionId
     Nothing -> do
@@ -142,6 +152,59 @@ getSubmission repoId commit challengeId description chan = do
         submissionStamp=time,
         submissionSubmitter=userId,
         submissionIsPublic=False }
+
+parseCommitMessage :: Maybe Text -> (Maybe Text, Maybe Text)
+parseCommitMessage Nothing = (Nothing, Nothing)
+parseCommitMessage (Just commitMessage) =
+  case parseOnly commitMessageParser commitMessage of
+    Left _ -> (Nothing, Nothing)
+    Right (d, ts) -> (d, ts)
+
+commitMessageParser :: Data.Attoparsec.Text.Parser (Maybe Text, Maybe Text)
+commitMessageParser = do
+  skipMany emptyLine
+  d <- nonEmptyLine
+  mTs <- (do
+          ts <- findTagsLine
+          return $ Just ts) <|> (return Nothing)
+  return (Just d, mTs)
+
+findTagsLine :: Data.Attoparsec.Text.Parser Text
+findTagsLine = tagsLine <|> (anyLine >> findTagsLine)
+
+tagsLine :: Data.Attoparsec.Text.Parser Text
+tagsLine = do
+  (string "tags" <|> string "labels" <|> string "Tags" <|> string "Labels")
+  char ':'
+  skipMany space
+  s <- many notEndOfLine
+  endOfLine
+  return $ Data.Text.pack s
+
+commaSep p  = p `sepBy` (skipMany space *> char ',' *> skipMany space)
+
+nonEmptyLine :: Data.Attoparsec.Text.Parser Text
+nonEmptyLine = do
+  skipMany space
+  l1 <- notSpace
+  l <- (many notEndOfLine)
+  endOfLine
+  return $ Data.Text.pack (l1:l)
+
+anyLine :: Data.Attoparsec.Text.Parser ()
+anyLine = do
+  skipMany notEndOfLine
+  endOfLine
+
+notSpace :: Data.Attoparsec.Text.Parser Char
+notSpace = satisfy (\c -> c /= '\r' && c /= '\n' && c /= ' ' && c /= '\t')
+
+notEndOfLine :: Data.Attoparsec.Text.Parser Char
+notEndOfLine = satisfy (\c -> c /= '\r' && c /= '\n')
+
+emptyLine = do
+  many space
+  endOfLine
 
 getOuts :: Channel -> Key Submission -> Handler ([Out])
 getOuts chan submissionId = do
@@ -206,7 +269,7 @@ checkOrInsertEvaluation repoDir chan out = do
           err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
 
 rawEval :: FilePath -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe MetricValue)))
-rawEval challengeDir repoDir name = try (runGEvalGetOptions [
+rawEval challengeDir repoDir name = Import.try (runGEvalGetOptions [
                                     "--expected-directory", challengeDir,
                                     "--out-directory", repoDir,
                                     "--test-name", (T.unpack name)])
@@ -256,9 +319,9 @@ checkRepoAvailibility challengeId repoId chan = do
 
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
-submissionForm :: Maybe Text -> Form (Text, Maybe Text, Text, Text)
+submissionForm :: Maybe Text -> Form (Maybe Text, Maybe Text, Text, Text)
 submissionForm defaultUrl = renderBootstrap3 BootstrapBasicForm $ (,,,)
-    <$> areq textField (bfs MsgSubmissionDescription) Nothing
+    <$> aopt textField (fieldWithTooltip MsgSubmissionDescription MsgSubmissionDescriptionTooltip) Nothing
     <*> aopt textField (tagsfs MsgSubmissionTags) Nothing
     <*> areq textField (bfs MsgSubmissionUrl) defaultUrl
     <*> areq textField (bfs MsgSubmissionBranch) (Just "master")

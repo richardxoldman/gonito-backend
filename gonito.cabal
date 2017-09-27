@@ -136,6 +136,7 @@ library
                  , nonce
                  , esqueleto
                  , extra
+                 , attoparsec
 
 executable         gonito
     if flag(library-only)

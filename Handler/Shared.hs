@@ -30,6 +30,8 @@ import qualified Data.ByteString as BS
 import Text.Printf
 import Database.Persist.Sql
 
+import Yesod.Form.Bootstrap3 (bfs)
+
 atom = Control.Concurrent.STM.atomically
 
 type Channel = TChan (Maybe Text)
@@ -152,6 +154,13 @@ getHeadCommit repoDir chan = do
     ExitFailure _ -> do
       err chan "cannot determine HEAD commit"
       return Nothing
+
+getLastCommitMessage :: FilePath -> Channel -> Handler (Maybe Text)
+getLastCommitMessage repoDir chan = do
+  (exitCode, out) <- runProgram (Just repoDir) gitPath ["log", "-1", "--pretty=%B"] chan
+  return $ case exitCode of
+             ExitSuccess -> Just out
+             ExitFailure _ -> Nothing
 
 cloneRepo' :: Text -> Text -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
 cloneRepo' url branch referenceUrl referenceBranch chan = do
@@ -324,3 +333,6 @@ formatSubmitter user = if userIsAnonymous user
                             case userName user of
                               Just name -> name
                               Nothing -> "[name not given]"
+
+fieldWithTooltip :: forall master msg msg1. (RenderMessage master msg, RenderMessage master msg1) => msg -> msg1 -> FieldSettings master
+fieldWithTooltip name tooltip = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }

@@ -47,3 +47,4 @@ AchievementPoints: points
 WantToBeAnonimised: I want to stay anonymous for other user of Gonito.net
 YourScore: your score
 PasswordForNewAccount: enter a password for your new account
+SubmissionDescriptionTooltip: the first non-empty line of the commit message will be used, if this is left empty

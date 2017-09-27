@@ -11,6 +11,8 @@ import qualified Data.ByteString.Lazy as L
 
 import Handler.Common (passwordConfirmField, updatePassword, isPasswordAcceptable, tooWeakPasswordMessage)
 
+import Handler.Shared
+
 getYourAccountR :: Handler Html
 getYourAccountR = do
     userId <- requireAuthId
@@ -50,9 +52,6 @@ checkPassword (Just passwd) = isPasswordAcceptable passwd
 
 autocompleteOff name tooltip = setts { fsAttrs = (fsAttrs setts) ++ [("autocomplete", "nope")]}
    where setts = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }
-
-fieldWithTooltip :: forall master msg msg1. (RenderMessage master msg, RenderMessage master msg1) => msg -> msg1 -> FieldSettings master
-fieldWithTooltip name tooltip = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }
 
 yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Bool -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo, Bool)
 yourAccountForm maybeName maybeLocalId maybeSshPubKey anonimised = renderBootstrap3 BootstrapBasicForm $ (,,,,,)
