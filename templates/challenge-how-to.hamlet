@@ -1,6 +1,6 @@
 <h1>Challenge How To
 
-<h2>Install GEval
+<h2>Install GEval (recommended, but not obligatory)
 
 <p>In order to evaluate your work locally, you need the GEval tool. First, install <a href="https://docs.haskellstack.org/en/stable/README/">Haskell Stack</a>:
 
@@ -15,7 +15,12 @@
   stack setup
   stack install
 
-<p>(GEval will make your life easier, but is not obligatory, so if you have any trouble with installing GEval, you can skip this step, for the time being.)
+<p>Haskell Stack requires some time when run for the first time, also it takes a couple of gigabytes of hard disk space. If this is a problem for you, another option is to just download the GEval binary (it should work on most 64-bit Linuxes):
+
+<pre>
+  wget <a href="http://filipg-jenkins.wmi.amu.edu.pl:8090/job/geval/lastSuccessfulBuild/artifact/geval/geval">http://filipg-jenkins.wmi.amu.edu.pl:8090/job/geval/lastSuccessfulBuild/artifact/geval/geval</a>
+
+<p>(GEval will make your life easier, but is not obligatory, so if you have any trouble with installing/running GEval, you can skip this step, for the time being.)
 
 <h2>Get your repo
 
