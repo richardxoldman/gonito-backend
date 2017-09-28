@@ -75,6 +75,16 @@ getChallengeHowToR :: Text -> Handler Html
 getChallengeHowToR name = do
   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
   maybeUser <- maybeAuth
+
+  case maybeUser of
+    Just (Entity userId user) -> do
+      enableTriggerToken userId (userTriggerToken user)
+    Nothing -> return ()
+
+  let mToken = case maybeUser of
+        Just (Entity _ user) -> userTriggerToken user
+        Nothing -> Nothing
+
   let isIDSet = case maybeUser of
                   Just (Entity _ user) -> isJust $ userLocalId user
                   Nothing -> False
@@ -83,7 +93,7 @@ getChallengeHowToR name = do
       keys <- runDB $ selectList [PublicKeyUser ==. userId] []
       return $ not (null keys)
     Nothing -> return False
-  challengeLayout False challenge (challengeHowTo challenge (idToBeShown challenge maybeUser) isIDSet isSSHUploaded)
+  challengeLayout False challenge (challengeHowTo challenge (idToBeShown challenge maybeUser) isIDSet isSSHUploaded mToken)
 
 idToBeShown challenge maybeUser =
   case maybeUser of
@@ -95,7 +105,7 @@ idToBeShown challenge maybeUser =
 
 defaultRepo challenge maybeUser = "ssh://gitolite@gonito.net/" ++ (idToBeShown challenge maybeUser) ++ "/" ++ (challengeName challenge)
 
-challengeHowTo challenge idToBeShown isIDSet isSSHUploaded = $(widgetFile "challenge-how-to")
+challengeHowTo challenge idToBeShown isIDSet isSSHUploaded mToken = $(widgetFile "challenge-how-to")
 
 getChallengeSubmissionR :: Text -> Handler Html
 getChallengeSubmissionR name = do

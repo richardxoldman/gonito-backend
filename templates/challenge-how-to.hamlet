@@ -47,9 +47,9 @@ $if not isIDSet || not isSSHUploaded
   cd #{challengeName challenge}
   geval --test-name dev-0
 
-<h2>Submit your solution
+<h2>Push your solution to the git repo
 
-<p>Push <tt>out.tsv</tt> files to your repo. It is also recommended to push your source codes along with <tt>out.tsv</tt> files.
+<p>Commit and push <tt>out.tsv</tt> files to your repo. It is also recommended to push your source codes along with <tt>out.tsv</tt> files.
 
 <pre>
   cd #{challengeName challenge}
@@ -57,4 +57,19 @@ $if not isIDSet || not isSSHUploaded
   git commit -m 'my brilliant solution'
   git push origin master
 
-<p>If you use a repo hosted on Gonito.net, a submission and evaluation is triggered automatically. Otherwise, you need to tell Gonito.net to evaluate your submission (go to the <a href="@{ChallengeSubmissionR $ challengeName challenge}">submit form</a> in such a case).
+<h3>Repos hosted on Gonito.net
+
+<p>If you use a repo hosted here, a submission and evaluation is triggered automatically. You'll see the evaluation results in your console while pushing.
+
+<h3>External repos
+
+<p>If you use an external repo (e.g. at your own of Gitolite or at GitHub), you can configure a webhook.
+$maybe token <- mToken
+   <p>Your webook is:
+   <pre>
+     https://gonito.net/trigger-remotely?token=#{token}&branch=master&challenge=#{challengeName challenge}&url=URL_TO_YOUR_REPO
+   <p>(must be POSTed)
+
+<h3>Manual submission
+
+<p>In case other methods fail, you can submit your solution manually — go to the <a href="@{ChallengeSubmissionR $ challengeName challenge}">submit form</a>.

@@ -50,12 +50,6 @@ postYourAccountR = do
       setTitle "Your account"
       $(widgetFile "your-account")
 
-
-enableTriggerToken _ (Just _) = return ()
-enableTriggerToken userId Nothing = do
-  token <- newToken
-  runDB $ update userId [UserTriggerToken =. Just token]
-
 checkPassword :: Maybe Text -> Bool
 checkPassword Nothing = True
 checkPassword (Just "") = True

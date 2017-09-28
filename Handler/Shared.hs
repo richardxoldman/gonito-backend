@@ -357,3 +357,8 @@ nonceGen = unsafePerformIO Nonce.new
 -- | Randomly create a new verification key.
 newToken :: MonadIO m => m Text
 newToken = Nonce.nonce128urlT nonceGen
+
+enableTriggerToken _ (Just _) = return ()
+enableTriggerToken userId Nothing = do
+  token <- newToken
+  runDB $ update userId [UserTriggerToken =. Just token]
