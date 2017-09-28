@@ -118,13 +118,13 @@ postChallengeSubmissionR name = do
 
 postTriggerRemotelyR :: Handler TypedContent
 postTriggerRemotelyR = do
-  (Just token) <- lookupPostParam "token"
+  (Just localId) <- lookupPostParam "id"
   (Just name) <- lookupPostParam "challenge"
   (Just url) <- lookupPostParam "url"
   mBranch <- lookupPostParam "branch"
   let branch = fromMaybe "master" mBranch
   Entity challengeId _ <- runDB $ getBy404 $ UniqueName name
-  [Entity userId _] <- runDB $ selectList [UserTriggerToken ==. Just token] []
+  [Entity userId _] <- runDB $ selectList [UserLocalId ==. Just localId] []
   isPermitted <- canTrigger userId name url
   if isPermitted
     then
