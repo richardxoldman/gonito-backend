@@ -21,6 +21,7 @@
 /challenge-discussion/#Text ChallengeDiscussionR GET POST
 /challenge-discussion-rss/#Text ChallengeDiscussionFeedR GET
 /trigger-remotely TriggerRemotelyR POST
+/trigger-locally TriggerLocallyR POST
 
 /q QueryFormR GET POST
 /q/#Text QueryResultsR  GET

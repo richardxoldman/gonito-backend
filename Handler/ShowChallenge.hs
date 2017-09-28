@@ -32,7 +32,7 @@ import System.IO (readFile)
 
 import Data.Attoparsec.Text
 
-import Data.Text (pack)
+import Data.Text (pack, unpack)
 
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
@@ -116,27 +116,31 @@ postChallengeSubmissionR name = do
     userId <- requireAuthId
     runViewProgress $ doCreateSubmission userId challengeId mDescription mTags submissionUrl submissionBranch
 
+postTriggerLocallyR :: Handler TypedContent
+postTriggerLocallyR = do
+  (Just challengeName) <- lookupPostParam "challenge"
+  (Just localId) <- lookupPostParam "user"
+  mBranch <- lookupPostParam "branch"
+  [Entity userId _] <- runDB $ selectList [UserLocalId ==. Just localId] []
+  let localRepo = gitServer ++ localId ++ "/" ++ challengeName
+  trigger userId challengeName localRepo mBranch
+
 postTriggerRemotelyR :: Handler TypedContent
 postTriggerRemotelyR = do
-  (Just localId) <- lookupPostParam "id"
-  (Just name) <- lookupPostParam "challenge"
+  (Just challengeName) <- lookupPostParam "challenge"
   (Just url) <- lookupPostParam "url"
+  (Just token) <- lookupPostParam "token"
   mBranch <- lookupPostParam "branch"
-  let branch = fromMaybe "master" mBranch
-  Entity challengeId _ <- runDB $ getBy404 $ UniqueName name
-  [Entity userId _] <- runDB $ selectList [UserLocalId ==. Just localId] []
-  isPermitted <- canTrigger userId name url
-  if isPermitted
-    then
-     runOpenViewProgress $ doCreateSubmission userId challengeId Nothing Nothing url branch
-    else
-     return $ toTypedContent ("Cannot be triggered, must be submitted manually at Gonito.net!\n" :: String)
+  [Entity userId _] <- runDB $ selectList [UserTriggerToken ==. Just token] []
+  trigger userId challengeName url mBranch
 
-canTrigger userId name url = do
-  user <- runDB $ get404 userId
-  return $ case userLocalId user of
-             Just localId -> (url == gitServer ++ localId ++ "/" ++ name)
-             Nothing -> False
+trigger :: UserId -> Text -> Text -> Maybe Text -> Handler TypedContent
+trigger userId challengeName url mBranch = do
+  let branch = fromMaybe "master" mBranch
+  mChallengeEnt <- runDB $ getBy $ UniqueName challengeName
+  case mChallengeEnt of
+    Just (Entity challengeId _) -> runOpenViewProgress $ doCreateSubmission userId challengeId Nothing Nothing url branch
+    Nothing -> return $ toTypedContent (("Unknown challenge `" ++ (Data.Text.unpack challengeName) ++ "`. Cannot be triggered, must be submitted manually at Gonito.net!\n") :: String)
 
 doCreateSubmission :: UserId -> Key Challenge -> Maybe Text -> Maybe Text -> Text -> Text -> Channel -> Handler ()
 doCreateSubmission userId challengeId mDescription mTags url branch chan = do
