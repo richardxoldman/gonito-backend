@@ -8,6 +8,7 @@
 
 /create-challenge CreateChallengeR GET POST
 /view-progress/#Int ViewProgressR GET
+/open-view-progress/#Int OpenViewProgressR GET
 /list-challenges ListChallengesR GET
 
 /challenge/#Text ShowChallengeR GET
@@ -19,6 +20,7 @@
 /challenge-graph-data/#Text ChallengeGraphDataR GET
 /challenge-discussion/#Text ChallengeDiscussionR GET POST
 /challenge-discussion-rss/#Text ChallengeDiscussionFeedR GET
+/trigger-remotely TriggerRemotelyR POST
 
 /q QueryFormR GET POST
 /q/#Text QueryResultsR  GET

@@ -32,6 +32,9 @@ import Database.Persist.Sql
 
 import Yesod.Form.Bootstrap3 (bfs)
 
+import qualified Crypto.Nonce as Nonce
+import System.IO.Unsafe (unsafePerformIO)
+
 atom = Control.Concurrent.STM.atomically
 
 type Channel = TChan (Maybe Text)
@@ -74,8 +77,15 @@ browsableGitRepo bareRepoName
   | ".git" `isSuffixOf` bareRepoName = browsableGitSite ++ bareRepoName
   | otherwise = browsableGitSite ++ bareRepoName ++ ".git"
 
+
 runViewProgress :: (Channel -> Handler ()) -> Handler TypedContent
-runViewProgress action = do
+runViewProgress = runViewProgress' ViewProgressR
+
+runOpenViewProgress :: (Channel -> Handler ()) -> Handler TypedContent
+runOpenViewProgress = runViewProgress' OpenViewProgressR
+
+runViewProgress' :: (Int -> Route App) -> (Channel -> Handler ()) -> Handler TypedContent
+runViewProgress' route action = do
   App {..} <- getYesod
   jobId <- randomInt
   chan <- liftIO $ atom $ do
@@ -91,7 +101,7 @@ runViewProgress action = do
       writeTChan chan Nothing
       m <- readTVar jobs
       writeTVar jobs $ IntMap.delete jobId m
-  redirect $ ViewProgressR jobId
+  redirect $ route jobId
 
 msg :: Channel -> Text -> Handler ()
 msg chan m = liftIO $ atom $ writeTChan chan $ Just (m ++ "\n")
@@ -243,6 +253,9 @@ checkRepoUrl url = case parsedURI of
                       Nothing -> False
                    where parsedURI = parseURI $ T.unpack url
 
+getOpenViewProgressR :: Int -> Handler TypedContent
+getOpenViewProgressR = getViewProgressR
+
 getViewProgressR :: Int -> Handler TypedContent
 getViewProgressR jobId = do
     App {..} <- getYesod
@@ -336,3 +349,11 @@ formatSubmitter user = if userIsAnonymous user
 
 fieldWithTooltip :: forall master msg msg1. (RenderMessage master msg, RenderMessage master msg1) => msg -> msg1 -> FieldSettings master
 fieldWithTooltip name tooltip = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }
+
+nonceGen :: Nonce.Generator
+nonceGen = unsafePerformIO Nonce.new
+{-# NOINLINE nonceGen #-}
+
+-- | Randomly create a new verification key.
+newToken :: MonadIO m => m Text
+newToken = Nonce.nonce128urlT nonceGen

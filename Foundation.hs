@@ -132,6 +132,9 @@ instance Yesod App where
 
     isAuthorized (AvatarR _) _ = return Authorized
 
+    isAuthorized TriggerRemotelyR _ = return Authorized
+    isAuthorized (OpenViewProgressR _) _ = return Authorized
+
     isAuthorized CreateResetLinkR _ = isAdmin
     isAuthorized (ScoreR _) _ = isAdmin
 
@@ -206,6 +209,7 @@ instance YesodAuth App where
                     , userAvatar = Nothing
                     , userVerificationKey = Nothing
                     , userKeyExpirationDate = Nothing
+                    , userTriggerToken = Nothing
                     }
 
     -- You can add other plugins like BrowserID, email or OAuth here

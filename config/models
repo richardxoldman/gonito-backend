@@ -9,6 +9,7 @@ User
     avatar ByteString Maybe
     verificationKey Text Maybe
     keyExpirationDate UTCTime Maybe
+    triggerToken Text Maybe
     deriving Typeable
 PublicKey
     user UserId

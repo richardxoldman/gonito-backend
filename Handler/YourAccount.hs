@@ -10,13 +10,15 @@ import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
 
 import Handler.Common (passwordConfirmField, updatePassword, isPasswordAcceptable, tooWeakPasswordMessage)
-
 import Handler.Shared
 
 getYourAccountR :: Handler Html
 getYourAccountR = do
     userId <- requireAuthId
     user <- runDB $ get404 userId
+
+    enableTriggerToken userId (userTriggerToken user)
+
     keyS <- runDB $ selectFirst [PublicKeyUser ==. userId] []
     let key = publicKeyPubkey <$> entityVal <$> keyS
     (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) key (userIsAnonymous user))
@@ -29,6 +31,9 @@ postYourAccountR = do
     ((result, formWidget), formEnctype) <- runFormPost (yourAccountForm Nothing Nothing Nothing False)
     userId <- requireAuthId
     user <- runDB $ get404 userId
+
+    enableTriggerToken userId (userTriggerToken user)
+
     let accountData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
@@ -44,6 +49,12 @@ postYourAccountR = do
     defaultLayout $ do
       setTitle "Your account"
       $(widgetFile "your-account")
+
+
+enableTriggerToken _ (Just _) = return ()
+enableTriggerToken userId Nothing = do
+  token <- newToken
+  runDB $ update userId [UserTriggerToken =. Just token]
 
 checkPassword :: Maybe Text -> Bool
 checkPassword Nothing = True

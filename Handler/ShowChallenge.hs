@@ -113,10 +113,33 @@ postChallengeSubmissionR name = do
           _ -> Nothing
         Just (mDescription, mTags, submissionUrl, submissionBranch) = submissionData
 
-    runViewProgress $ doCreateSubmission challengeId mDescription mTags submissionUrl submissionBranch
+    userId <- requireAuthId
+    runViewProgress $ doCreateSubmission userId challengeId mDescription mTags submissionUrl submissionBranch
 
-doCreateSubmission :: Key Challenge -> Maybe Text -> Maybe Text -> Text -> Text -> Channel -> Handler ()
-doCreateSubmission challengeId mDescription mTags url branch chan = do
+postTriggerRemotelyR :: Handler TypedContent
+postTriggerRemotelyR = do
+  (Just token) <- lookupPostParam "token"
+  (Just name) <- lookupPostParam "challenge"
+  (Just url) <- lookupPostParam "url"
+  mBranch <- lookupPostParam "branch"
+  let branch = fromMaybe "master" mBranch
+  Entity challengeId _ <- runDB $ getBy404 $ UniqueName name
+  [Entity userId _] <- runDB $ selectList [UserTriggerToken ==. Just token] []
+  isPermitted <- canTrigger userId name url
+  if isPermitted
+    then
+     runOpenViewProgress $ doCreateSubmission userId challengeId Nothing Nothing url branch
+    else
+     return $ toTypedContent ("Cannot be triggered, must be submitted manually at Gonito.net!\n" :: String)
+
+canTrigger userId name url = do
+  user <- runDB $ get404 userId
+  return $ case userLocalId user of
+             Just localId -> (url == gitServer ++ localId ++ "/" ++ name)
+             Nothing -> False
+
+doCreateSubmission :: UserId -> Key Challenge -> Maybe Text -> Maybe Text -> Text -> Text -> Channel -> Handler ()
+doCreateSubmission userId challengeId mDescription mTags url branch chan = do
   maybeRepoKey <- getSubmissionRepo challengeId url branch chan
   case maybeRepoKey of
     Just repoId -> do
@@ -126,17 +149,16 @@ doCreateSubmission challengeId mDescription mTags url branch chan = do
       commitMessage <- getLastCommitMessage repoDir chan
       let (mCommitDescription, mCommitTags) = parseCommitMessage commitMessage
 
-      submissionId <- getSubmission repoId (repoCurrentCommit repo) challengeId (fromMaybe (fromMaybe "???" mCommitDescription) mDescription) chan
+      submissionId <- getSubmission userId repoId (repoCurrentCommit repo) challengeId (fromMaybe (fromMaybe "???" mCommitDescription) mDescription) chan
       _ <- getOuts chan submissionId
 
       runDB $ addTags submissionId (if isNothing mTags then mCommitTags else mTags) []
       msg chan "Done"
     Nothing -> return ()
 
-getSubmission :: Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
-getSubmission repoId commit challengeId description chan = do
+getSubmission :: UserId -> Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
+getSubmission userId repoId commit challengeId description chan = do
   maybeSubmission <- runDB $ getBy $ UniqueSubmissionRepoCommitChallenge repoId commit challengeId
-  userId <- requireAuthId
   case maybeSubmission of
     Just (Entity submissionId _) -> do
       msg chan "Submission already there, re-checking"

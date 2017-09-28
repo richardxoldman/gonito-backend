@@ -1,10 +1,8 @@
 module Handler.AccountReset where
 
 import Import
+import Handler.Shared
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
-
-import qualified Crypto.Nonce as Nonce
-import System.IO.Unsafe (unsafePerformIO)
 
 import Data.Time.Clock (addUTCTime)
 
@@ -32,7 +30,7 @@ doCreateResetLink (Just email) = do
   mUserEnt <- runDB $ getBy $ UniqueUser email
   userId <- createOrUse mUserEnt email
 
-  key <- newVerifyKey
+  key <- newToken
   theNow <- liftIO getCurrentTime
   let expirationMoment = addUTCTime (60*60*24) theNow
   runDB $ update userId [UserVerificationKey =. Just key, UserKeyExpirationDate =. Just expirationMoment]
@@ -49,22 +47,13 @@ createOrUse :: Maybe (Entity User) -> Text -> Handler UserId
 createOrUse (Just userEnt) _ = return $ entityKey userEnt
 createOrUse Nothing email = do
   setMessage $ toHtml ("Created new user " ++ email)
-  userId <- runDB $ insert $ User email Nothing Nothing False Nothing True Nothing Nothing Nothing
+  triggerToken <- newToken
+  userId <- runDB $ insert $ User email Nothing Nothing False Nothing True Nothing Nothing Nothing (Just triggerToken)
   return userId
 
 createResetLinkForm :: Form Text
 createResetLinkForm = renderBootstrap3 BootstrapBasicForm
     $ areq textField (bfs MsgEMail) Nothing
-
-
-nonceGen :: Nonce.Generator
-nonceGen = unsafePerformIO Nonce.new
-{-# NOINLINE nonceGen #-}
-
--- | Randomly create a new verification key.
-newVerifyKey :: MonadIO m => m Text
-newVerifyKey = Nonce.nonce128urlT nonceGen
-
 
 getResetPasswordR :: Text -> Handler Html
 getResetPasswordR key = do
