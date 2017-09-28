@@ -57,4 +57,4 @@ $if not isIDSet || not isSSHUploaded
   git commit -m 'my brilliant solution'
   git push origin master
 
-<p>Finally, you need to tell Gonito.net to evaluate your submission. Go to the <a href="@{ChallengeSubmissionR $ challengeName challenge}">submit form</a>.
+<p>If you use a repo hosted on Gonito.net, a submission and evaluation is triggered automatically. Otherwise, you need to tell Gonito.net to evaluate your submission (go to the <a href="@{ChallengeSubmissionR $ challengeName challenge}">submit form</a> in such a case).
