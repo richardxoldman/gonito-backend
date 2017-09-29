@@ -91,6 +91,7 @@ Achievement
     description Text Maybe
     deadline UTCTime
     maxWinners Int Maybe
+    coarse CourseId Maybe
     UniqueAchievementName name
 AchievementTag
     achievement AchievementId
