@@ -30,11 +30,8 @@ postAchievementsR = do
   mUser <- maybeAuth
   when (checkIfAdmin mUser) $ do
      case result of
-      FormSuccess (name, description, points, deadlineDay, deadlineTime, maxSubmitters, mTags) -> do
-                            -- @TODO for the time being hardcoded
-                            Just challengeEnt <- runDB $ getBy $ UniqueName "petite-difference-challenge2"
-
-                            achievementId <- runDB $ insert $ Achievement name (entityKey challengeEnt) points description (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) maxSubmitters
+      FormSuccess (name, description, points, deadlineDay, deadlineTime, maxSubmitters, mTags, challengeId) -> do
+                            achievementId <- runDB $ insert $ Achievement name challengeId points description (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) maxSubmitters
 
                             tids <- runDB $ tagsAsTextToTagIds mTags
 
@@ -162,8 +159,8 @@ formatMaxSubmitters :: Maybe Int -> String
 formatMaxSubmitters Nothing = "no limit"
 formatMaxSubmitters (Just m) = show m
 
-achievementForm :: Form (Text, Maybe Text, Int, Day, TimeOfDay, Maybe Int, Maybe Text)
-achievementForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
+achievementForm :: Form (Text, Maybe Text, Int, Day, TimeOfDay, Maybe Int, Maybe Text, ChallengeId)
+achievementForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,,)
     <$> areq textField (bfs MsgAchievementName) Nothing
     <*> aopt textField (bfs MsgAchievementDescription) Nothing
     <*> areq intField (bfs MsgAchievementPoints) Nothing
@@ -171,3 +168,10 @@ achievementForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
     <*> areq timeFieldTypeTime (bfs MsgAchievementDeadlineTime) Nothing
     <*> aopt intField (bfs MsgAchievementMaxWinners) Nothing
     <*> aopt textField (tagsfs MsgAchievementTags) Nothing
+    <*> challengesSelectFieldList
+
+challengesSelectFieldList = areq (selectField challenges) (bfs MsgChallenge) Nothing
+    where
+      challenges = do
+        challengeEnts <- runDB $ selectList [] [Asc ChallengeTitle]
+        optionsPairs $ Import.map (\ch -> (challengeTitle $ entityVal ch, entityKey ch)) challengeEnts

@@ -101,4 +101,7 @@ WorkingOn
     user UserId
     finalSubmission SubmissionId Maybe
     UniqueWorkingOnAchievementUser achievement user
+Course
+    name Text
+    UniqueCourseName name
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)
