@@ -36,9 +36,12 @@ $if not isIDSet || not isSSHUploaded
 
 <pre>
   git clone ssh://gitolite@gonito.net/#{idToBeShown}/#{challengeName challenge}
+
+<p>(Warning about empty repository is expected, don't worry about it.)
+
+<pre>
   cd #{challengeName challenge}
   git pull ssh://gitolite@gonito.net/#{challengeName challenge}
-  git push origin master
 
 <p>(Alternatively, you can use any other Git repo, e.g. GitHub, make sure Gonito.net has access to your repo.)
 
