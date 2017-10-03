@@ -31,7 +31,7 @@ postAchievementsR = do
   when (checkIfAdmin mUser) $ do
      case result of
       FormSuccess (name, description, points, deadlineDay, deadlineTime, maxSubmitters, mTags, challengeId, courseId) -> do
-                            achievementId <- runDB $ insert $ Achievement name challengeId points description (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) maxSubmitters (Just courseId)
+                            achievementId <- runDB $ insert $ Achievement name challengeId points description (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) maxSubmitters courseId
 
                             tids <- runDB $ tagsAsTextToTagIds mTags
 
@@ -56,6 +56,7 @@ doAchievements mUser formWidget formEnctype = do
 achievementsTable :: Table.Table App (AchievementInfo)
 achievementsTable = mempty
   ++ Table.text "achievement" achievementInfoName
+  ++ Table.text "course" (courseName . entityVal . achievementInfoCourse)
   ++ Table.linked "challenge" (challengeTitle . entityVal . achievementInfoChallenge) (ShowChallengeR . challengeName . entityVal . achievementInfoChallenge)
   ++ achievementDescriptionCell id
   ++ Table.int "points" achievementInfoPoints

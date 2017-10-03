@@ -9,6 +9,7 @@ import qualified Yesod.Table as Table
 data AchievementInfo = AchievementInfo {
   achievementInfoId :: AchievementId,
   achievementInfoName :: Text,
+  achievementInfoCourse :: Entity Course,
   achievementInfoChallenge :: Entity Challenge,
   achievementInfoDescription :: Maybe Text,
   achievementInfoPoints :: Int,
@@ -32,9 +33,13 @@ getAchievementInfo mUser (Entity achievementId achievement) = do
   let challengeId = achievementChallenge achievement
   challenge <- get404 challengeId
 
+  let courseId = achievementCourse achievement
+  course <- get404 courseId
+
   return $ AchievementInfo {
     achievementInfoId = achievementId,
     achievementInfoName = achievementName achievement,
+    achievementInfoCourse = Entity courseId course,
     achievementInfoChallenge = Entity challengeId challenge,
     achievementInfoDescription = achievementDescription achievement,
     achievementInfoPoints = achievementPoints achievement,
