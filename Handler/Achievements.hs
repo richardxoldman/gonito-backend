@@ -45,7 +45,8 @@ postAchievementsR = do
 doAchievements mUser formWidget formEnctype = do
   achievements <- runDB $ selectList [] [Asc AchievementName]
   mUser <- maybeAuth
-  achievementInfos <- runDB $ mapM (getAchievementInfo mUser) achievements
+  achievementInfos' <- runDB $ mapM (getAchievementInfo mUser) achievements
+  let achievementInfos = Import.filter (not . courseClosed . entityVal . achievementInfoCourse) achievementInfos'
 
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
 
