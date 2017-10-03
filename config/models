@@ -104,5 +104,7 @@ WorkingOn
     UniqueWorkingOnAchievementUser achievement user
 Course
     name Text
+    code Text Maybe
+    closed Bool Maybe
     UniqueCourseName name
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)
