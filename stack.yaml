@@ -5,5 +5,5 @@ flags:
 packages:
 - '.'
 - '../geval'
-extra-deps: [markdown-0.1.13.2,geval-0.3.3.0,cond-0.4.1.1,wai-handler-fastcgi-3.0.0.2,murmur3-1.0.3,extra-1.4.10]
+extra-deps: [markdown-0.1.13.2,geval-0.3.4.0,cond-0.4.1.1,wai-handler-fastcgi-3.0.0.2,murmur3-1.0.3,extra-1.4.10]
 resolver: lts-9.5
