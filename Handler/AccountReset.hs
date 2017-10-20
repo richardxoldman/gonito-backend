@@ -21,14 +21,19 @@ postCreateResetLinkR :: Handler Html
 postCreateResetLinkR = do
   ((result, _), _) <- runFormPost createResetLinkForm
   let mEmail = case result of
-                 FormSuccess email -> Just email
+                 FormSuccess (email, _) -> Just email
                  _ -> Nothing
-  doCreateResetLink mEmail
+  let mCourseId = case result of
+                 FormSuccess (_, Just courseId) -> Just courseId
+                 _ -> Nothing
+  doCreateResetLink mEmail mCourseId
 
-doCreateResetLink :: Maybe Text -> Handler Html
-doCreateResetLink (Just email) = do
+doCreateResetLink :: Maybe Text -> Maybe CourseId -> Handler Html
+doCreateResetLink (Just email) mCourseId  = do
   mUserEnt <- runDB $ getBy $ UniqueUser email
   userId <- createOrUse mUserEnt email
+
+  addParticipant userId mCourseId
 
   key <- newToken
   theNow <- liftIO getCurrentTime
@@ -39,9 +44,15 @@ doCreateResetLink (Just email) = do
      setTitle "Creating a reset link"
      $(widgetFile "reset-link-created")
 
-doCreateResetLink Nothing = do
+doCreateResetLink Nothing _ = do
   setMessage $ toHtml ("No e-mail given" :: Text)
   getCreateResetLinkR
+
+
+addParticipant userId Nothing = return ()
+addParticipant userId (Just courseId) = do
+  runDB $ insert $ Participant userId courseId
+  return ()
 
 createOrUse :: Maybe (Entity User) -> Text -> Handler UserId
 createOrUse (Just userEnt) _ = return $ entityKey userEnt
@@ -51,9 +62,17 @@ createOrUse Nothing email = do
   userId <- runDB $ insert $ User email Nothing Nothing False Nothing True Nothing Nothing Nothing (Just triggerToken)
   return userId
 
-createResetLinkForm :: Form Text
-createResetLinkForm = renderBootstrap3 BootstrapBasicForm
-    $ areq textField (bfs MsgEMail) Nothing
+createResetLinkForm :: Form (Text, Maybe CourseId)
+createResetLinkForm = renderBootstrap3 BootstrapBasicForm $ (,)
+    <$> areq textField (bfs MsgEMail) Nothing
+    <*> coursesSelectFieldList
+
+coursesSelectFieldList = aopt (selectField courses) (bfs MsgCourseOptional) Nothing
+    where
+      courses = do
+        courseEnts <- runDB $ selectList [] [Asc CourseName]
+        optionsPairs $ Import.map (\ch -> (courseName $ entityVal ch, entityKey ch)) courseEnts
+
 
 getResetPasswordR :: Text -> Handler Html
 getResetPasswordR key = do

@@ -108,4 +108,8 @@ Course
     closed Bool
     UniqueCourseName name
     UniqueCourseCode code
+Participant
+    user UserId
+    course CourseId
+    UniqueUserCourse user course
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)
