@@ -45,14 +45,27 @@ postAchievementsR = do
 doAchievements mUser formWidget formEnctype = do
   achievements <- runDB $ selectList [] [Asc AchievementName]
   mUser <- maybeAuth
-  achievementInfos' <- runDB $ mapM (getAchievementInfo mUser) achievements
-  let achievementInfos = Import.filter (not . courseClosed . entityVal . achievementInfoCourse) achievementInfos'
+  achievementInfos'' <- runDB $ mapM (getAchievementInfo mUser) achievements
+  let achievementInfos' = Import.filter (not . courseClosed . entityVal . achievementInfoCourse) achievementInfos''
+
+  courses <- case mUser of
+    Just (Entity userId _) -> do
+      ents <- runDB $ selectList [ParticipantUser ==. userId] []
+      return $ Import.map (participantCourse . entityVal) ents
+    Nothing -> do
+      return []
+
+  let achievementInfos = Import.filter (isParticipant courses) achievementInfos'
 
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
 
   defaultLayout $ do
     setTitle "Achievements"
     $(widgetFile "achievements")
+
+isParticipant :: [CourseId] -> AchievementInfo -> Bool
+isParticipant [] _ = True
+isParticipant courses info = (entityKey $ achievementInfoCourse info) `elem` courses
 
 achievementsTable :: Bool -> Table.Table App (AchievementInfo)
 achievementsTable canEdit = mempty
