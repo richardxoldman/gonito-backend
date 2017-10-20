@@ -20,13 +20,13 @@ import qualified Yesod.Table as Table
 
 getAchievementsR :: Handler Html
 getAchievementsR = do
-  (formWidget, formEnctype) <- generateFormPost achievementForm
+  (formWidget, formEnctype) <- generateFormPost (achievementForm Nothing Nothing)
   mUser <- maybeAuth
   doAchievements mUser formWidget formEnctype
 
 postAchievementsR :: Handler Html
 postAchievementsR = do
-  ((result, formWidget), formEnctype) <- runFormPost achievementForm
+  ((result, formWidget), formEnctype) <- runFormPost (achievementForm Nothing Nothing)
   mUser <- maybeAuth
   when (checkIfAdmin mUser) $ do
      case result of
@@ -54,9 +54,9 @@ doAchievements mUser formWidget formEnctype = do
     setTitle "Achievements"
     $(widgetFile "achievements")
 
-achievementsTable :: Table.Table App (AchievementInfo)
-achievementsTable = mempty
-  ++ Table.text "achievement" achievementInfoName
+achievementsTable :: Bool -> Table.Table App (AchievementInfo)
+achievementsTable canEdit = mempty
+  ++ achievementNameEntry canEdit
   ++ Table.text "course" (courseName . entityVal . achievementInfoCourse)
   ++ Table.linked "challenge" (challengeTitle . entityVal . achievementInfoChallenge) (ShowChallengeR . challengeName . entityVal . achievementInfoChallenge)
   ++ achievementDescriptionCell id
@@ -64,6 +64,9 @@ achievementsTable = mempty
   ++ timestampCell "deadline" achievementInfoDeadline
   ++ Table.string "max submitters" (formatMaxSubmitters . achievementInfoMaxWinners)
   ++ workingOnCell
+
+achievementNameEntry True = Table.linked "achievement" (achievementInfoName) (EditAchievementR . achievementInfoId)
+achievementNameEntry False = Table.text "achievement" achievementInfoName
 
 workingOnCell = Table.widget "who's working on it?" workingOnWidget
 
@@ -161,27 +164,76 @@ formatMaxSubmitters :: Maybe Int -> String
 formatMaxSubmitters Nothing = "no limit"
 formatMaxSubmitters (Just m) = show m
 
-achievementForm :: Form (Text, Maybe Text, Int, Day, TimeOfDay, Maybe Int, Maybe Text, ChallengeId, CourseId)
-achievementForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,,,)
-    <$> areq textField (bfs MsgAchievementName) Nothing
-    <*> aopt textField (bfs MsgAchievementDescription) Nothing
-    <*> areq intField (bfs MsgAchievementPoints) Nothing
-    <*> areq dayField (bfs MsgAchievementDeadlineDay) Nothing
-    <*> areq timeFieldTypeTime (bfs MsgAchievementDeadlineTime) Nothing
-    <*> aopt intField (bfs MsgAchievementMaxWinners) Nothing
-    <*> aopt textField (tagsfs MsgAchievementTags) Nothing
-    <*> challengesSelectFieldList
-    <*> coursesSelectFieldList
+achievementForm :: Maybe Achievement -> Maybe [Entity Tag] -> Form (Text, Maybe Text, Int, Day, TimeOfDay, Maybe Int, Maybe Text, ChallengeId, CourseId)
+achievementForm mAchievement mTags = renderBootstrap3 BootstrapBasicForm $ (,,,,,,,,)
+    <$> areq textField (bfs MsgAchievementName) (achievementName <$> mAchievement)
+    <*> aopt textField (bfs MsgAchievementDescription) (achievementDescription <$> mAchievement)
+    <*> areq intField (bfs MsgAchievementPoints) (achievementPoints <$> mAchievement)
+    <*> areq dayField (bfs MsgAchievementDeadlineDay) (utctDay <$> achievementDeadline <$> mAchievement)
+    <*> areq timeFieldTypeTime (bfs MsgAchievementDeadlineTime) (timeToTimeOfDay <$> utctDayTime <$> achievementDeadline <$> mAchievement)
+    <*> aopt intField (bfs MsgAchievementMaxWinners) (achievementMaxWinners <$> mAchievement)
+    <*> aopt textField (tagsfs MsgAchievementTags) (tagsToText <$> mTags)
+    <*> challengesSelectFieldList (achievementChallenge <$> mAchievement)
+    <*> coursesSelectFieldList (achievementCourse <$> mAchievement)
 
-challengesSelectFieldList = areq (selectField challenges) (bfs MsgChallenge) Nothing
+tagsToText [] = Nothing
+tagsToText tags = Just $ Data.Text.intercalate ", " $ Import.map (tagName . entityVal) tags
+
+challengesSelectFieldList mChallengeId = areq (selectField challenges) (bfs MsgChallenge) mChallengeId
     where
       challenges = do
         challengeEnts <- runDB $ selectList [] [Asc ChallengeTitle]
         optionsPairs $ Import.map (\ch -> (challengeTitle $ entityVal ch, entityKey ch)) challengeEnts
 
 
-coursesSelectFieldList = areq (selectField courses) (bfs MsgCourse) Nothing
+coursesSelectFieldList mCourseId = areq (selectField courses) (bfs MsgCourse) mCourseId
     where
       courses = do
         courseEnts <- runDB $ selectList [] [Asc CourseName]
         optionsPairs $ Import.map (\ch -> (courseName $ entityVal ch, entityKey ch)) courseEnts
+
+getEditAchievementR :: AchievementId -> Handler Html
+getEditAchievementR achievementId = do
+  tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
+  achievement <- runDB $ get404 achievementId
+  tags <- runDB $ getAchievementTags achievementId
+  (formWidget, formEnctype) <- generateFormPost (achievementForm (Just achievement) (Just tags))
+  mUser <- maybeAuth
+
+  defaultLayout $ do
+    setTitle "Edit achievements"
+    $(widgetFile "edit-achievement")
+
+postEditAchievementR :: AchievementId -> Handler Html
+postEditAchievementR achievementId = do
+  tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
+  achievement <- runDB $ get404 achievementId
+  ((result, formWidget), formEnctype) <- runFormPost (achievementForm Nothing Nothing)
+  mUser <- maybeAuth
+
+  when (checkIfAdmin mUser) $ do
+     case result of
+      FormSuccess (name, description, points, deadlineDay, deadlineTime, maxSubmitters, mTags, challengeId, courseId) -> do
+        runDB $ do
+          update achievementId [AchievementName =. name,
+                                AchievementDescription =. description,
+                                AchievementPoints =. points,
+                                AchievementDeadline =. UTCTime { utctDay = deadlineDay,
+                                                                 utctDayTime = timeOfDayToTime deadlineTime },
+                                AchievementMaxWinners =. maxSubmitters,
+                                AchievementChallenge =. challengeId,
+                                AchievementCourse =. courseId]
+
+          deleteWhere [AchievementTagAchievement ==. achievementId]
+          tids <- tagsAsTextToTagIds mTags
+          mapM (\tid -> insert $ AchievementTag achievementId tid) tids
+
+        setMessage $ toHtml ("OK! Achievement modified" :: Text)
+        return ()
+      _ -> do
+           return ()
+
+
+  defaultLayout $ do
+    setTitle "Edit achievements"
+    $(widgetFile "edit-achievement")

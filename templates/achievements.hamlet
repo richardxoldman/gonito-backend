@@ -1,6 +1,6 @@
 <h1>Achievements
 
-^{Table.buildBootstrap achievementsTable achievementInfos}
+^{Table.buildBootstrap (achievementsTable (checkIfAdmin mUser)) achievementInfos}
 
 <hr>
 
