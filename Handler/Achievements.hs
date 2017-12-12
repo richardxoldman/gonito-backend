@@ -114,16 +114,20 @@ getStartWorkingOnR :: AchievementId -> Handler Html
 getStartWorkingOnR achievementId = do
   (Entity userId user) <- requireAuth
 
+  achievement <- runDB $ get404 achievementId
+  let courseId = achievementCourse achievement
+
   alreadyWorkingOn <- runDB $ selectList [WorkingOnUser ==. userId, WorkingOnFinalSubmission ==. Nothing] []
-  if Import.null alreadyWorkingOn
+  achievementsWorkingOn <- runDB $ mapM (get404 . workingOnAchievement . entityVal) alreadyWorkingOn
+  let achievementsWorkingOnInTheSameCourse = Import.filter (\a -> achievementCourse a == courseId) achievementsWorkingOn
+
+  if Import.null achievementsWorkingOnInTheSameCourse
     then
        do
         es <- runDB $ selectList [WorkingOnAchievement ==. achievementId] []
         let userIds = Import.map (workingOnUser . entityVal) es
         users <- runDB $ mapM get404 userIds
         let userEnts = Import.map (\(k,v) -> (Entity k v)) $ Import.zip userIds users
-
-        achievement <- runDB $ get404 achievementId
 
         if determineWhetherCanStartWorkingOn (Just (Entity userId user)) userEnts (achievementMaxWinners achievement)
           then
@@ -135,7 +139,7 @@ getStartWorkingOnR achievementId = do
             setMessage $ toHtml ("Too many people working on the achievement!" :: Text)
     else
        do
-        setMessage $ toHtml ("Already working on another achievement!" :: Text)
+        setMessage $ toHtml ("Already working on another achievement in the same course!" :: Text)
   redirect $ AchievementsR
 
 
