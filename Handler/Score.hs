@@ -35,6 +35,12 @@ scoreTable = mempty
   ++ Table.linked "submission" (submissionDescription . entityVal . fst . snd) (EditSubmissionR . entityKey . fst . snd)
   ++ Table.text "status" getStatus
 
+extrasTable :: Table.Table App ExtraPoints
+extrasTable = mempty
+  ++ Table.text "reason" extraPointsDescription
+  ++ timestampCell "added" extraPointsPosted
+  ++ Table.int "points" extraPointsPoints
+
 getStatus :: (AchievementInfo, (Entity Submission, Bool)) -> Text
 getStatus (_, (_, False)) = ""
 getStatus (aInfo, (_, True)) = T.pack $ show $ achievementInfoPoints aInfo
@@ -47,25 +53,34 @@ doScore :: Entity User -> Handler Html
 doScore userEnt@(Entity userId user) = do
   courses <- runDB $ selectList [CourseClosed ==. False] [Asc CourseName]
 
-  courseAchievementInfos <- mapM (userScoreForCourse userEnt) courses
+  courseUserInfos <- mapM (userScoreForCourse userEnt) courses
 
-  let courseInfos = Import.filter (\(_, (points, _)) -> points > 0) $ Import.zip courses courseAchievementInfos
+  let courseInfos = Import.filter (\(_, (points, _, _)) -> points > 0) $ Import.zip courses courseUserInfos
 
   defaultLayout $ do
     setTitle "Score"
     $(widgetFile "score")
 
 
-userScoreForCourse :: Entity User -> Entity Course -> Handler (Int, [(AchievementInfo, (Entity Submission, Bool))])
-userScoreForCourse userEnt courseEnt = do
-  achievementEntries <- userAchievementsForCourse userEnt courseEnt
-
+userScoreForCourse :: Entity User -> Entity Course -> Handler (Int, [(AchievementInfo, (Entity Submission, Bool))], [ExtraPoints])
+userScoreForCourse userEnt@(Entity userId user) courseEnt@(Entity courseId course) = do
+  achievementEntries <- userAchievementsForCourse userEnt courseId
   let achievementTotal = sum $ Import.map getPoints achievementEntries
 
-  return (achievementTotal, achievementEntries)
+  extraEntries <- userExtraPointsForCourse userId courseId
+  let extraTotal = sum $ Import.map extraPointsPoints extraEntries
 
-userAchievementsForCourse :: Entity User -> Entity Course -> Handler [(AchievementInfo, (Entity Submission, Bool))]
-userAchievementsForCourse (Entity userId user) (Entity courseId course) = do
+  let total = achievementTotal + extraTotal
+
+  return (total, achievementEntries, extraEntries)
+
+userExtraPointsForCourse :: UserId -> CourseId -> Handler [ExtraPoints]
+userExtraPointsForCourse userId courseId = do
+  entries <- runDB $ selectList [ExtraPointsUser ==. userId, ExtraPointsCourse ==. courseId] [Asc ExtraPointsPosted]
+  return $ Import.map entityVal entries
+
+userAchievementsForCourse :: Entity User -> CourseId -> Handler [(AchievementInfo, (Entity Submission, Bool))]
+userAchievementsForCourse (Entity userId user) courseId = do
   entries <- runDB $ E.select
                      $ E.from $ \(working_on, achievement, submission) -> do
                        E.where_ (working_on ^. WorkingOnAchievement E.==. achievement ^. AchievementId
