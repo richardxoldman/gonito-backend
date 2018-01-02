@@ -20,6 +20,7 @@ postExtraPointsR = do
                             now <- liftIO getCurrentTime
                             let (Just (Entity adderId _)) = mUser
                             _ <- runDB $ insert $ ExtraPoints points description userId courseId now adderId
+                            setMessage $ toHtml ("OK! Extra points added" :: Text)
                             return ()
       _ -> do
            return ()
