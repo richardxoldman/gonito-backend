@@ -120,7 +120,7 @@ checkTestDir chan challengeId challenge commit testDir = do
            testChecksum=(SHA1 checksum),
            testCommit=commit,
            testActive=True,
-           testPrecision=Nothing }
+           testPrecision=geoPrecision opts}
          return ()
     else
       msg chan $ concat ["Test dir ", (T.pack testDir), " does not have expected results."]
