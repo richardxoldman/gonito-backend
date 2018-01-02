@@ -51,3 +51,7 @@ SubmissionDescriptionTooltip: the first non-empty line of the commit message wil
 Challenge: challenge
 Course: course
 CourseOptional: course (optional)
+AddExtraPoints: add points freely
+ExtraPointsPoints: Points to be added
+ExtraPointsDescription: Describe why they are added
+User: User

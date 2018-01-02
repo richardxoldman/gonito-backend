@@ -121,6 +121,7 @@ instance Yesod App where
     isAuthorized TagsR _ = return Authorized
     isAuthorized AchievementsR _ = return Authorized
     isAuthorized (EditAchievementR _) _ = isAdmin
+    isAuthorized ExtraPointsR _ = isAdmin
 
     isAuthorized (ShowChallengeR _) _ = return Authorized
     isAuthorized (ChallengeReadmeR _) _ = return Authorized

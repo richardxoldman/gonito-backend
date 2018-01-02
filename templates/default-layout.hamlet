@@ -13,6 +13,7 @@
                 $if userIsAdmin $ entityVal user
                     <li><a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
                     <li><a href="@{CreateResetLinkR}">_{MsgCreateResetLink}</a>
+                    <li><a href="@{ExtraPointsR}">_{MsgAddExtraPoints}</a>
 
           <ul class="nav navbar-nav navbar-right">
             <li class="dropdown">

@@ -1,0 +1,7 @@
+<h2>_{MsgAddExtraPoints}
+
+<p>
+  <form method=post action=@{ExtraPointsR}#form enctype=#{formEnctype}>
+    ^{formWidget}
+    <button .btn .btn-primary type="submit">
+       _{MsgAdd} <span class="glyphicon glyphicon-upload"></span>

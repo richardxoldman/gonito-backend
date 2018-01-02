@@ -41,6 +41,8 @@
 /submission-for-achievement/#SubmissionId/#WorkingOnId SubmissionForAchievementR GET
 /toggle-submission-tag/#SubmissionTagId ToggleSubmissionTagR GET
 
+/extra-points ExtraPointsR GET POST
+
 /score/#UserId ScoreR GET
 /my-score MyScoreR GET
 

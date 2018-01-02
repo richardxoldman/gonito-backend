@@ -50,6 +50,7 @@ library
                      Handler.TagUtils
                      Handler.Score
                      Handler.AchievementUtils
+                     Handler.ExtraPoints
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

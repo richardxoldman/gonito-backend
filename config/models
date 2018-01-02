@@ -108,6 +108,13 @@ Course
     closed Bool
     UniqueCourseName name
     UniqueCourseCode code
+ExtraPoints
+    points Int
+    description Text
+    user UserId
+    course CourseId
+    posted UTCTime default=now()
+    addedBy UserId
 Participant
     user UserId
     course CourseId
