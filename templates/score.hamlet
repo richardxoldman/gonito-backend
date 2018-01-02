@@ -1,3 +1,8 @@
 <h1>Score for #{formatSubmitter user}
 
-^{Table.buildBootstrap scoreTable entries'}
+$forall ((Entity _ course), (points, entries)) <- courseInfos
+   <h2>#{courseName course}
+   ^{Table.buildBootstrap scoreTable entries}
+
+   <p class="well">Total <span class="badge">#{points}</span>
+   <hr>

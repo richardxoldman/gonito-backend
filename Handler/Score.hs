@@ -39,21 +39,45 @@ getStatus :: (AchievementInfo, (Entity Submission, Bool)) -> Text
 getStatus (_, (_, False)) = ""
 getStatus (aInfo, (_, True)) = T.pack $ show $ achievementInfoPoints aInfo
 
+getPoints :: (AchievementInfo, (Entity Submission, Bool)) -> Int
+getPoints (_, (_, False)) = 0
+getPoints (aInfo, (_, True)) = achievementInfoPoints aInfo
+
 doScore :: Entity User -> Handler Html
-doScore (Entity userId user) = do
+doScore userEnt@(Entity userId user) = do
+  courses <- runDB $ selectList [CourseClosed ==. False] [Asc CourseName]
+
+  courseAchievementInfos <- mapM (userScoreForCourse userEnt) courses
+
+  let courseInfos = Import.filter (\(_, (points, _)) -> points > 0) $ Import.zip courses courseAchievementInfos
+
+  defaultLayout $ do
+    setTitle "Score"
+    $(widgetFile "score")
+
+
+userScoreForCourse :: Entity User -> Entity Course -> Handler (Int, [(AchievementInfo, (Entity Submission, Bool))])
+userScoreForCourse userEnt courseEnt = do
+  achievementEntries <- userAchievementsForCourse userEnt courseEnt
+
+  let achievementTotal = sum $ Import.map getPoints achievementEntries
+
+  return (achievementTotal, achievementEntries)
+
+userAchievementsForCourse :: Entity User -> Entity Course -> Handler [(AchievementInfo, (Entity Submission, Bool))]
+userAchievementsForCourse (Entity userId user) (Entity courseId course) = do
   entries <- runDB $ E.select
                      $ E.from $ \(working_on, achievement, submission) -> do
                        E.where_ (working_on ^. WorkingOnAchievement E.==. achievement ^. AchievementId
                                  E.&&. E.just (submission ^. SubmissionId) E.==. working_on ^. WorkingOnFinalSubmission
-                                 E.&&. working_on ^. WorkingOnUser E.==. E.val userId)
+                                 E.&&. working_on ^. WorkingOnUser E.==. E.val userId
+                                 E.&&. achievement ^. AchievementCourse E.==. E.val courseId)
                        E.orderBy [E.asc (submission ^. SubmissionStamp)]
                        return (achievement, submission)
 
   entries' <- mapM (processEntry (Entity userId user)) entries
 
-  defaultLayout $ do
-    setTitle "Score"
-    $(widgetFile "score")
+  return entries'
 
 processEntry :: Entity User -> (Entity Achievement, Entity Submission) -> Handler (AchievementInfo, (Entity Submission, Bool))
 processEntry entUser (entAchievement, entSubmission) = do
