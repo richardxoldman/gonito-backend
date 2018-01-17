@@ -258,10 +258,10 @@ outFileName = "out.tsv"
 
 getOutFilePath repoDir test = repoDir </> (T.unpack $ testName test) </> outFileName
 
-doesOutExist repoDir (Entity _ test) = liftIO $ doesFileExist $ getOutFilePath repoDir test
+doesOutExist repoDir (Entity _ test) = liftIO $ doesFileExist $ Handler.ShowChallenge.getOutFilePath repoDir test
 
 outForTest repoDir submissionId (Entity testId test) = do
-  checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [getOutFilePath repoDir test]
+  checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [Handler.ShowChallenge.getOutFilePath repoDir test]
   return Out {
     outSubmission=submissionId,
     outTest=testId,
