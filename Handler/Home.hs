@@ -3,6 +3,7 @@ module Handler.Home where
 import Import
 
 import Handler.Shared
+import Handler.ListChallenges
 
 -- This is a handler function for the GET request method on the HomeR
 -- resource pattern. All of your resource patterns are defined in
@@ -15,6 +16,9 @@ getHomeR :: Handler Html
 getHomeR = do
   maybeUser <- maybeAuth
   master <- getYesod
+
+  starredChallenges <- runDB $ selectList [ChallengeStarred ==. Just True] [Asc ChallengeStarred, Desc ChallengeStamp]
+
   let maybeLocalId = case maybeUser of
         Just user -> userLocalId $ entityVal user
         Nothing -> Nothing

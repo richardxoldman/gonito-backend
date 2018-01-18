@@ -92,7 +92,8 @@ addChallenge name publicRepoId privateRepoId chan = do
     challengeTitle=(T.pack $ title),
     challengeDescription=(T.pack $ description),
     challengeStamp=time,
-    challengeImage=mImage }
+    challengeImage=mImage,
+    challengeStarred=Just False}
   updateTests challengeId chan
   return ()
 
