@@ -6,8 +6,11 @@
     <div class="panel panel-default">
         <div class="panel-heading">What's so special about Gonito:
         <ul class="list-group">
-            <li class="list-group-item">free & open-source (AGPL), you can use it your own, in your company, at your university, etc. (git repo: <tt><a href="#{browsableGitRepo "gonito"}">git://gonito.net/gonito</a></tt>)
-            <li class="list-group-item">git-based (challenges and solutions are submitted only with git).
+            <li class="list-group-item">free & open-source (AGPL), you can use it your own, in your company, at your university, etc. (git repo: <tt><a href="#{browsableGitRepo "gonito"}">git://gonito.net/gonito</a></tt>),
+            <li class="list-group-item">git-based (challenges and solutions are submitted only with git),
+            <li class="list-group-item">geval — a companion stand-alone tool for evaluation (<tt><a href="#{browsableGitRepo "geval"}">git://gonito.net/geval</a></tt>),
+            <li class="list-group-item">special features for organizing classes in machine learning.
+
 
     $maybe user <- maybeUser
         $maybe _ <- userPassword $ entityVal user
