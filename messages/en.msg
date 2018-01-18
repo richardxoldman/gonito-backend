@@ -7,7 +7,7 @@ PublicUrl: public repo (URL)
 PrivateUrl: private repo (URL)
 Branch: branch
 Add: Add!
-ListChallenges: list challenges
+ListChallenges: challenges
 SubmitSolution: Submit a solution to the challenge
 Submit: Submit
 SubmissionUrl: Submission repo URL
@@ -35,7 +35,7 @@ CreateResetLink: create reset link
 LinkWrongOrExpired: Link wrong or expired, please ask the site admin again
 TagName: tag
 TagDescription: description
-ListTags: list tags
+ListTags: tags
 AchievementName: achievement name
 AchievementDescription: optional description
 AchievementDeadlineDay: achievement deadline day

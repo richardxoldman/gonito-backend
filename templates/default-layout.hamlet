@@ -5,7 +5,6 @@
         $maybe user <- maybeUser
           <ul class="nav navbar-nav">
 
-                <li><a href="@{HomeR}">_{MsgHome}</a>
                 <li><a href="@{Presentation4RealR}">_{MsgAbout}</a>
                 <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a>
                 <li><a href="@{TagsR}">_{MsgListTags}</a>
@@ -24,7 +23,6 @@
                     <li><a href="@{AuthR LogoutR}">_{MsgLogOut}</a></li>
         $nothing
             <ul class="nav navbar-nav">
-                <li><a href="@{HomeR}">_{MsgHome}</a>
                 <li><a href="@{Presentation4RealR}">_{MsgAbout}</a>
                 <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a>
                 <li><a href="@{TagsR}">_{MsgListTags}</a>
