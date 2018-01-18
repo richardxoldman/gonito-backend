@@ -146,6 +146,7 @@ instance Yesod App where
     isAuthorized (ResetPasswordR _) _ = return Authorized
     isAuthorized (ToggleSubmissionTagR _) _ = return Authorized
 
+    isAuthorized (ChallengeImageR _) _ = return Authorized
 
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized

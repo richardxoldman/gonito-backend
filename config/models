@@ -36,6 +36,7 @@ Challenge
     title Text
     description Text
     stamp UTCTime default=now()
+    image ByteString Maybe
 Test
     challenge ChallengeId
     metric Metric

@@ -10,6 +10,7 @@
 /view-progress/#Int ViewProgressR GET
 /open-view-progress/#Int OpenViewProgressR GET
 /list-challenges ListChallengesR GET
+/challenge-image/#ChallengeId ChallengeImageR GET
 
 /challenge/#Text ShowChallengeR GET
 /challenge-readme/#Text ChallengeReadmeR GET

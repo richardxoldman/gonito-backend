@@ -42,6 +42,9 @@ defaultDescription = ""
 readmeFile :: FilePath
 readmeFile = "README.md"
 
+imageFile :: FilePath
+imageFile = ".seeme.png"
+
 getTitleAndDescription :: String -> (String, String)
 getTitleAndDescription contents = (title, description)
                        where title = fromMaybe defaultTitle $ extractFirstHeader doc

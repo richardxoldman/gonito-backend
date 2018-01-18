@@ -1,4 +1,7 @@
-$forall challenge <- challenges
- <div class="panel panel-success">
-   <div class="panel-heading"><a .challenge-link  href="@{ShowChallengeR (challengeName challenge)}">#{challengeTitle challenge}</a>
-   <div class="panel-body">#{challengeDescription challenge}
+$forall (Entity challengeId challenge) <- challenges
+  <div class="panel panel-success">
+     <div class="panel-heading"><a .challenge-link  href="@{ShowChallengeR (challengeName challenge)}">#{challengeTitle challenge}</a>
+     $if isJust (challengeImage challenge)
+        <div class="panel-body" style="background-image:url(@{ChallengeImageR challengeId}); background-color:lightgrey; background-blend-mode:screen;background-size: 100%;">#{challengeDescription challenge}
+     $else
+        <div class="panel-body">#{challengeDescription challenge}

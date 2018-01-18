@@ -17,6 +17,11 @@ import qualified Data.Text as T
 
 import PersistSHA1
 
+import qualified Data.ByteString as S
+import qualified Data.ByteString.Lazy as L
+
+import Data.Conduit.Binary (sinkLbs, sourceFile)
+
 getCreateChallengeR :: Handler Html
 getCreateChallengeR = do
     (formWidget, formEnctype) <- generateFormPost sampleForm
@@ -69,6 +74,16 @@ addChallenge name publicRepoId privateRepoId chan = do
                            else do
                             err chan "README was not found"
                             return (defaultTitle, defaultDescription)
+
+  let imageFilePath = publicRepoDir </> imageFile
+  doesImageFileExists <- liftIO $ doesFileExist imageFilePath
+  mImage <- if doesImageFileExists
+             then do
+               fileBytes <- liftIO $ runResourceT $ sourceFile imageFilePath $$ sinkLbs
+               return $ Just (S.pack . L.unpack $ fileBytes)
+             else do
+               return Nothing
+
   time <- liftIO getCurrentTime
   challengeId <- runDB $ insert $ Challenge {
     challengePublicRepo=publicRepoId,
@@ -76,7 +91,8 @@ addChallenge name publicRepoId privateRepoId chan = do
     challengeName=name,
     challengeTitle=(T.pack $ title),
     challengeDescription=(T.pack $ description),
-    challengeStamp=time}
+    challengeStamp=time,
+    challengeImage=mImage }
   updateTests challengeId chan
   return ()
 
