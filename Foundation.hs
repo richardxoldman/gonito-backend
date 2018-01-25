@@ -148,6 +148,8 @@ instance Yesod App where
 
     isAuthorized (ChallengeImageR _) _ = return Authorized
 
+    isAuthorized (ApiTxtScoreR _) _ = return Authorized
+
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
 

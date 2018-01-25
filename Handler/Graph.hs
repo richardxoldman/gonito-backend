@@ -3,6 +3,7 @@ module Handler.Graph where
 import Import
 
 import Handler.Tables
+import Handler.Shared
 import Data.Maybe
 import Data.List ((!!))
 import Database.Persist.Sql

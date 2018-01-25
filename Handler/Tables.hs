@@ -12,11 +12,11 @@ import Yesod.Table (Table)
 
 import qualified Data.Map as Map
 
-import qualified Data.List as DL
-
 import Data.Text (pack)
 
 import PersistSHA1
+
+import qualified Data.List as DL
 
 import GEval.Core
 
@@ -78,18 +78,6 @@ statusCell challengeName fun = Table.widget "" (statusCellWidget challengeName .
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
 resultCell test fun = hoverTextCell ((testName test) ++ "/" ++ (Data.Text.pack $ show $ testMetric test)) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
 
-formatFullScore :: Maybe Evaluation -> Text
-formatFullScore (Just evaluation) = fromMaybe "???" (Data.Text.pack <$> show <$> evaluationScore evaluation)
-formatFullScore Nothing = "N/A"
-
-formatTruncatedScore :: Maybe Int -> Maybe Evaluation -> Text
-formatTruncatedScore Nothing e = formatFullScore e
-formatTruncatedScore _ Nothing  = formatFullScore Nothing
-formatTruncatedScore (Just precision) (Just evaluation) = case evaluationScore evaluation of
-  Just score -> Data.Text.pack $ printf "%0.*f" precision score
-  Nothing -> formatFullScore Nothing
-
-
 statusCellWidget challengeName (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
@@ -101,9 +89,6 @@ statusCellWidget challengeName (submissionId, submission, userId, mauthId) = $(w
                                   Just $ browsableGitRepoBranch challengeName publicSubmissionBranch
                                 else
                                   Nothing
-
-getMainTest :: [Entity Test] -> Entity Test
-getMainTest tests = DL.maximumBy (\(Entity _ a) (Entity _ b) -> ((testName a) `compare` (testName b))) tests
 
 getAuxSubmissions :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation)] -> [(Key User, (User, [(Submission, Evaluation)]))]
 getAuxSubmissions testId evaluationMaps = map (processEvaluationMap testId) evaluationMaps

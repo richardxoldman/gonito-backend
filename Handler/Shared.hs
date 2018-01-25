@@ -17,6 +17,8 @@ import Control.Concurrent.Lifted (fork, threadDelay)
 
 import qualified Crypto.Hash.SHA1 as CHS
 
+import qualified Data.List as DL
+
 import System.Process
 import System.Exit
 import System.Random
@@ -362,3 +364,17 @@ enableTriggerToken _ (Just _) = return ()
 enableTriggerToken userId Nothing = do
   token <- newToken
   runDB $ update userId [UserTriggerToken =. Just token]
+
+getMainTest :: [Entity Test] -> Entity Test
+getMainTest tests = DL.maximumBy (\(Entity _ a) (Entity _ b) -> ((testName a) `compare` (testName b))) tests
+
+formatFullScore :: Maybe Evaluation -> Text
+formatFullScore (Just evaluation) = fromMaybe "???" (T.pack <$> show <$> evaluationScore evaluation)
+formatFullScore Nothing = "N/A"
+
+formatTruncatedScore :: Maybe Int -> Maybe Evaluation -> Text
+formatTruncatedScore Nothing e = formatFullScore e
+formatTruncatedScore _ Nothing  = formatFullScore Nothing
+formatTruncatedScore (Just precision) (Just evaluation) = case evaluationScore evaluation of
+  Just score -> T.pack $ printf "%0.*f" precision score
+  Nothing -> formatFullScore Nothing

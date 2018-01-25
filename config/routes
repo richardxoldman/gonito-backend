@@ -27,6 +27,8 @@
 /q QueryFormR GET POST
 /q/#Text QueryResultsR  GET
 
+/api/txt/score/#Text ApiTxtScoreR GET
+
 /make-public/#SubmissionId MakePublicR GET
 
 /account YourAccountR GET POST

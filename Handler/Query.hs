@@ -2,43 +2,68 @@ module Handler.Query where
 
 import Import
 
-import Handler.Shared
 import Handler.SubmissionView
-import PersistSHA1
+import Handler.Shared
 
 import Database.Persist.Sql
-import Data.Text as T(pack)
 
-import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
-                              withSmallInput)
+import qualified Database.Esqueleto      as E
+import           Database.Esqueleto      ((^.))
 
+import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
+
+rawCommitQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
+rawCommitQuery sha1Prefix = rawSql "SELECT ?? FROM submission WHERE is_public AND cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
 
 findSubmissions :: Text -> Handler [FullSubmissionInfo]
 findSubmissions sha1Prefix = do
   mauthId <- maybeAuth
   submissions <- runDB $ case mauthId of
     Just (Entity authId _) -> rawSql "SELECT ?? FROM submission WHERE (is_public OR submitter = ?) AND cast(commit as text) like ?" [toPersistValue authId, PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
-    Nothing -> rawSql "SELECT ?? FROM submission WHERE is_public AND cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
+    Nothing -> rawCommitQuery sha1Prefix
   mapM getFullInfo submissions
+
+getApiTxtScoreR :: Text -> Handler Text
+getApiTxtScoreR sha1Prefix = do
+  submissions <- runDB $ rawCommitQuery sha1Prefix
+  case submissions of
+    [submission] -> doGetScore submission
+    [] -> return "NONE"
+    _ -> return "AMBIGUOUS ARGUMENT"
+
+doGetScore submission = do
+  let challengeId = submissionChallenge $ entityVal submission
+  tests <- runDB $ selectList [TestChallenge ==. challengeId] []
+  let mainTest = getMainTest tests
+  let mainTestId = entityKey mainTest
+  let submissionId = entityKey submission
+
+  evals <- runDB $ E.select
+                   $ E.from $ \(out, evaluation) -> do
+                     E.where_ (out ^. OutSubmission E.==. E.val submissionId
+                               E.&&. out ^. OutTest E.==. E.val mainTestId
+                               E.&&. evaluation ^. EvaluationTest E.==. E.val mainTestId
+                               E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum)
+                     E.orderBy []
+                     return (evaluation)
+
+  case evals of
+    [eval] -> return $ formatTruncatedScore (testPrecision $ entityVal mainTest) (Just $ entityVal eval)
+    _ -> return "NONE"
 
 getQueryFormR :: Handler Html
 getQueryFormR = do
   (formWidget, formEnctype) <- generateFormPost queryForm
-  let submission = Nothing :: Maybe Text
-      handlerName = "getQueryFormR" :: Text
   defaultLayout $ do
-      aDomId <- newIdent
       setTitle "Searching for submissions"
       $(widgetFile "query-form")
 
 postQueryFormR :: Handler Html
 postQueryFormR = do
     ((result, formWidget), formEnctype) <- runFormPost queryForm
-    let handlerName = "postQueryFormR" :: Text
     case result of
       FormSuccess query -> processQuery query
       _ -> defaultLayout $ do
-        aDomId <- newIdent
         setTitle "Searching for submissions"
         $(widgetFile "query-form")
 
