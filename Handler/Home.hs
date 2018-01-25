@@ -17,7 +17,7 @@ getHomeR = do
   maybeUser <- maybeAuth
   master <- getYesod
 
-  starredChallenges <- runDB $ selectList [ChallengeStarred ==. Just True] [Asc ChallengeStarred, Desc ChallengeStamp]
+  starredChallenges <- runDB $ selectList [ChallengeStarred ==. True] [Desc ChallengeStamp]
 
   let maybeLocalId = case maybeUser of
         Just user -> userLocalId $ entityVal user

@@ -37,7 +37,7 @@ Challenge
     description Text
     stamp UTCTime default=now()
     image ByteString Maybe
-    starred Bool Maybe
+    starred Bool
 Test
     challenge ChallengeId
     metric Metric

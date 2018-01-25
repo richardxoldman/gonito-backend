@@ -4,7 +4,7 @@ import Import
 
 getListChallengesR :: Handler Html
 getListChallengesR = do
-  challenges <- runDB $ selectList [] [Asc ChallengeStarred, Desc ChallengeStamp]
+  challenges <- runDB $ selectList [] [Desc ChallengeStarred, Desc ChallengeStamp]
   defaultLayout $ do
     setTitle "List challenges"
     $(widgetFile "list-challenges")
