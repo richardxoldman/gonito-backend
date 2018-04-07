@@ -10,9 +10,12 @@
                 <li><a href="@{TagsR}">_{MsgListTags}</a>
                 <li><a href="@{AchievementsR}">_{MsgAchievements}</a>
                 $if userIsAdmin $ entityVal user
-                    <li><a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
-                    <li><a href="@{CreateResetLinkR}">_{MsgCreateResetLink}</a>
-                    <li><a href="@{ExtraPointsR}">_{MsgAddExtraPoints}</a>
+                    <li class="dropdown">
+                        <a id="admin" href="#" class="dropdown-toggle" data-toggle="dropdown">_{MsgManage}<span class="caret"></span>
+                        <ul class="dropdown-menu">
+                            <li><a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
+                            <li><a href="@{CreateResetLinkR}">_{MsgCreateResetLink}</a>
+                            <li><a href="@{ExtraPointsR}">_{MsgAddExtraPoints}</a>
 
           <ul class="nav navbar-nav navbar-right">
             <li class="dropdown">

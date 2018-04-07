@@ -55,3 +55,4 @@ AddExtraPoints: add points freely
 ExtraPointsPoints: Points to be added
 ExtraPointsDescription: Describe why they are added
 User: User
+Manage: manage
