@@ -56,3 +56,5 @@ ExtraPointsPoints: Points to be added
 ExtraPointsDescription: Describe why they are added
 User: User
 Manage: manage
+Presentation: presentation
+GonitoInClass: Gonito in class

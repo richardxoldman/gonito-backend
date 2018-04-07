@@ -18,6 +18,12 @@ import Data.Text
 
 import qualified Yesod.Table as Table
 
+getGonitoInClassR :: Handler Html
+getGonitoInClassR = do
+  defaultLayout $ do
+    setTitle "Achievements"
+    $(widgetFile "gonito-in-class")
+
 getAchievementsR :: Handler Html
 getAchievementsR = do
   (formWidget, formEnctype) <- generateFormPost (achievementForm Nothing Nothing)

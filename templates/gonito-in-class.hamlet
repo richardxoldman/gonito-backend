@@ -1,0 +1,40 @@
+<p>Gonito.net can be used (and is used!) for teaching classes on machine learning. Here is the workflow:
+
+<ol>
+   <li>The <b>teacher</b> adds an <i>achievement</i> (which could be considered a task, an assignment, etc.)
+   <ul>
+     <li>an achievement could be created for an already existing challenge or a new challenge could be created
+     <li>remember to add <i>tags</i> for the achievement! this will be crucial for accepting students' submissions later
+        <ul>
+          <li>tags should be understood as a checklist of what is required for a given achievement
+   <li>A <b>student</b> goes to <a href="@{AchievementsR}">_{MsgAchievements}</a> and clicks to start working on the chosen achievement.
+   <ul>
+     <li>a student can work only on one achievement for a given class at the same time
+   <li>… the student works on a given problem …
+   <li>The student <b>submits a solution</b> to the challenge linked with the achievement (just as a regular submission).
+     <ul>
+      <li>now the student must remember to add tags to the <i>submission</i>
+         <ul>
+            <li>all the achievement tags must be given for the submission, otherwise the submission will not be accepted for the achievement
+            <li>(there might me more if you like)
+   <li>Now (if everything is OK) the student needs to send the submission to review
+     <ul>
+       <li>find the submission on the challenge page
+       <li>click <span class="glyphicon glyphicon-pencil"></span> to edit the submission
+       <li>… and send to review for the right achievement
+   <li>And, finally, when the deadline is over, the student needs to open the source code (click <span class="glyphicon glyphicon-share" title="click to make it public!" aria-hidden="true"></span>) — simply the teacher should be able to see the source code!
+   <li>The teacher checks whether each achievement tag is fulfilled.
+     <ul>
+       <li>each submission tag could be:
+          <ul>
+            <li><span class="label label-primary">blue</span> — not verified yet by the teacher
+            <li><span class="label label-success">green</span> — accepted by the teacher
+            <li><span class="label label-default">grey</span> — rejected by the teacher
+       <li>the state of a submission tag is changed by simply clicking it
+   <li>When your teacher accepted all the tags, you'll see the points in <a href="@{MyScoreR}">_{MsgYourScore}</a>!
+
+<h3>Frequently Asked Questions
+
+<dl>
+  <dt>Why is this so complicated?
+  <dd>Well, Gonito.net is not just for teaching, it serves other purposes, so it needs to be bent a little bit… sorry!
