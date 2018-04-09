@@ -2,6 +2,8 @@
 
 <h2>Install GEval (recommended, but not obligatory)
 
+<h4>option A — install GEval with Haskell Stack (needs some time and a couple of gigabytes of hard disk space)
+
 <p>In order to evaluate your work locally, you need the GEval tool. First, install <a href="https://docs.haskellstack.org/en/stable/README/">Haskell Stack</a>:
 
 <pre>
@@ -14,11 +16,14 @@
   cd geval
   stack setup
   stack install
+  ~/.local/bin/geval --help
 
-<p>Haskell Stack requires some time when run for the first time, also it takes a couple of gigabytes of hard disk space. If this is a problem for you, another option is to just download the GEval binary (it should work on most 64-bit Linuxes):
+<h4>option B — just download the GEval binary (simpler if you have a standard 64-bit Linux)
 
 <pre>
   wget <a href="http://filipg-jenkins.wmi.amu.edu.pl:8090/job/geval/lastSuccessfulBuild/artifact/geval/geval">http://filipg-jenkins.wmi.amu.edu.pl:8090/job/geval/lastSuccessfulBuild/artifact/geval/geval</a>
+  chmod u+x geval
+  ./geval --help
 
 <p>(GEval will make your life easier, but is not obligatory, so if you have any trouble with installing/running GEval, you can skip this step, for the time being.)
 
