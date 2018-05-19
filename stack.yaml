@@ -4,5 +4,5 @@ flags:
     dev: false
 packages:
 - '.'
-extra-deps: [markdown-0.1.13.2,../geval,cond-0.4.1.1,wai-handler-fastcgi-3.0.0.2,murmur3-1.0.3,extra-1.4.10]
-resolver: lts-9.21
+extra-deps: [../geval,wai-handler-fastcgi-3.0.0.2,murmur3-1.0.3]
+resolver: lts-10.10

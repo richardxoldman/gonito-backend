@@ -2,6 +2,7 @@ module Handler.Extract where
 
 import Import
 
+import qualified Data.Text as T
 import Text.Pandoc
 import Text.Pandoc.Walk (walk)
 import Text.Pandoc.Shared (stringify)
@@ -29,7 +30,7 @@ extractFirstPara doc = case queryWith extractParas doc of
   [] -> Nothing
 
 readDoc :: String -> Pandoc
-readDoc s = case readMarkdown def s of
+readDoc s = case runPure $ readMarkdown def (T.pack s) of
                 Right doc -> doc
                 Left err  -> error (show err)
 
