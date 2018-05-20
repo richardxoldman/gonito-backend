@@ -1,3 +1,5 @@
+{-# LANGUAGE InstanceSigs #-}
+
 module Foundation where
 
 import Database.Persist.Sql        (ConnectionPool, runSqlPool)
@@ -173,13 +175,6 @@ instance Yesod App where
         -- Generate a unique filename based on the content itself
         genFileName lbs = "autogen-" ++ base64md5 lbs
 
-    -- What messages should be logged. The following includes all messages when
-    -- in development, and warnings and errors in production.
-    shouldLog app _source level =
-        appShouldLogAll (appSettings app)
-            || level == LevelWarn
-            || level == LevelError
-
     makeLogger = return . appLogger
 
 -- How to run database actions.
@@ -201,7 +196,9 @@ instance YesodAuth App where
     -- Override the above two destinations when a Referer: header is present
     redirectToReferer _ = True
 
-    authenticate creds = runDB $ do
+    authenticate :: (MonadHandler m, HandlerSite m ~ App)
+                 => Creds App -> m (AuthenticationResult App)
+    authenticate creds = liftHandler $ runDB $ do
         x <- getBy $ UniqueUser $ credsIdent creds
         Authenticated <$> case x of
             Just (Entity uid _) -> return $ uid
@@ -221,8 +218,6 @@ instance YesodAuth App where
 
     -- You can add other plugins like BrowserID, email or OAuth here
     authPlugins master = [authHashDBWithForm (myLoginForm master) (Just . UniqueUser)]
-
-    authHttpManager = getHttpManager
 
 contactEmailLabel :: App -> Text
 contactEmailLabel site =

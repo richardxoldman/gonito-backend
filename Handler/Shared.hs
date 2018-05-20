@@ -14,6 +14,7 @@ import qualified Data.Text as T
 import Database.Persist.Sql (ConnectionPool, runSqlPool, fromSqlKey)
 
 import Control.Concurrent.Lifted (fork, threadDelay)
+import Control.Concurrent (forkIO)
 
 import qualified Crypto.Hash.SHA1 as CHS
 
@@ -95,7 +96,8 @@ runViewProgress' route action = do
     m <- readTVar jobs
     writeTVar jobs $ IntMap.insert jobId chan m
     return chan
-  fork $ do
+  runInnerHandler <- handlerToIO
+  liftIO $ forkIO $ runInnerHandler $ do
     liftIO $ threadDelay 1000000
     action chan
     liftIO $ atom $ do
@@ -308,7 +310,7 @@ gatherOutput ph hout herr chan = work mempty mempty
         -- Read any outstanding input.
         resterr <- takeABit herr accerr
         restout <- takeABit hout accout
-        threadDelay 1000000
+        liftIO $ threadDelay 1000000
         -- Check on the process.
         s <- liftIO $ getProcessExitCode ph
         -- Exit or loop.
