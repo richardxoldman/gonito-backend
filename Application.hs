@@ -29,6 +29,9 @@ import Network.Wai.Middleware.RequestLogger (Destination (Logger),
 import System.Log.FastLogger                (defaultBufSize, newStdoutLoggerSet,
                                              toLogStr)
 
+import Crypto.PasswordStore
+import Yesod.Auth.HashDB (defaultStrength)
+
 import qualified Data.IntMap as IntMap
 
 -- Import all relevant handler modules here.
@@ -92,10 +95,32 @@ makeFoundation appSettings = do
         (pgPoolSize $ appDatabaseConf appSettings)
 
     -- Perform database migration using our application's logging settings.
-    runLoggingT (runSqlPool (runMigration migrateAll) pool) logFunc
+    runLoggingT (runSqlPool ((runMigration migrateAll) >> (initAdmin (appAdminUser appSettings) (appAdminPassword appSettings))) pool)  logFunc
 
     -- Return the foundation
     return $ mkFoundation pool
+
+initAdmin Nothing Nothing = return ()
+initAdmin (Just "") _ = return ()
+initAdmin (Just adminUser) (Just adminPass) = do
+  mUserEnt <- getBy $ UniqueUser adminUser
+  case mUserEnt of
+    Just _ -> return ()
+    Nothing -> do
+      passwordEncoded <- liftIO $ makePassword (encodeUtf8 adminPass) defaultStrength
+      _ <- insert User
+        { userIdent = adminUser
+        , userPassword = Just $ decodeUtf8 passwordEncoded
+        , userName = Nothing
+        , userIsAdmin = True
+        , userLocalId = Nothing
+        , userIsAnonymous = False
+        , userAvatar = Nothing
+        , userVerificationKey = Nothing
+        , userKeyExpirationDate = Nothing
+        , userTriggerToken = Nothing
+        }
+      return ()
 
 -- | Convert our foundation to a WAI Application by calling @toWaiAppPlain@ and
 -- applying some additional middlewares.

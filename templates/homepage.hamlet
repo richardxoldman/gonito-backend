@@ -1,6 +1,10 @@
 <div class="container">
     <div class="jumbotron">
-        <h1>Welcome to Gonito.net!
+        <h1>Welcome to Gonito.net
+            $maybe location <- appLocation $ appSettings master
+               $if location /= ""
+                  \@#{location}
+            !
         <p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle<sup><a href="#disclaimer">*</a></sup>-like platform for machine learning competitions.
 
     <div class="panel panel-default">

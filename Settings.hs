@@ -55,6 +55,12 @@ data AppSettings = AppSettings
     , appVarDir                 :: String
     -- ^ Contact (admin) e-mail
     , appContactEmail           :: Maybe Text
+    -- ^ Ident of an admin to be created when starting
+    , appAdminUser              :: Maybe Text
+    -- ^ Password for an admin to be created when starting
+    , appAdminPassword          :: Maybe Text
+    -- ^ Additional info for the instance
+    , appLocation               :: Maybe Text
     }
 
 instance FromJSON AppSettings where
@@ -82,6 +88,10 @@ instance FromJSON AppSettings where
         appAnalytics              <- o .:? "analytics"
         appVarDir                 <- o .: "var-dir"
         appContactEmail           <- o .:? "contact-email"
+
+        appAdminUser              <- o .:? "admin-user"
+        appAdminPassword          <- o .:? "admin-password"
+        appLocation               <- o .:? "location"
 
         return AppSettings {..}
 

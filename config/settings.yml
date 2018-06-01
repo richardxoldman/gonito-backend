@@ -28,4 +28,9 @@ database:
   poolsize: "_env:PGPOOLSIZE:10"
 
 copyright: © Filip Graliński
+
+admin-user: "_env:ADMINUSER:"
+admin-password: "_env:ADMINPASS:"
+location: "_env:LOCATION:"
+
 #analytics: UA-YOURCODE
