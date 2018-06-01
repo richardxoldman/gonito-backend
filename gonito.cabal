@@ -126,7 +126,6 @@ library
                  , yesod-table
                  , regex-tdfa
                  , optparse-applicative
-                 , wai-handler-fastcgi
                  , blaze-markup
                  , blaze-html
                  , conduit-extra
@@ -145,9 +144,20 @@ executable         gonito
 
     main-is:           main.hs
     hs-source-dirs:    app
+    build-depends:     base, gonito, wai-handler-fastcgi
+
+    ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
+
+executable         gonito-bin
+    if flag(library-only)
+        Buildable: False
+
+    main-is:           main-bin.hs
+    hs-source-dirs:    app
     build-depends:     base, gonito
 
     ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
+
 
 test-suite test
     type:              exitcode-stdio-1.0

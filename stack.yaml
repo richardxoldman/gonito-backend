@@ -10,3 +10,9 @@ packages:
   extra-dep: true
 extra-deps: [../geval,wai-handler-fastcgi-3.0.0.2,murmur3-1.0.3]
 resolver: lts-11.9
+image:
+  container:
+    name: filipg/gonito
+    base: fpco/stack-run
+    add:
+        executables: /usr/local/bin/gonito-bin
