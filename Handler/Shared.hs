@@ -122,14 +122,25 @@ validGitProtocols = ["git", "http", "https", "ssh"]
 validGitProtocolsAsText :: Text
 validGitProtocolsAsText = T.pack $ intercalate ", " $ map (++"://") validGitProtocols
 
-cloneRepo :: Text -> Text -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
-cloneRepo url branch referenceUrl referenceBranch chan = do
+data RepoSpec = RepoSpec {
+  repoSpecUrl :: Text,
+  repoSpecBranch :: Text,
+
+  repoSpecReferenceUrl :: Text,
+  repoSpecReferenceBranch :: Text
+}
+
+
+cloneRepo :: RepoSpec -> Channel -> Handler (Maybe (Key Repo))
+cloneRepo repoSpec chan = do
+  let url = repoSpecUrl repoSpec
+  let branch = repoSpecBranch repoSpec
   maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
   case maybeRepo of
     Just _ -> do
       err chan "Repo already there"
       return Nothing
-    Nothing -> cloneRepo' url branch referenceUrl referenceBranch chan
+    Nothing -> cloneRepo' repoSpec chan
 
 updateRepo :: Key Repo -> Channel -> Handler Bool
 updateRepo repoId chan = do
@@ -176,8 +187,9 @@ getLastCommitMessage repoDir chan = do
              ExitSuccess -> Just out
              ExitFailure _ -> Nothing
 
-cloneRepo' :: Text -> Text -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
-cloneRepo' url branch referenceUrl referenceBranch chan = do
+cloneRepo' :: RepoSpec -> Channel -> Handler (Maybe (Key Repo))
+cloneRepo' repoSpec chan = do
+      let url = repoSpecUrl repoSpec
       msg chan $ concat ["Preparing to clone repo ", url]
       if checkRepoUrl url
        then do
@@ -185,7 +197,7 @@ cloneRepo' url branch referenceUrl referenceBranch chan = do
         r <- randomInt
         arenaDir <- arena
         let tmpRepoDir = arenaDir </> ("t" ++ show r)
-        exitCode <- rawClone tmpRepoDir url branch referenceUrl referenceBranch chan
+        exitCode <- rawClone tmpRepoDir repoSpec chan
         case exitCode of
           ExitSuccess -> do
             maybeHeadCommit <- getHeadCommit tmpRepoDir chan
@@ -195,7 +207,7 @@ cloneRepo' url branch referenceUrl referenceBranch chan = do
                 time <- liftIO getCurrentTime
                 repoId <- runDB $ insert $ Repo {
                   repoUrl=url,
-                  repoBranch=branch,
+                  repoBranch=repoSpecBranch repoSpec,
                   repoCurrentCommit=commitRaw,
                   repoOwner=userId,
                   repoReady=True,
@@ -213,8 +225,12 @@ cloneRepo' url branch referenceUrl referenceBranch chan = do
         err chan $ concat ["Wrong URL to a Git repo (note that one of the following protocols must be specified: ", validGitProtocolsAsText]
         return Nothing
 
-rawClone :: FilePath -> Text -> Text -> Text -> Text -> Channel -> Handler (ExitCode)
-rawClone tmpRepoDir url branch referenceUrl referenceBranch chan = do
+rawClone :: FilePath -> RepoSpec -> Channel -> Handler (ExitCode)
+rawClone tmpRepoDir repoSpec chan = do
+  let url = repoSpecUrl repoSpec
+  let branch = repoSpecBranch repoSpec
+  let referenceUrl = repoSpecReferenceUrl repoSpec
+  let referenceBranch = repoSpecReferenceBranch repoSpec
   (exitCode, _) <- runProgram Nothing gitPath ["clone",
                                               "--progress",
                                               "--branch",

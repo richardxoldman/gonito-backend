@@ -333,7 +333,13 @@ getSubmissionRepo challengeId url branch chan = do
       let repoId = challengePublicRepo challenge
       repo <- runDB $ get404 repoId
       repoDir <- getRepoDir repoId
-      cloneRepo' url branch (T.pack repoDir) (repoBranch repo) chan
+      let repoSpec = RepoSpec {
+        repoSpecUrl = url,
+        repoSpecBranch = branch,
+        repoSpecReferenceUrl = (T.pack repoDir),
+        repoSpecReferenceBranch = (repoBranch repo)
+        }
+      cloneRepo' repoSpec chan
 
 checkRepoAvailibility :: Key Challenge -> Key Repo -> Channel -> Handler Bool
 checkRepoAvailibility challengeId repoId chan = do
