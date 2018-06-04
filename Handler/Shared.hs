@@ -122,7 +122,7 @@ validGitProtocols = ["git", "http", "https", "ssh"]
 validGitProtocolsAsText :: Text
 validGitProtocolsAsText = T.pack $ intercalate ", " $ map (++"://") validGitProtocols
 
-data RepoSpec = RepoSpec {
+data RepoCloningSpec = RepoCloningSpec {
   repoSpecUrl :: Text,
   repoSpecBranch :: Text,
 
@@ -130,8 +130,7 @@ data RepoSpec = RepoSpec {
   repoSpecReferenceBranch :: Text
 }
 
-
-cloneRepo :: RepoSpec -> Channel -> Handler (Maybe (Key Repo))
+cloneRepo :: RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
 cloneRepo repoSpec chan = do
   let url = repoSpecUrl repoSpec
   let branch = repoSpecBranch repoSpec
@@ -187,7 +186,7 @@ getLastCommitMessage repoDir chan = do
              ExitSuccess -> Just out
              ExitFailure _ -> Nothing
 
-cloneRepo' :: RepoSpec -> Channel -> Handler (Maybe (Key Repo))
+cloneRepo' :: RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
 cloneRepo' repoSpec chan = do
       let url = repoSpecUrl repoSpec
       msg chan $ concat ["Preparing to clone repo ", url]
@@ -225,7 +224,7 @@ cloneRepo' repoSpec chan = do
         err chan $ concat ["Wrong URL to a Git repo (note that one of the following protocols must be specified: ", validGitProtocolsAsText]
         return Nothing
 
-rawClone :: FilePath -> RepoSpec -> Channel -> Handler (ExitCode)
+rawClone :: FilePath -> RepoCloningSpec -> Channel -> Handler (ExitCode)
 rawClone tmpRepoDir repoSpec chan = do
   let url = repoSpecUrl repoSpec
   let branch = repoSpecBranch repoSpec

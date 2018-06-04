@@ -333,7 +333,7 @@ getSubmissionRepo challengeId url branch chan = do
       let repoId = challengePublicRepo challenge
       repo <- runDB $ get404 repoId
       repoDir <- getRepoDir repoId
-      let repoSpec = RepoSpec {
+      let repoSpec = RepoCloningSpec {
         repoSpecUrl = url,
         repoSpecBranch = branch,
         repoSpecReferenceUrl = (T.pack repoDir),
