@@ -123,23 +123,25 @@ validGitProtocolsAsText :: Text
 validGitProtocolsAsText = T.pack $ intercalate ", " $ map (++"://") validGitProtocols
 
 data RepoCloningSpec = RepoCloningSpec {
-  repoSpecUrl :: Text,
-  repoSpecBranch :: Text,
+  cloningSpecRepo :: RepoSpec,
+  cloningSpecReferenceRepo :: RepoSpec
+}
 
-  repoSpecReferenceUrl :: Text,
-  repoSpecReferenceBranch :: Text
+data RepoSpec = RepoSpec {
+  repoSpecUrl :: Text,
+  repoSpecBranch :: Text
 }
 
 cloneRepo :: RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
-cloneRepo repoSpec chan = do
-  let url = repoSpecUrl repoSpec
-  let branch = repoSpecBranch repoSpec
+cloneRepo repoCloningSpec chan = do
+  let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
+  let branch = repoSpecBranch $ cloningSpecRepo repoCloningSpec
   maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
   case maybeRepo of
     Just _ -> do
       err chan "Repo already there"
       return Nothing
-    Nothing -> cloneRepo' repoSpec chan
+    Nothing -> cloneRepo' repoCloningSpec chan
 
 updateRepo :: Key Repo -> Channel -> Handler Bool
 updateRepo repoId chan = do
@@ -187,8 +189,8 @@ getLastCommitMessage repoDir chan = do
              ExitFailure _ -> Nothing
 
 cloneRepo' :: RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
-cloneRepo' repoSpec chan = do
-      let url = repoSpecUrl repoSpec
+cloneRepo' repoCloningSpec chan = do
+      let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
       msg chan $ concat ["Preparing to clone repo ", url]
       if checkRepoUrl url
        then do
@@ -196,7 +198,7 @@ cloneRepo' repoSpec chan = do
         r <- randomInt
         arenaDir <- arena
         let tmpRepoDir = arenaDir </> ("t" ++ show r)
-        exitCode <- rawClone tmpRepoDir repoSpec chan
+        exitCode <- rawClone tmpRepoDir repoCloningSpec chan
         case exitCode of
           ExitSuccess -> do
             maybeHeadCommit <- getHeadCommit tmpRepoDir chan
@@ -206,7 +208,7 @@ cloneRepo' repoSpec chan = do
                 time <- liftIO getCurrentTime
                 repoId <- runDB $ insert $ Repo {
                   repoUrl=url,
-                  repoBranch=repoSpecBranch repoSpec,
+                  repoBranch=repoSpecBranch $ cloningSpecRepo repoCloningSpec,
                   repoCurrentCommit=commitRaw,
                   repoOwner=userId,
                   repoReady=True,
@@ -225,11 +227,11 @@ cloneRepo' repoSpec chan = do
         return Nothing
 
 rawClone :: FilePath -> RepoCloningSpec -> Channel -> Handler (ExitCode)
-rawClone tmpRepoDir repoSpec chan = do
-  let url = repoSpecUrl repoSpec
-  let branch = repoSpecBranch repoSpec
-  let referenceUrl = repoSpecReferenceUrl repoSpec
-  let referenceBranch = repoSpecReferenceBranch repoSpec
+rawClone tmpRepoDir repoCloningSpec chan = do
+  let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
+  let branch = repoSpecBranch $ cloningSpecRepo repoCloningSpec
+  let referenceUrl = repoSpecUrl $ cloningSpecReferenceRepo repoCloningSpec
+  let referenceBranch = repoSpecBranch $ cloningSpecReferenceRepo repoCloningSpec
   (exitCode, _) <- runProgram Nothing gitPath ["clone",
                                               "--progress",
                                               "--branch",

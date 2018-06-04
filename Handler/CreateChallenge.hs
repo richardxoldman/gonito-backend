@@ -52,19 +52,23 @@ postCreateChallengeR = do
 doCreateChallenge :: Text -> Text -> Text -> Text -> Text -> Channel -> Handler ()
 doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
   maybePublicRepoId <- cloneRepo (RepoCloningSpec {
-                                    repoSpecUrl = publicUrl,
-                                    repoSpecBranch = publicBranch,
-                                    repoSpecReferenceUrl = publicUrl,
-                                    repoSpecReferenceBranch = publicBranch}) chan
+                                    cloningSpecRepo = RepoSpec {
+                                        repoSpecUrl = publicUrl,
+                                        repoSpecBranch = publicBranch },
+                                    cloningSpecReferenceRepo = RepoSpec {
+                                        repoSpecUrl = publicUrl,
+                                        repoSpecBranch = publicBranch}}) chan
   case maybePublicRepoId of
     Just publicRepoId -> do
       publicRepo <- runDB $ get404 publicRepoId
       publicRepoDir <- getRepoDir publicRepoId
       maybePrivateRepoId <- cloneRepo (RepoCloningSpec {
-                                         repoSpecUrl = privateUrl,
-                                         repoSpecBranch = privateBranch,
-                                         repoSpecReferenceUrl =(T.pack $ publicRepoDir),
-                                         repoSpecReferenceBranch = (repoBranch publicRepo)}) chan
+                                         cloningSpecRepo = RepoSpec {
+                                             repoSpecUrl = privateUrl,
+                                             repoSpecBranch = privateBranch },
+                                         cloningSpecReferenceRepo = RepoSpec {
+                                             repoSpecUrl =(T.pack $ publicRepoDir),
+                                             repoSpecBranch = (repoBranch publicRepo)}}) chan
       case maybePrivateRepoId of
           Just privateRepoId -> addChallenge name publicRepoId privateRepoId chan
           Nothing -> return ()
