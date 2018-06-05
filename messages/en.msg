@@ -59,3 +59,4 @@ Manage: manage
 Presentation: presentation
 GonitoInClass: Gonito in class
 GitAnnexRemote: git-annex remote (if needed)
+SubmissionGitAnnexRemote: git-annex remote specification (if needed)

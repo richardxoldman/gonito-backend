@@ -240,8 +240,20 @@ rawClone tmpRepoDir repoCloningSpec chan = runWithChannel chan $ do
        runProg (Just tmpRepoDir) gitPath ["reset",
                                            "--hard",
                                            "FETCH_HEAD"]
+       getStuffUsingGitAnnex tmpRepoDir (repoSpecGitAnnexRemote $ cloningSpecRepo repoCloningSpec)
     else
       return ()
+
+getStuffUsingGitAnnex :: FilePath -> Maybe Text -> Runner ()
+getStuffUsingGitAnnex _ Nothing = return ()
+getStuffUsingGitAnnex tmpRepoDir (Just gitAnnexRemote) = do
+  runGitAnnex tmpRepoDir ["init"]
+  runGitAnnex tmpRepoDir ["initremote", remoteName, T.unpack gitAnnexRemote]
+  runGitAnnex tmpRepoDir ["get", "--from", remoteName]
+  where remoteName = "storage"
+
+runGitAnnex :: FilePath -> [String] -> Runner ()
+runGitAnnex tmpRepoDir args = runProg (Just tmpRepoDir) gitPath ("annex":args)
 
 getRepoDir :: Key Repo -> Handler FilePath
 getRepoDir repoId = do

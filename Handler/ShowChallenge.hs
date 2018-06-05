@@ -122,10 +122,13 @@ postChallengeSubmissionR name = do
     let submissionData = case result of
           FormSuccess res -> Just res
           _ -> Nothing
-        Just (mDescription, mTags, submissionUrl, submissionBranch) = submissionData
+        Just (mDescription, mTags, submissionUrl, submissionBranch, submissionGitAnnexRemote) = submissionData
 
     userId <- requireAuthId
-    runViewProgress $ doCreateSubmission userId challengeId mDescription mTags submissionUrl submissionBranch
+    runViewProgress $ doCreateSubmission userId challengeId mDescription mTags RepoSpec {
+                                                                                  repoSpecUrl=submissionUrl,
+                                                                                  repoSpecBranch=submissionBranch,
+                                                                                  repoSpecGitAnnexRemote=submissionGitAnnexRemote}
 
 postTriggerLocallyR :: Handler TypedContent
 postTriggerLocallyR = do
@@ -150,12 +153,16 @@ trigger userId challengeName url mBranch = do
   let branch = fromMaybe "master" mBranch
   mChallengeEnt <- runDB $ getBy $ UniqueName challengeName
   case mChallengeEnt of
-    Just (Entity challengeId _) -> runOpenViewProgress $ doCreateSubmission userId challengeId Nothing Nothing url branch
+    Just (Entity challengeId _) -> runOpenViewProgress $ doCreateSubmission userId challengeId
+                                                                           Nothing Nothing
+                                                                           RepoSpec {repoSpecUrl=url,
+                                                                                     repoSpecBranch=branch,
+                                                                                     repoSpecGitAnnexRemote=Nothing}
     Nothing -> return $ toTypedContent (("Unknown challenge `" ++ (Data.Text.unpack challengeName) ++ "`. Cannot be triggered, must be submitted manually at Gonito.net!\n") :: String)
 
-doCreateSubmission :: UserId -> Key Challenge -> Maybe Text -> Maybe Text -> Text -> Text -> Channel -> Handler ()
-doCreateSubmission userId challengeId mDescription mTags url branch chan = do
-  maybeRepoKey <- getSubmissionRepo challengeId url branch chan
+doCreateSubmission :: UserId -> Key Challenge -> Maybe Text -> Maybe Text -> RepoSpec -> Channel -> Handler ()
+doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
+  maybeRepoKey <- getSubmissionRepo challengeId repoSpec chan
   case maybeRepoKey of
     Just repoId -> do
       repo <- runDB $ get404 repoId
@@ -311,8 +318,10 @@ rawEval challengeDir repoDir name = Import.try (runGEvalGetOptions [
                                     "--out-directory", repoDir,
                                     "--test-name", (T.unpack name)])
 
-getSubmissionRepo :: Key Challenge -> Text -> Text -> Channel -> Handler (Maybe (Key Repo))
-getSubmissionRepo challengeId url branch chan = do
+getSubmissionRepo :: Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
+getSubmissionRepo challengeId repoSpec chan = do
+  let url = repoSpecUrl repoSpec
+  let branch = repoSpecBranch repoSpec
   maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
   case maybeRepo of
     Just (Entity repoId repo) -> do
@@ -334,16 +343,14 @@ getSubmissionRepo challengeId url branch chan = do
       let repoId = challengePublicRepo challenge
       repo <- runDB $ get404 repoId
       repoDir <- getRepoDir repoId
-      let repoSpec = RepoCloningSpec {
-        cloningSpecRepo = RepoSpec {
-                repoSpecUrl = url,
-                repoSpecBranch = branch },
+      let repoCloningSpec = RepoCloningSpec {
+        cloningSpecRepo = repoSpec,
         cloningSpecReferenceRepo = RepoSpec {
                 repoSpecUrl = (T.pack repoDir),
                 repoSpecBranch = (repoBranch repo)
                 }
         }
-      cloneRepo' repoSpec chan
+      cloneRepo' repoCloningSpec chan
 
 checkRepoAvailibility :: Key Challenge -> Key Repo -> Channel -> Handler Bool
 checkRepoAvailibility challengeId repoId chan = do
@@ -365,12 +372,13 @@ checkRepoAvailibility challengeId repoId chan = do
 
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
-submissionForm :: Maybe Text -> Form (Maybe Text, Maybe Text, Text, Text)
-submissionForm defaultUrl = renderBootstrap3 BootstrapBasicForm $ (,,,)
+submissionForm :: Maybe Text -> Form (Maybe Text, Maybe Text, Text, Text, Maybe Text)
+submissionForm defaultUrl = renderBootstrap3 BootstrapBasicForm $ (,,,,)
     <$> aopt textField (fieldWithTooltip MsgSubmissionDescription MsgSubmissionDescriptionTooltip) Nothing
     <*> aopt textField (tagsfs MsgSubmissionTags) Nothing
     <*> areq textField (bfs MsgSubmissionUrl) defaultUrl
     <*> areq textField (bfs MsgSubmissionBranch) (Just "master")
+    <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) Nothing
 
 getChallengeMySubmissionsR :: Text -> Handler Html
 getChallengeMySubmissionsR name = do
