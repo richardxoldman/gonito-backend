@@ -103,12 +103,6 @@ runViewProgress' route action = do
       writeTVar jobs $ IntMap.delete jobId m
   redirect $ route jobId
 
-validGitProtocols :: [String]
-validGitProtocols = ["git", "http", "https", "ssh"]
-
-validGitProtocolsAsText :: Text
-validGitProtocolsAsText = T.pack $ intercalate ", " $ map (++"://") validGitProtocols
-
 data RepoCloningSpec = RepoCloningSpec {
   cloningSpecRepo :: RepoSpec,
   cloningSpecReferenceRepo :: RepoSpec
@@ -180,14 +174,12 @@ cloneRepo' :: RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
 cloneRepo' repoCloningSpec chan = do
       let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
       msg chan $ concat ["Preparing to clone repo ", url]
-      if checkRepoUrl url
-       then do
-        msg chan "Cloning..."
-        r <- randomInt
-        arenaDir <- arena
-        let tmpRepoDir = arenaDir </> ("t" ++ show r)
-        exitCode <- rawClone tmpRepoDir repoCloningSpec chan
-        case exitCode of
+      msg chan "Cloning..."
+      r <- randomInt
+      arenaDir <- arena
+      let tmpRepoDir = arenaDir </> ("t" ++ show r)
+      exitCode <- rawClone tmpRepoDir repoCloningSpec chan
+      case exitCode of
           ExitSuccess -> do
             maybeHeadCommit <- getHeadCommit tmpRepoDir chan
             case maybeHeadCommit of
@@ -211,9 +203,6 @@ cloneRepo' repoCloningSpec chan = do
           ExitFailure _ -> do
             err chan "git failed"
             return Nothing
-       else do
-        err chan $ concat ["Wrong URL to a Git repo (note that one of the following protocols must be specified: ", validGitProtocolsAsText]
-        return Nothing
 
 rawClone :: FilePath -> RepoCloningSpec -> Channel -> Handler ExitCode
 rawClone tmpRepoDir repoCloningSpec chan = runWithChannel chan $ do
@@ -260,12 +249,6 @@ getRepoDir repoId = do
   arenaDir <- arena
   return $ arenaDir </> ("r" ++ repoIdAsString)
     where repoIdAsString = show $ fromSqlKey repoId
-
-checkRepoUrl :: Text -> Bool
-checkRepoUrl url = case parsedURI of
-                      Just uri -> (uriScheme uri) `elem` (map (++":") validGitProtocols)
-                      Nothing -> False
-                   where parsedURI = parseURI $ T.unpack url
 
 getOpenViewProgressR :: Int -> Handler TypedContent
 getOpenViewProgressR = getViewProgressR
