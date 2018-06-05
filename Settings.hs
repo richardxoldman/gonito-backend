@@ -61,6 +61,8 @@ data AppSettings = AppSettings
     , appAdminPassword          :: Maybe Text
     -- ^ Additional info for the instance
     , appLocation               :: Maybe Text
+    -- ^ Repo host
+    , appRepoHost               :: Text
     }
 
 instance FromJSON AppSettings where
@@ -92,6 +94,8 @@ instance FromJSON AppSettings where
         appAdminUser              <- o .:? "admin-user"
         appAdminPassword          <- o .:? "admin-password"
         appLocation               <- o .:? "location"
+
+        appRepoHost               <- o .: "repo-host"
 
         return AppSettings {..}
 
