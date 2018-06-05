@@ -248,7 +248,7 @@ getStuffUsingGitAnnex :: FilePath -> Maybe Text -> Runner ()
 getStuffUsingGitAnnex _ Nothing = return ()
 getStuffUsingGitAnnex tmpRepoDir (Just gitAnnexRemote) = do
   runGitAnnex tmpRepoDir ["init"]
-  runGitAnnex tmpRepoDir ["initremote", remoteName, T.unpack gitAnnexRemote]
+  runGitAnnex tmpRepoDir (["initremote", remoteName] ++ (words $ T.unpack gitAnnexRemote))
   runGitAnnex tmpRepoDir ["get", "--from", remoteName]
   where remoteName = "storage"
 
