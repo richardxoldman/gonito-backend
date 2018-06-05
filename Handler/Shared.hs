@@ -4,9 +4,11 @@ module Handler.Shared where
 
 import Import
 
-import           Control.Concurrent.STM
 import           Data.IntMap            (IntMap)
 import qualified Data.IntMap            as IntMap
+
+import Handler.Runner
+import System.Exit
 
 import Network.URI
 import qualified Data.Text as T
@@ -20,8 +22,6 @@ import qualified Crypto.Hash.SHA1 as CHS
 
 import qualified Data.List as DL
 
-import System.Process
-import System.Exit
 import System.Random
 
 import System.Directory (renameDirectory)
@@ -37,10 +37,6 @@ import Yesod.Form.Bootstrap3 (bfs)
 
 import qualified Crypto.Nonce as Nonce
 import System.IO.Unsafe (unsafePerformIO)
-
-atom = Control.Concurrent.STM.atomically
-
-type Channel = TChan (Maybe Text)
 
 arena :: Handler FilePath
 arena = do
@@ -106,15 +102,6 @@ runViewProgress' route action = do
       m <- readTVar jobs
       writeTVar jobs $ IntMap.delete jobId m
   redirect $ route jobId
-
-msg :: Channel -> Text -> Handler ()
-msg chan m = liftIO $ atom $ writeTChan chan $ Just (m ++ "\n")
-
-err :: Channel -> Text -> Handler ()
-err = msg
-
-raw :: Channel -> Text -> Handler ()
-raw = msg
 
 validGitProtocols :: [String]
 validGitProtocols = ["git", "http", "https", "ssh"]
@@ -300,58 +287,6 @@ getViewProgressR jobId = do
                             loop
             loop
 
-runProgram :: Maybe FilePath -> FilePath -> [String] -> Channel -> Handler (ExitCode, Text)
-runProgram workingDir programPath args chan = do
-  (_, Just hout, Just herr, pid) <-
-       liftIO $ createProcess (proc programPath args){ std_out = CreatePipe,
-                                                       std_err = CreatePipe,
-                                                       cwd = workingDir}
-  (code, out) <- gatherOutput pid hout herr chan
-  _ <- liftIO $ waitForProcess pid
-  return (code, out)
-
-
-processOutput :: Text -> ([Text], Text)
-processOutput = processOutput' . lines
-                where processOutput' [] = ([], "")
-                      processOutput' out = (init out, last out)
-                      init [] = []
-                      init [x] = []
-                      init (x:xs) = (x:(init xs))
-                      last [x] = x
-                      last (_:xs) = last xs
-
-
-gatherOutput :: ProcessHandle -> Handle -> Handle -> Channel -> Handler (ExitCode, Text)
-gatherOutput ph hout herr chan = work mempty mempty
-  where
-    work accout accerr = do
-        -- Read any outstanding input.
-        resterr <- takeABit herr accerr
-        restout <- takeABit hout accout
-        liftIO $ threadDelay 1000000
-        -- Check on the process.
-        s <- liftIO $ getProcessExitCode ph
-        -- Exit or loop.
-        case s of
-            Nothing -> work restout resterr
-            Just ec -> do
-                -- Get any last bit written between the read and the status
-                -- check.
-                _ <- takeFinalBit herr resterr
-                all <- takeFinalBit hout restout
-                return (ec, all)
-    takeABit h acc = do
-      bs <- liftIO $ BS.hGetNonBlocking hout (64 * 1024)
-      let acc' = acc <> (decodeUtf8 bs)
-      let (fullLines, rest) = processOutput acc'
-      mapM_ (msg chan) fullLines
-      return rest
-    takeFinalBit h rest = do
-      last <- liftIO $ BS.hGetContents h
-      let all = rest <> (decodeUtf8 last)
-      mapM_ (msg chan) $ lines all
-      return all
 
 randomInt :: Handler Int
 randomInt = liftIO $ randomIO

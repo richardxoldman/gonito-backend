@@ -8,6 +8,8 @@ import PersistSHA1
 
 import Data.Text as T
 
+import Handler.Runner
+
 getMakePublicR :: SubmissionId -> Handler TypedContent
 getMakePublicR submissionId = runViewProgress $ doMakePublic submissionId
 

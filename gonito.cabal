@@ -51,6 +51,7 @@ library
                      Handler.Score
                      Handler.AchievementUtils
                      Handler.ExtraPoints
+                     Handler.Runner
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
