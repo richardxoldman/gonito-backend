@@ -215,41 +215,33 @@ cloneRepo' repoCloningSpec chan = do
         err chan $ concat ["Wrong URL to a Git repo (note that one of the following protocols must be specified: ", validGitProtocolsAsText]
         return Nothing
 
-rawClone :: FilePath -> RepoCloningSpec -> Channel -> Handler (ExitCode)
-rawClone tmpRepoDir repoCloningSpec chan = do
+rawClone :: FilePath -> RepoCloningSpec -> Channel -> Handler ExitCode
+rawClone tmpRepoDir repoCloningSpec chan = runWithChannel chan $ do
   let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
   let branch = repoSpecBranch $ cloningSpecRepo repoCloningSpec
   let referenceUrl = repoSpecUrl $ cloningSpecReferenceRepo repoCloningSpec
   let referenceBranch = repoSpecBranch $ cloningSpecReferenceRepo repoCloningSpec
-  (exitCode, _) <- runProgram Nothing gitPath ["clone",
-                                              "--progress",
-                                              "--branch",
-                                              T.unpack referenceBranch,
-                                              T.unpack referenceUrl,
-                                              tmpRepoDir] chan
+  runProg Nothing gitPath ["clone",
+                           "--progress",
+                           "--branch",
+                           T.unpack referenceBranch,
+                           T.unpack referenceUrl,
+                           tmpRepoDir]
   if url /= referenceUrl || branch /= referenceBranch
     then
       do
-      (exitCode, _) <- runProgram (Just tmpRepoDir) gitPath ["remote",
-                                                            "set-url",
-                                                            "origin",
-                                                            T.unpack url] chan
-      case exitCode of
-       ExitSuccess -> do
-         (exitCode, _) <- runProgram (Just tmpRepoDir) gitPath ["fetch",
-                                                               "origin",
-                                                               T.unpack branch] chan
-         case exitCode of
-           ExitSuccess -> do
-             (exitCode, _) <- runProgram (Just tmpRepoDir) gitPath ["reset",
-                                                                   "--hard",
-                                                                   "FETCH_HEAD"] chan
-             return exitCode
-           _ -> return exitCode
-       _ -> return exitCode
-
+       runProg (Just tmpRepoDir) gitPath ["remote",
+                                           "set-url",
+                                           "origin",
+                                           T.unpack url]
+       runProg (Just tmpRepoDir) gitPath ["fetch",
+                                           "origin",
+                                           T.unpack branch]
+       runProg (Just tmpRepoDir) gitPath ["reset",
+                                           "--hard",
+                                           "FETCH_HEAD"]
     else
-      return exitCode
+      return ()
 
 getRepoDir :: Key Repo -> Handler FilePath
 getRepoDir repoId = do

@@ -30,7 +30,7 @@ instance Functor Runner where
 
 instance Applicative Runner where
   pure v = Runner {
-    runRunner = \chan -> return $ RunnerOK v
+    runRunner = \_ -> return $ RunnerOK v
     }
   liftA2 f runner1 runner2 = Runner {
     runRunner = \chan -> do
@@ -44,8 +44,28 @@ instance Applicative Runner where
           RunnerError e -> return $ RunnerError e
     }
 
-run :: Maybe FilePath -> FilePath -> [String] -> Runner ()
-run workingDir programPath args = Runner {
+instance Monad Runner where
+  runner >>= k = Runner {
+    runRunner = \chan -> do
+        s <- (runRunner runner) chan
+        case s of
+          RunnerError e -> return $ RunnerError e
+          RunnerOK v -> do
+            sn <- (runRunner (k v)) chan
+            return $ case sn of
+              RunnerError e -> RunnerError e
+              RunnerOK w -> RunnerOK w
+    }
+
+runWithChannel :: Channel -> Runner () -> Handler ExitCode
+runWithChannel chan runner = do
+  s <- (runRunner runner) chan
+  return $ case s of
+             RunnerOK () -> ExitSuccess
+             RunnerError e -> e
+
+runProg :: Maybe FilePath -> FilePath -> [String] -> Runner ()
+runProg workingDir programPath args = Runner {
   runRunner = \chan -> do
       (code, _) <- runProgram workingDir programPath args chan
       case code of
