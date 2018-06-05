@@ -10,6 +10,49 @@ import qualified Data.ByteString as BS
 
 type Channel = TChan (Maybe Text)
 
+data RunnerStatus a = RunnerOK a | RunnerError ExitCode
+
+newtype Runner a = Runner { runRunner :: Channel -> Handler (RunnerStatus a) }
+
+getChannel :: Runner Channel
+getChannel = Runner {
+  runRunner = \chan -> return $ RunnerOK chan
+  }
+
+instance Functor Runner where
+  fmap f runner = Runner {
+     runRunner = \chan -> do
+         s <- (runRunner runner) chan
+         return $ case s of
+           RunnerOK v -> RunnerOK $ f v
+           RunnerError e -> RunnerError e
+     }
+
+instance Applicative Runner where
+  pure v = Runner {
+    runRunner = \chan -> return $ RunnerOK v
+    }
+  liftA2 f runner1 runner2 = Runner {
+    runRunner = \chan -> do
+        s1 <- (runRunner runner1) chan
+        case s1 of
+          RunnerOK v1 -> do
+            s2 <- (runRunner runner2) chan
+            case s2 of
+              RunnerOK v2 -> return $ RunnerOK $ f v1 v2
+              RunnerError e -> return $ RunnerError e
+          RunnerError e -> return $ RunnerError e
+    }
+
+run :: Maybe FilePath -> FilePath -> [String] -> Runner ()
+run workingDir programPath args = Runner {
+  runRunner = \chan -> do
+      (code, _) <- runProgram workingDir programPath args chan
+      case code of
+        ExitSuccess -> return $ RunnerOK ()
+        _ -> return $ RunnerError code
+  }
+
 runProgram :: Maybe FilePath -> FilePath -> [String] -> Channel -> Handler (ExitCode, Text)
 runProgram workingDir programPath args chan = do
   (_, Just hout, Just herr, pid) <-
