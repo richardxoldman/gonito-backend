@@ -26,6 +26,7 @@ Repo
     owner UserId
     ready Bool default=False
     stamp UTCTime default=now()
+    gitAnnexRemote Text Maybe
     UniqueUrlBranch url branch
     deriving Show
 Challenge

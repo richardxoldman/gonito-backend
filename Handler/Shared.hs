@@ -129,7 +129,8 @@ data RepoCloningSpec = RepoCloningSpec {
 
 data RepoSpec = RepoSpec {
   repoSpecUrl :: Text,
-  repoSpecBranch :: Text
+  repoSpecBranch :: Text,
+  repoSpecGitAnnexRemote :: Maybe Text
 }
 
 cloneRepo :: RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
@@ -209,6 +210,7 @@ cloneRepo' repoCloningSpec chan = do
                 repoId <- runDB $ insert $ Repo {
                   repoUrl=url,
                   repoBranch=repoSpecBranch $ cloningSpecRepo repoCloningSpec,
+                  repoGitAnnexRemote=repoSpecGitAnnexRemote $ cloningSpecRepo repoCloningSpec,
                   repoCurrentCommit=commitRaw,
                   repoOwner=userId,
                   repoReady=True,

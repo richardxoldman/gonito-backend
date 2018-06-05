@@ -39,25 +39,28 @@ postCreateChallengeR = do
         challengeData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
-        Just (name, publicUrl, publicBranch, privateUrl, privateBranch) = challengeData
+        Just (name, publicUrl, publicBranch, publicGitAnnexRemote,
+                    privateUrl, privateBranch, privateGitAnnexRemote) = challengeData
 
     userId <- requireAuthId
     user <- runDB $ get404 userId
     if userIsAdmin user
       then
-        runViewProgress $ doCreateChallenge name publicUrl publicBranch privateUrl privateBranch
+        runViewProgress $ doCreateChallenge name publicUrl publicBranch publicGitAnnexRemote privateUrl privateBranch privateGitAnnexRemote
       else
         runViewProgress $ (flip err) "MUST BE AN ADMIN TO CREATE A CHALLENGE"
 
-doCreateChallenge :: Text -> Text -> Text -> Text -> Text -> Channel -> Handler ()
-doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
+doCreateChallenge :: Text -> Text -> Text -> Maybe Text -> Text -> Text -> Maybe Text -> Channel -> Handler ()
+doCreateChallenge name publicUrl publicBranch publicGitAnnexRemote privateUrl privateBranch privateGitAnnexRemote chan = do
   maybePublicRepoId <- cloneRepo (RepoCloningSpec {
                                     cloningSpecRepo = RepoSpec {
                                         repoSpecUrl = publicUrl,
-                                        repoSpecBranch = publicBranch },
+                                        repoSpecBranch = publicBranch,
+                                        repoSpecGitAnnexRemote = publicGitAnnexRemote},
                                     cloningSpecReferenceRepo = RepoSpec {
                                         repoSpecUrl = publicUrl,
-                                        repoSpecBranch = publicBranch}}) chan
+                                        repoSpecBranch = publicBranch,
+                                        repoSpecGitAnnexRemote = publicGitAnnexRemote}}) chan
   case maybePublicRepoId of
     Just publicRepoId -> do
       publicRepo <- runDB $ get404 publicRepoId
@@ -65,10 +68,12 @@ doCreateChallenge name publicUrl publicBranch privateUrl privateBranch chan = do
       maybePrivateRepoId <- cloneRepo (RepoCloningSpec {
                                          cloningSpecRepo = RepoSpec {
                                              repoSpecUrl = privateUrl,
-                                             repoSpecBranch = privateBranch },
+                                             repoSpecBranch = privateBranch,
+                                             repoSpecGitAnnexRemote = privateGitAnnexRemote},
                                          cloningSpecReferenceRepo = RepoSpec {
                                              repoSpecUrl =(T.pack $ publicRepoDir),
-                                             repoSpecBranch = (repoBranch publicRepo)}}) chan
+                                             repoSpecBranch = (repoBranch publicRepo),
+                                             repoSpecGitAnnexRemote = (repoGitAnnexRemote publicRepo)}}) chan
       case maybePrivateRepoId of
           Just privateRepoId -> addChallenge name publicRepoId privateRepoId chan
           Nothing -> return ()
@@ -174,10 +179,12 @@ never = depth ==? 0
 testDirFilter :: FindClause Bool
 testDirFilter = (fileType ==? Directory) &&? (SFF.fileName ~~? "dev-*" ||? SFF.fileName ~~? "test-*")
 
-sampleForm :: Form (Text, Text, Text, Text, Text)
-sampleForm = renderBootstrap3 BootstrapBasicForm $ (,,,,)
+sampleForm :: Form (Text, Text, Text, Maybe Text, Text, Text, Maybe Text)
+sampleForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
     <$> areq textField (fieldSettingsLabel MsgName) Nothing
     <*> areq textField (fieldSettingsLabel MsgPublicUrl) Nothing
     <*> areq textField (fieldSettingsLabel MsgBranch) Nothing
+    <*> aopt textField (fieldSettingsLabel MsgGitAnnexRemote) Nothing
     <*> areq textField (fieldSettingsLabel MsgPrivateUrl) Nothing
     <*> areq textField (fieldSettingsLabel MsgBranch) Nothing
+    <*> aopt textField (fieldSettingsLabel MsgGitAnnexRemote) Nothing
