@@ -130,24 +130,23 @@ updateRepo repoId chan = do
   repo <- runDB $ get404 repoId
   repoDir <- getRepoDir repoId
   let branch = repoBranch repo
-  (exitCode, _) <- runProgram (Just repoDir) gitPath ["fetch",
-                                                     "origin",
-                                                     T.unpack branch,
-                                                     "--progress"] chan
+  exitCode <- runWithChannel chan $ do
+     runProg (Just repoDir) gitPath ["fetch",
+                                      "origin",
+                                      T.unpack branch,
+                                      "--progress"]
+     runProg (Just repoDir) gitPath ["reset",
+                                      "--hard",
+                                      "FETCH_HEAD"]
+     getStuffUsingGitAnnex repoDir (repoGitAnnexRemote repo)
   case exitCode of
     ExitSuccess -> do
-      (exitCode, _) <- runProgram (Just repoDir) gitPath ["reset",
-                                                         "--hard",
-                                                         "FETCH_HEAD"] chan
-      case exitCode of
-       ExitSuccess -> do
-         maybeHeadCommit <- getHeadCommit repoDir chan
-         case maybeHeadCommit of
+      maybeHeadCommit <- getHeadCommit repoDir chan
+      case maybeHeadCommit of
           Just headCommit -> do
             runDB $ update repoId [RepoCurrentCommit =. headCommit]
             return True
           Nothing -> return False
-       _ -> return False
     _ -> return False
 
 getHeadCommit :: FilePath -> Channel -> Handler (Maybe SHA1)
