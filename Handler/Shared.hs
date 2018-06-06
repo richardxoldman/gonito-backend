@@ -62,8 +62,9 @@ gitReadOnlyServer = "git://" ++ serverAddress ++ "/"
 getPublicSubmissionBranch :: SubmissionId -> Text
 getPublicSubmissionBranch = T.pack . (printf "submission-%05d") . fromSqlKey
 
-getPublicSubmissionUrl :: Text -> Text
-getPublicSubmissionUrl bareRepoName = gitServer ++ bareRepoName
+getPublicSubmissionUrl :: RepoScheme -> Maybe Repo -> Text -> Text
+getPublicSubmissionUrl SelfHosted _ bareRepoName = gitServer ++ bareRepoName
+getPublicSubmissionUrl Branches (Just repo) _ = repoUrl repo
 
 getReadOnlySubmissionUrl :: Text -> Text
 getReadOnlySubmissionUrl bareRepoName = gitReadOnlyServer ++ bareRepoName

@@ -24,15 +24,19 @@ doMakePublic submissionId chan = do
     runDB $ update submissionId [SubmissionIsPublic =. True]
     submission <- runDB $ get404 submissionId
     challenge <- runDB $ get404 $ submissionChallenge submission
+    repo <- runDB $ get404 $ challengePublicRepo challenge
     let submissionRepoId = submissionRepo submission
     submissionRepoDir <- getRepoDir submissionRepoId
-    let targetRepoUrl = getPublicSubmissionUrl $ challengeName challenge
+
+    app <- getYesod
+    let scheme = appRepoScheme $ appSettings app
+
+    let targetRepoUrl = getPublicSubmissionUrl scheme (Just repo) $ challengeName challenge
     let targetBranchName = getPublicSubmissionBranch submissionId
     msg chan $ "Start pushing from " ++ (T.pack submissionRepoDir) ++ " to repo " ++ targetRepoUrl ++ ", branch " ++ targetBranchName ++ " ..."
     let commit = submissionCommit submission
     pushRepo submissionRepoDir commit (T.unpack $ targetRepoUrl) (T.unpack $ targetBranchName) chan
   return ()
-
 
 pushRepo :: String -> SHA1 -> String -> String -> Channel -> Handler ()
 pushRepo repoDir commit targetRepoUrl targetBranchName chan = do
