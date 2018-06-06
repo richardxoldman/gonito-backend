@@ -74,7 +74,7 @@ browsableGitRepoBranch :: RepoScheme -> Repo -> Text -> Text -> Text
 browsableGitRepoBranch SelfHosted _ bareRepoName branch = (browsableGitRepo bareRepoName) ++ "/" ++ branch ++ "/"
 browsableGitRepoBranch Branches repo _ branch = sshToHttps (repoUrl repo) branch
 
-sshToHttps url branch = "https://" ++ (T.replace ".git" "" $ T.replace ":" "/" $ T.replace "ssh://git@" "" url) ++ "/tree/" ++ branch
+sshToHttps url branch = "https://" ++ (T.replace ".git" "" $ T.replace ":" "/" $ T.replace "ssh://" "" $ T.replace "git@" "" url) ++ "/tree/" ++ branch
 
 browsableGitRepo :: Text -> Text
 browsableGitRepo bareRepoName
