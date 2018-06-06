@@ -9,6 +9,7 @@ ip-from-header: "_env:IP_FROM_HEADER:false"
 var-dir:        "_env:VAR_DIR:."
 contact-email:  "_env:CONTACT_EMAIL:filipg@amu.edu.pl"
 repo-host:      "_env:REPO_HOST:ssh://gitolite@gonito.net/"
+repo-scheme:    "_env:REPO_SCHEME:selfhosted"
 
 # Optional values with the following production defaults.
 # In development, they default to the inverse.

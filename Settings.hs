@@ -18,6 +18,13 @@ import Yesod.Default.Config2       (applyEnvValue, configSettingsYml)
 import Yesod.Default.Util          (WidgetFileSettings, widgetFileNoReload,
                                     widgetFileReload)
 
+data RepoScheme = SelfHosted | Branches
+                  deriving(Eq, Show)
+
+toRepoScheme :: Text -> RepoScheme
+toRepoScheme "branches" = Branches
+toRepoScheme _ = SelfHosted
+
 -- | Runtime settings to configure this application. These settings can be
 -- loaded from various sources: defaults, environment variables, config files,
 -- theoretically even a database.
@@ -63,6 +70,7 @@ data AppSettings = AppSettings
     , appLocation               :: Maybe Text
     -- ^ Repo host
     , appRepoHost               :: Text
+    , appRepoScheme             :: RepoScheme
     }
 
 instance FromJSON AppSettings where
@@ -96,6 +104,9 @@ instance FromJSON AppSettings where
         appLocation               <- o .:? "location"
 
         appRepoHost               <- o .: "repo-host"
+
+        scheme <- o .: "repo-scheme"
+        appRepoScheme <- return $ toRepoScheme scheme
 
         return AppSettings {..}
 

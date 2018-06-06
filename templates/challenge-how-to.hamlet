@@ -29,26 +29,44 @@
 
 <h2>Get your repo
 
-$if not isIDSet || not isSSHUploaded
-  <p>You need to
-     $if not isIDSet
-        \ set up your ID
-        $if not isSSHUploaded
-          \ and
-     $if not isSSHUploaded
-        \ upload your SSH public key
-     \ (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
+$case (appRepoScheme settings)
+ $of SelfHosted
+  $if not isIDSet || not isSSHUploaded
+    <p>You need to
+       $if not isIDSet
+          \ set up your ID
+          $if not isSSHUploaded
+            \ and
+       $if not isSSHUploaded
+          \ upload your SSH public key
+       \ (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
 
-<pre>
-  git clone #{repoHost}#{idToBeShown}/#{challengeName challenge}
+  <pre>
+    git clone #{appRepoHost settings}#{idToBeShown}/#{challengeName challenge}
 
-<p>(Warning about empty repository is expected, don't worry about it.)
+  <p>(Warning about empty repository is expected, don't worry about it.)
 
-<pre>
-  cd #{challengeName challenge}
-  git pull #{repoHost}#{challengeName challenge}
+  <pre>
+    cd #{challengeName challenge}
+    git pull #{appRepoHost settings}#{challengeName challenge}
 
-<p>(Alternatively, you can use any other Git repo, e.g. GitHub, make sure Gonito.net has access to your repo.)
+  <p>(Alternatively, you can use any other Git repo, e.g. GitLab, make sure Gonito.net has access to your repo.)
+ $of Branches
+    <p>Clone the repo:
+
+    <pre>
+      git clone #{repoUrl repo}
+
+    $maybe gitAnnexRemote <- (repoGitAnnexRemote repo)
+      <pre>
+        git annex init
+        git annex initremote storage #{gitAnnexRemote}
+        git annex get --from storage
+
+    <p>Switch to some branch, let's say <tt>my-brilliant-solution</tt>:
+
+    <pre>
+      git checkout -b my-brilliant-solution
 
 <h2>Work on your solution
 
@@ -66,9 +84,29 @@ $if not isIDSet || not isSSHUploaded
 
 <pre>
   cd #{challengeName challenge}
-  git add dev-0/out.tsv test-A/out.tsv # also your source codes could be added
+  git add foo.py build.sh # add your source codes
+
+$maybe gitAnnexRemote <- (repoGitAnnexRemote repo)
+  <pre>
+    # if your output files are large or if they should not pushed to the regular repo (e.g. contain sensitive information):
+    git annex add dev-0/out.tsv test-A/out.tsv
+    git annex copy --to storage
+    # otherwise (e.g. they are just class labels), add the output files in a regular manner:
+    git add dev-0/out.tsv test-A/out.tsv
+$nothing
+  <pre>
+    git add dev-0/out.tsv test-A/out.tsv # add your output files
+
+<pre>
   git commit -m 'my brilliant solution'
-  git push origin master
+
+$case (appRepoScheme settings)
+  $of SelfHosted
+    <pre>
+      git push origin master
+  $of Branches
+    <pre>
+      git push origin my-brilliant-solution:my-brilliant-solution
 
 <h3>Repos hosted on Gonito.net
 
@@ -80,7 +118,7 @@ $if not isIDSet || not isSSHUploaded
 $maybe token <- mToken
    <p>Your webook is:
    <pre>
-     https://gonito.net/trigger-remotely?token=#{token}&branch=master&challenge=#{challengeName challenge}&url=URL_TO_YOUR_REPO
+     #{appRoot settings}/trigger-remotely?token=#{token}&branch=master&challenge=#{challengeName challenge}&url=URL_TO_YOUR_REPO
    <p>(must be POSTed)
 
 <h3>Manual submission

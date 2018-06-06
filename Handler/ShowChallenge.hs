@@ -78,7 +78,10 @@ getChallengeHowToR name = do
   maybeUser <- maybeAuth
 
   app <- getYesod
-  let repoHost = appRepoHost $ appSettings app
+  let settings = appSettings app
+
+  let publicRepoId = challengePublicRepo challenge
+  repo <- runDB $ get404 publicRepoId
 
   case maybeUser of
     Just (Entity userId user) -> do
@@ -97,7 +100,7 @@ getChallengeHowToR name = do
       keys <- runDB $ selectList [PublicKeyUser ==. userId] []
       return $ not (null keys)
     Nothing -> return False
-  challengeLayout False challenge (challengeHowTo challenge repoHost (idToBeShown challenge maybeUser) isIDSet isSSHUploaded mToken)
+  challengeLayout False challenge (challengeHowTo challenge settings repo (idToBeShown challenge maybeUser) isIDSet isSSHUploaded mToken)
 
 idToBeShown challenge maybeUser =
   case maybeUser of
@@ -107,21 +110,30 @@ idToBeShown challenge maybeUser =
    Nothing -> defaultIdToBe
   where defaultIdToBe = "YOURID" :: Text
 
-defaultRepo challenge maybeUser = "ssh://gitolite@gonito.net/" ++ (idToBeShown challenge maybeUser) ++ "/" ++ (challengeName challenge)
+defaultRepo SelfHosted challenge _ maybeUser = "ssh://gitolite@gonito.net/" ++ (idToBeShown challenge maybeUser) ++ "/" ++ (challengeName challenge)
+defaultRepo Branches _ repo _ = repoUrl repo
 
-challengeHowTo challenge repoHost idToBeShown isIDSet isSSHUploaded mToken = $(widgetFile "challenge-how-to")
+defaultBranch SelfHosted = Just "master"
+defaultBranch Branches = Nothing
+
+challengeHowTo challenge settings repo idToBeShown isIDSet isSSHUploaded mToken = $(widgetFile "challenge-how-to")
 
 getChallengeSubmissionR :: Text -> Handler Html
 getChallengeSubmissionR name = do
    (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
    maybeUser <- maybeAuth
-   (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just $ defaultRepo challenge maybeUser)
+
+   Just repo <- runDB $ get $ challengePublicRepo challenge
+   app <- getYesod
+   let scheme = appRepoScheme $ appSettings app
+
+   (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just $ defaultRepo scheme challenge repo maybeUser) (defaultBranch scheme) (repoGitAnnexRemote repo)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
 postChallengeSubmissionR name = do
     (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
-    ((result, formWidget), formEnctype) <- runFormPost $ submissionForm Nothing
+    ((result, formWidget), formEnctype) <- runFormPost $ submissionForm Nothing Nothing Nothing
     let submissionData = case result of
           FormSuccess res -> Just res
           _ -> Nothing
@@ -375,13 +387,13 @@ checkRepoAvailibility challengeId repoId chan = do
 
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
-submissionForm :: Maybe Text -> Form (Maybe Text, Maybe Text, Text, Text, Maybe Text)
-submissionForm defaultUrl = renderBootstrap3 BootstrapBasicForm $ (,,,,)
+submissionForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Text, Text, Maybe Text)
+submissionForm defaultUrl defaultBranch defaultGitAnnexRemote = renderBootstrap3 BootstrapBasicForm $ (,,,,)
     <$> aopt textField (fieldWithTooltip MsgSubmissionDescription MsgSubmissionDescriptionTooltip) Nothing
     <*> aopt textField (tagsfs MsgSubmissionTags) Nothing
     <*> areq textField (bfs MsgSubmissionUrl) defaultUrl
-    <*> areq textField (bfs MsgSubmissionBranch) (Just "master")
-    <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) Nothing
+    <*> areq textField (bfs MsgSubmissionBranch) defaultBranch
+    <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) (Just defaultGitAnnexRemote)
 
 getChallengeMySubmissionsR :: Text -> Handler Html
 getChallengeMySubmissionsR name = do
