@@ -40,6 +40,11 @@ getPresentation4RealR = do
   sampleLeaderboard <- getSampleLeaderboard sampleChallengeName
   sampleLeaderboard' <- getSampleLeaderboard sampleChallengeName'
 
+  app <- getYesod
+  let scheme = appRepoScheme $ appSettings app
+
+  challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
+
   presentationLayout $(widgetFile "presentation-4real")
 
 getPresentationDATeCH2017R = do
@@ -56,7 +61,12 @@ getSampleLeaderboard name = do
   (test, leaderboard) <- getLeaderboardEntries challengeId
   let leaderboardWithRanks = zip [1..] (take 10 leaderboard)
 
-  return $ Table.buildBootstrap (leaderboardTable Nothing (challengeName challenge) test) leaderboardWithRanks
+  app <- getYesod
+  let scheme = appRepoScheme $ appSettings app
+
+  challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
+
+  return $ Table.buildBootstrap (leaderboardTable Nothing (challengeName challenge) scheme challengeRepo test) leaderboardWithRanks
 
 presentationLayout widget = do
   master <- getYesod

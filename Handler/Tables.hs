@@ -32,13 +32,13 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardTags :: [(Entity Tag, Entity SubmissionTag)]
 }
 
-submissionsTable :: Maybe UserId -> Text -> [Entity Test] -> Table App (Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])
-submissionsTable mauthId challengeName tests = mempty
+submissionsTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])
+submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _, _) -> submitter))
   ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _, _) -> s))
   ++ descriptionCell
   ++ mconcat (map (\(Entity k t) -> resultCell t (extractScore k)) tests)
-  ++ statusCell challengeName (\(Entity submissionId submission, Entity userId _, _, _) -> (submissionId, submission, userId, mauthId))
+  ++ statusCell challengeName repoScheme challengeRepo (\(Entity submissionId submission, Entity userId _, _, _) -> (submissionId, submission, userId, mauthId))
 
 descriptionCell = Table.widget "description" (
   \(Entity _ s, _, _ ,tagEnts) -> fragmentWithSubmissionTags (submissionDescription s) tagEnts)
@@ -46,15 +46,15 @@ descriptionCell = Table.widget "description" (
 extractScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)]) -> Maybe Evaluation
 extractScore k (_, _, m, _) = lookup k m
 
-leaderboardTable :: Maybe UserId -> Text -> Test -> Table App (Int, LeaderboardEntry)
-leaderboardTable mauthId challengeName test = mempty
+leaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> Test -> Table App (Int, LeaderboardEntry)
+leaderboardTable mauthId challengeName repoScheme challengeRepo test = mempty
   ++ Table.int "#" fst
   ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd)
   ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
   ++ leaderboardDescriptionCell
   ++ resultCell test ((\e -> Just e) . leaderboardEvaluation . snd)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
-  ++ statusCell challengeName (\(_, e) -> (leaderboardBestSubmissionId e,
+  ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
                                        leaderboardBestSubmission e,
                                        leaderboardUserId e,
                                        mauthId))
@@ -72,13 +72,13 @@ timestampCell :: Text -> (a -> UTCTime) -> Table site a
 timestampCell h timestampFun = hoverTextCell h (Data.Text.pack . shorterFormat . timestampFun) (Data.Text.pack . show . timestampFun)
    where shorterFormat = formatTime defaultTimeLocale "%Y-%m-%d %H:%M"
 
-statusCell :: Text -> (a -> (SubmissionId, Submission, UserId, Maybe UserId)) -> Table App a
-statusCell challengeName fun = Table.widget "" (statusCellWidget challengeName . fun)
+statusCell :: Text -> RepoScheme -> Repo -> (a -> (SubmissionId, Submission, UserId, Maybe UserId)) -> Table App a
+statusCell challengeName repoScheme challengeRepo fun = Table.widget "" (statusCellWidget challengeName repoScheme challengeRepo . fun)
 
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
 resultCell test fun = hoverTextCell ((testName test) ++ "/" ++ (Data.Text.pack $ show $ testMetric test)) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
 
-statusCellWidget challengeName (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")
+statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
           isOwner = (mauthId == Just userId)
@@ -86,7 +86,7 @@ statusCellWidget challengeName (submissionId, submission, userId, mauthId) = $(w
           publicSubmissionBranch = getPublicSubmissionBranch submissionId
           maybeBrowsableUrl = if isPublic
                                 then
-                                  Just $ browsableGitRepoBranch challengeName publicSubmissionBranch
+                                  Just $ browsableGitRepoBranch repoScheme challengeRepo challengeName publicSubmissionBranch
                                 else
                                   Nothing
 

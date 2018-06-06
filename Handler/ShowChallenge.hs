@@ -42,7 +42,13 @@ getShowChallengeR name = do
   (mainTest, leaderboard) <- getLeaderboardEntries challengeId
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth
-  challengeLayout True challenge (showChallengeWidget muserId challenge mainTest repo leaderboard)
+
+  app <- getYesod
+  let scheme = appRepoScheme $ appSettings app
+
+  challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
+
+  challengeLayout True challenge (showChallengeWidget muserId challenge scheme challengeRepo mainTest repo leaderboard)
 
 getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR name = do
@@ -58,7 +64,7 @@ challengeReadme name = do
   contents <- liftIO $ System.IO.readFile readmeFilePath
   return $ markdown def $ TL.pack contents
 
-showChallengeWidget muserId challenge test repo leaderboard = $(widgetFile "show-challenge")
+showChallengeWidget muserId challenge scheme challengeRepo test repo leaderboard = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
         maybeRepoLink = getRepoLink repo
 
@@ -409,9 +415,15 @@ getChallengeSubmissions condition name = do
   (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth
-  challengeLayout True challenge (challengeAllSubmissionsWidget muserId challenge evaluationMaps tests)
 
-challengeAllSubmissionsWidget muserId challenge submissions tests = $(widgetFile "challenge-all-submissions")
+  app <- getYesod
+  let scheme = appRepoScheme $ appSettings app
+
+  challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
+
+  challengeLayout True challenge (challengeAllSubmissionsWidget muserId challenge scheme challengeRepo evaluationMaps tests)
+
+challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests = $(widgetFile "challenge-all-submissions")
 
 challengeLayout withHeader challenge widget = do
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON

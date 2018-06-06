@@ -66,11 +66,15 @@ getPublicSubmissionUrl :: RepoScheme -> Maybe Repo -> Text -> Text
 getPublicSubmissionUrl SelfHosted _ bareRepoName = gitServer ++ bareRepoName
 getPublicSubmissionUrl Branches (Just repo) _ = repoUrl repo
 
-getReadOnlySubmissionUrl :: Text -> Text
-getReadOnlySubmissionUrl bareRepoName = gitReadOnlyServer ++ bareRepoName
+getReadOnlySubmissionUrl :: RepoScheme -> Repo -> Text -> Text
+getReadOnlySubmissionUrl SelfHosted _ bareRepoName = gitReadOnlyServer ++ bareRepoName
+getReadOnlySubmissionUrl Branches repo _ = repoUrl repo
 
-browsableGitRepoBranch :: Text -> Text -> Text
-browsableGitRepoBranch bareRepoName branch = (browsableGitRepo bareRepoName) ++ "/" ++ branch ++ "/"
+browsableGitRepoBranch :: RepoScheme -> Repo -> Text -> Text -> Text
+browsableGitRepoBranch SelfHosted _ bareRepoName branch = (browsableGitRepo bareRepoName) ++ "/" ++ branch ++ "/"
+browsableGitRepoBranch Branches repo _ branch = sshToHttps (repoUrl repo) branch
+
+sshToHttps url branch = "https://" ++ (T.replace ".git" "" $ T.replace ":" "/" $ T.replace "ssh://git@" "" url) ++ "/tree/" ++ branch
 
 browsableGitRepo :: Text -> Text
 browsableGitRepo bareRepoName
