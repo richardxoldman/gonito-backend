@@ -312,8 +312,14 @@ enableTriggerToken userId Nothing = do
   token <- newToken
   runDB $ update userId [UserTriggerToken =. Just token]
 
+thenCmp :: Ordering -> Ordering -> Ordering
+thenCmp EQ o2 = o2
+thenCmp o1 _  = o1
+
 getMainTest :: [Entity Test] -> Entity Test
-getMainTest tests = DL.maximumBy (\(Entity _ a) (Entity _ b) -> ((testName a) `compare` (testName b))) tests
+getMainTest tests = DL.maximumBy (\(Entity _ a) (Entity _ b) -> ( ((testName a) `compare` (testName b))
+                                                                               `thenCmp`
+                                                                 ((fromMaybe 9999 $ testPriority b) `compare` (fromMaybe 9999 $ testPriority a)) ) ) tests
 
 formatFullScore :: Maybe Evaluation -> Text
 formatFullScore (Just evaluation) = fromMaybe "???" (T.pack <$> show <$> evaluationScore evaluation)

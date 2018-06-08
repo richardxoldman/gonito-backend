@@ -144,18 +144,19 @@ checkTestDir chan challengeId challenge commit testDir = do
         "--expected-directory", challengeRepoDir,
         "--test-name", takeFileName testDir]
       case optionsParsingResult of
-       Left evalException -> do
+       Left _ -> do
          err chan "Cannot read metric"
          return ()
        Right opts -> do
-         _ <- runDB $ insert $ Test {
+         _ <- runDB $ mapM (\(priority, metric) -> insert $ Test {
            testChallenge=challengeId,
-           testMetric=gesMetric $ geoSpec opts,
+           testMetric=metric,
            testName=T.pack $ takeFileName testDir,
            testChecksum=(SHA1 checksum),
            testCommit=commit,
            testActive=True,
-           testPrecision=gesPrecision $ geoSpec opts}
+           testPrecision=gesPrecision $ geoSpec opts,
+           testPriority=Just priority}) $ zip [1..] (gesMetrics $ geoSpec opts)
          return ()
     else
       msg chan $ concat ["Test dir ", (T.pack testDir), " does not have expected results."]

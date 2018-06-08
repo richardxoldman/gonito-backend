@@ -314,30 +314,33 @@ checkOrInsertEvaluation repoDir chan out = do
     Nothing -> do
       msg chan $ "Start evaluation..."
       challengeDir <- getRepoDir $ challengePrivateRepo challenge
-      resultOrException <- liftIO $ rawEval challengeDir repoDir (testName test)
+      resultOrException <- liftIO $ rawEval challengeDir (testMetric test) repoDir (testName test)
       case resultOrException of
-        Right (Left parseResult) -> do
+        Right (Left _) -> do
           err chan "Cannot parse options, check the challenge repo"
-        Right (Right (opts, Just result)) -> do
+        Right (Right (_, Just [result])) -> do
           msg chan $ concat [ "Evaluated! Score ", (T.pack $ show result) ]
           time <- liftIO getCurrentTime
-          runDB $ insert $ Evaluation {
+          _ <- runDB $ insert $ Evaluation {
             evaluationTest=outTest out,
             evaluationChecksum=outChecksum out,
             evaluationScore=Just result,
             evaluationErrorMessage=Nothing,
             evaluationStamp=time }
           msg chan "Evaluation done"
+        Right (Right (_, Just _)) -> do
+          err chan "Unexpected multiple results (???)"
         Right (Right (_, Nothing)) -> do
           err chan "Error during the evaluation"
         Left exception -> do
           err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
 
-rawEval :: FilePath -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe MetricValue)))
-rawEval challengeDir repoDir name = Import.try (runGEvalGetOptions [
-                                    "--expected-directory", challengeDir,
-                                    "--out-directory", repoDir,
-                                    "--test-name", (T.unpack name)])
+rawEval :: FilePath -> Metric -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [MetricValue])))
+rawEval challengeDir metric repoDir name = Import.try (runGEvalGetOptions [
+                                                          "--metric", (show metric),
+                                                          "--expected-directory", challengeDir,
+                                                          "--out-directory", repoDir,
+                                                          "--test-name", (T.unpack name)])
 
 getSubmissionRepo :: Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo challengeId repoSpec chan = do
