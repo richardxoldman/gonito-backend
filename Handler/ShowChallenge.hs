@@ -277,7 +277,7 @@ getOuts chan submissionId = do
   let challengeId = submissionChallenge submission
   repoDir <- getRepoDir $ submissionRepo submission
   activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
-  testsDone <- filterM (doesOutExist repoDir) activeTests
+  testsDone <- filterM (liftIO . doesOutExist repoDir) activeTests
   outs <- mapM (outForTest repoDir submissionId) testsDone
   mapM_ checkOrInsertOut outs
   mapM_ (checkOrInsertEvaluation repoDir chan) outs
@@ -287,10 +287,21 @@ outFileName = "out.tsv"
 
 getOutFilePath repoDir test = repoDir </> (T.unpack $ testName test) </> outFileName
 
-doesOutExist repoDir (Entity _ test) = liftIO $ doesFileExist $ Handler.ShowChallenge.getOutFilePath repoDir test
+findOutFile repoDir test = do
+  let baseOut = getOutFilePath repoDir test
+  let possibleOuts = [baseOut] ++ (map (baseOut <.>)  ["gz", "bz2", "xz"])
+  foundFiles <- filterM doesFileExist possibleOuts
+  return $ case foundFiles of
+    [] -> Nothing
+    (h:_) -> Just h
+
+doesOutExist repoDir (Entity _ test) = do
+  result <- findOutFile repoDir test
+  return $ isJust result
 
 outForTest repoDir submissionId (Entity testId test) = do
-  checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [Handler.ShowChallenge.getOutFilePath repoDir test]
+  (Just outF) <- liftIO $ findOutFile repoDir test
+  checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [outF]
   return Out {
     outSubmission=submissionId,
     outTest=testId,
