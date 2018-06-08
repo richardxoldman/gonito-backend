@@ -348,7 +348,7 @@ checkOrInsertEvaluation repoDir chan out = do
 
 rawEval :: FilePath -> Metric -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [MetricValue])))
 rawEval challengeDir metric repoDir name = Import.try (runGEvalGetOptions [
-                                                          "--metric", (show metric),
+                                                          "--alt-metric", (show metric),
                                                           "--expected-directory", challengeDir,
                                                           "--out-directory", repoDir,
                                                           "--test-name", (T.unpack name)])
