@@ -9,7 +9,6 @@ import Data.Monoid
 import qualified Data.Text.Lazy as TL
 import           Text.Markdown
 
-import System.Directory (doesFileExist)
 import qualified Data.Text as T
 
 import qualified Yesod.Table as Table
@@ -289,11 +288,7 @@ getOutFilePath repoDir test = repoDir </> (T.unpack $ testName test) </> outFile
 
 findOutFile repoDir test = do
   let baseOut = getOutFilePath repoDir test
-  let possibleOuts = [baseOut] ++ (map (baseOut <.>)  ["gz", "bz2", "xz"])
-  foundFiles <- filterM doesFileExist possibleOuts
-  return $ case foundFiles of
-    [] -> Nothing
-    (h:_) -> Just h
+  findFilePossiblyCompressed baseOut
 
 doesOutExist repoDir (Entity _ test) = do
   result <- findOutFile repoDir test

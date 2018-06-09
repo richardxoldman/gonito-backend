@@ -127,10 +127,13 @@ updateTests challengeId chan = do
   msg chan (T.pack $ show testDirs)
   return ()
 
+expectedFileName :: FilePath
 expectedFileName = "expected.tsv"
 
 doesExpectedExist :: FilePath -> IO Bool
-doesExpectedExist fp = doesFileExist (fp </> expectedFileName)
+doesExpectedExist fp = do
+  ef <- findFilePossiblyCompressed (fp </> expectedFileName)
+  return $ isJust ef
 
 checkTestDir :: Channel -> (Key Challenge) -> Challenge -> SHA1 -> FilePath -> Handler ()
 checkTestDir chan challengeId challenge commit testDir = do

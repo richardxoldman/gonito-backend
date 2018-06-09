@@ -24,7 +24,7 @@ import qualified Data.List as DL
 
 import System.Random
 
-import System.Directory (renameDirectory)
+import System.Directory (doesFileExist, renameDirectory)
 
 import PersistSHA1
 
@@ -331,3 +331,11 @@ formatTruncatedScore _ Nothing  = formatFullScore Nothing
 formatTruncatedScore (Just precision) (Just evaluation) = case evaluationScore evaluation of
   Just score -> T.pack $ printf "%0.*f" precision score
   Nothing -> formatFullScore Nothing
+
+findFilePossiblyCompressed :: FilePath -> IO (Maybe FilePath)
+findFilePossiblyCompressed baseFilePath = do
+  let possibleFiles = [baseFilePath] ++ (map (baseFilePath <.>)  ["gz", "bz2", "xz"])
+  foundFiles <- filterM doesFileExist possibleFiles
+  return $ case foundFiles of
+    [] -> Nothing
+    (h:_) -> Just h
