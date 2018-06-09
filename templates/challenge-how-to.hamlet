@@ -21,7 +21,7 @@
 <h4>option B — just download the GEval binary (simpler if you have a standard 64-bit Linux)
 
 <pre>
-  wget <a href="http://filipg-jenkins.wmi.amu.edu.pl:8090/job/geval/lastSuccessfulBuild/artifact/geval/geval">http://filipg-jenkins.wmi.amu.edu.pl:8090/job/geval/lastSuccessfulBuild/artifact/geval/geval</a>
+  wget <a href="https://gonito.net/get/bin/geval">https://gonito.net/get/bin/geval</a>
   chmod u+x geval
   ./geval --help
 
