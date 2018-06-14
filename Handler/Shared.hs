@@ -4,18 +4,16 @@ module Handler.Shared where
 
 import Import
 
-import           Data.IntMap            (IntMap)
 import qualified Data.IntMap            as IntMap
 
 import Handler.Runner
 import System.Exit
 
-import Network.URI
 import qualified Data.Text as T
 
-import Database.Persist.Sql (ConnectionPool, runSqlPool, fromSqlKey)
+import Database.Persist.Sql (fromSqlKey)
 
-import Control.Concurrent.Lifted (fork, threadDelay)
+import Control.Concurrent.Lifted (threadDelay)
 import Control.Concurrent (forkIO)
 
 import qualified Crypto.Hash.SHA1 as CHS
@@ -28,12 +26,11 @@ import System.Directory (doesFileExist, renameDirectory)
 
 import PersistSHA1
 
-import qualified Data.ByteString as BS
-
 import Text.Printf
-import Database.Persist.Sql
 
 import Yesod.Form.Bootstrap3 (bfs)
+
+import qualified Test.RandomStrings as RS
 
 import qualified Crypto.Nonce as Nonce
 import System.IO.Unsafe (unsafePerformIO)
@@ -74,6 +71,7 @@ browsableGitRepoBranch :: RepoScheme -> Repo -> Text -> Text -> Text
 browsableGitRepoBranch SelfHosted _ bareRepoName branch = (browsableGitRepo bareRepoName) ++ "/" ++ branch ++ "/"
 browsableGitRepoBranch Branches repo _ branch = sshToHttps (repoUrl repo) branch
 
+sshToHttps :: Text -> Text -> Text
 sshToHttps url branch = "https://" ++ (T.replace ".git" "" $ T.replace ":" "/" $ T.replace "ssh://" "" $ T.replace "git@" "" url) ++ "/tree/" ++ branch
 
 browsableGitRepo :: Text -> Text
@@ -98,7 +96,7 @@ runViewProgress' route action = do
     writeTVar jobs $ IntMap.insert jobId chan m
     return chan
   runInnerHandler <- handlerToIO
-  liftIO $ forkIO $ runInnerHandler $ do
+  _ <- liftIO $ forkIO $ runInnerHandler $ do
     liftIO $ threadDelay 1000000
     action chan
     liftIO $ atom $ do
@@ -240,10 +238,11 @@ rawClone tmpRepoDir repoCloningSpec chan = runWithChannel chan $ do
 getStuffUsingGitAnnex :: FilePath -> Maybe Text -> Runner ()
 getStuffUsingGitAnnex _ Nothing = return ()
 getStuffUsingGitAnnex tmpRepoDir (Just gitAnnexRemote) = do
+  let randomRemoteNameLen = 10
+  remoteName <- liftIO $ RS.randomString (RS.onlyAlpha RS.randomASCII) randomRemoteNameLen
   runGitAnnex tmpRepoDir ["init"]
   runGitAnnex tmpRepoDir (["initremote", remoteName] ++ (words $ T.unpack gitAnnexRemote))
   runGitAnnex tmpRepoDir ["get", "--from", remoteName]
-  where remoteName = "storage"
 
 runGitAnnex :: FilePath -> [String] -> Runner ()
 runGitAnnex tmpRepoDir args = runProg (Just tmpRepoDir) gitPath ("annex":args)
@@ -307,6 +306,7 @@ nonceGen = unsafePerformIO Nonce.new
 newToken :: MonadIO m => m Text
 newToken = Nonce.nonce128urlT nonceGen
 
+enableTriggerToken :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, YesodPersist site, PersistStoreWrite (YesodPersistBackend site)) => Key User -> Maybe a -> HandlerFor site ()
 enableTriggerToken _ (Just _) = return ()
 enableTriggerToken userId Nothing = do
   token <- newToken

@@ -138,6 +138,7 @@ library
                  , esqueleto
                  , extra
                  , attoparsec
+                 , random-strings
 
 executable         gonito
     if flag(library-only)

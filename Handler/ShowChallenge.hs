@@ -352,14 +352,18 @@ getSubmissionRepo :: Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key
 getSubmissionRepo challengeId repoSpec chan = do
   let url = repoSpecUrl repoSpec
   let branch = repoSpecBranch repoSpec
+  let gitAnnexRemote = repoSpecGitAnnexRemote repoSpec
   maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
   case maybeRepo of
-    Just (Entity repoId repo) -> do
+    Just (Entity repoId _) -> do
       msg chan "Repo already there"
       available <- checkRepoAvailibility challengeId repoId chan
       if available
          then
           do
+           -- this is not completely right... some other thread
+           -- might update this to a different value
+           runDB $ update repoId [RepoGitAnnexRemote =. gitAnnexRemote]
            updateStatus <- updateRepo repoId chan
            if updateStatus
              then
@@ -377,7 +381,8 @@ getSubmissionRepo challengeId repoSpec chan = do
         cloningSpecRepo = repoSpec,
         cloningSpecReferenceRepo = RepoSpec {
                 repoSpecUrl = (T.pack repoDir),
-                repoSpecBranch = (repoBranch repo)
+                repoSpecBranch = (repoBranch repo),
+                repoSpecGitAnnexRemote = Nothing
                 }
         }
       cloneRepo' repoCloningSpec chan
@@ -403,11 +408,11 @@ checkRepoAvailibility challengeId repoId chan = do
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
 submissionForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Text, Text, Maybe Text)
-submissionForm defaultUrl defaultBranch defaultGitAnnexRemote = renderBootstrap3 BootstrapBasicForm $ (,,,,)
+submissionForm defaultUrl defBranch defaultGitAnnexRemote = renderBootstrap3 BootstrapBasicForm $ (,,,,)
     <$> aopt textField (fieldWithTooltip MsgSubmissionDescription MsgSubmissionDescriptionTooltip) Nothing
     <*> aopt textField (tagsfs MsgSubmissionTags) Nothing
     <*> areq textField (bfs MsgSubmissionUrl) defaultUrl
-    <*> areq textField (bfs MsgSubmissionBranch) defaultBranch
+    <*> areq textField (bfs MsgSubmissionBranch) defBranch
     <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) (Just defaultGitAnnexRemote)
 
 getChallengeMySubmissionsR :: Text -> Handler Html

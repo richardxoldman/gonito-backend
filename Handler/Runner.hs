@@ -7,6 +7,7 @@ import System.Exit
 import Control.Concurrent.STM
 import Control.Concurrent.Lifted (threadDelay)
 import qualified Data.ByteString as BS
+import Control.Monad.IO.Class
 
 type Channel = TChan (Maybe Text)
 
@@ -55,6 +56,13 @@ instance Monad Runner where
             return $ case sn of
               RunnerError e -> RunnerError e
               RunnerOK w -> RunnerOK w
+    }
+
+instance MonadIO Runner where
+  liftIO action = Runner {
+    runRunner = \_ -> do
+        r <- liftIO action
+        return $ RunnerOK r
     }
 
 runWithChannel :: Channel -> Runner () -> Handler ExitCode
