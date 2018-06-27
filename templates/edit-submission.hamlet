@@ -10,3 +10,13 @@
 <ul>
  $forall (achievement, workingOnId) <- achievements
   <li><a href=@{SubmissionForAchievementR submissionId workingOnId}>send to review for #{achievementName $ entityVal achievement} achievement
+
+<h4>
+
+$if submissionIsHidden submission == Just True
+  <p>Submission is hidden!
+  <p>
+    <a href=@{RestoreSubmissionR submissionId}>_{MsgRestoreSubmission}
+$else
+  <p>
+    <a href=@{HideSubmissionR submissionId}>_{MsgRemoveSubmission}

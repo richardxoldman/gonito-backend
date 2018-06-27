@@ -215,7 +215,8 @@ getSubmission userId repoId commit challengeId description chan = do
         submissionDescription=description,
         submissionStamp=time,
         submissionSubmitter=userId,
-        submissionIsPublic=False }
+        submissionIsPublic=False,
+        submissionIsHidden=Just False }
 
 parseCommitMessage :: Maybe Text -> (Maybe Text, Maybe Text)
 parseCommitMessage Nothing = (Nothing, Nothing)
@@ -425,7 +426,7 @@ getChallengeAllSubmissionsR name = getChallengeSubmissions (\_ -> True) name
 
 getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
 getChallengeSubmissions condition name = do
-  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
+  Entity challengeId challenge <- runDB $ getBy404 $ UniqueName name
   (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth

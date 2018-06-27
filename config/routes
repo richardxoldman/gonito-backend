@@ -30,6 +30,8 @@
 /api/txt/score/#Text ApiTxtScoreR GET
 
 /make-public/#SubmissionId MakePublicR GET
+/hide-submission/#SubmissionId HideSubmissionR GET
+/restore-submission/#SubmissionId RestoreSubmissionR GET
 
 /account YourAccountR GET POST
 /avatar/#UserId AvatarR GET

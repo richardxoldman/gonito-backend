@@ -8,6 +8,7 @@ import Handler.SubmissionView
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
 import Handler.TagUtils
+import Handler.MakePublic
 
 import Data.Text as T
 
@@ -45,6 +46,7 @@ postEditSubmissionR submissionId = do
   getEditSubmissionR submissionId
 
 
+getPossibleAchievements :: (BaseBackend backend ~ SqlBackend, PersistUniqueRead backend, PersistQueryRead backend, MonadIO m) => Key User -> Key Submission -> ReaderT backend m [(Entity Achievement, Key WorkingOn)]
 getPossibleAchievements userId submissionId = do
   (Just submission) <- get submissionId
   let challengeId = submissionChallenge submission
@@ -60,7 +62,7 @@ doEditSubmission formWidget formEnctype submissionId = do
 
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
 
-  (Entity userId user) <- requireAuth
+  (Entity userId _) <- requireAuth
 
   achievements <- runDB $ getPossibleAchievements userId submissionId
 
@@ -72,3 +74,26 @@ editSubmissionForm :: Text -> Maybe Text -> Form (Text, Maybe Text)
 editSubmissionForm description mTags = renderBootstrap3 BootstrapBasicForm $ (,)
     <$> areq textField (bfs MsgSubmissionDescription) (Just description)
     <*> aopt textField (tagsfs MsgSubmissionTags) (Just mTags)
+
+
+getHideSubmissionR :: SubmissionId -> Handler Html
+getHideSubmissionR submissionId = changeSubmissionVisibility False submissionId
+
+getRestoreSubmissionR :: SubmissionId -> Handler Html
+getRestoreSubmissionR submissionId = changeSubmissionVisibility True submissionId
+
+
+changeSubmissionVisibility :: Bool -> SubmissionId -> Handler Html
+changeSubmissionVisibility status submissionId =
+ do
+  isOwner <- checkWhetherUserRepo submissionId
+  if isOwner
+    then
+     do
+      runDB $ update submissionId [SubmissionIsHidden =. Just (not status)]
+      setMessage $ toHtml (("Submission " :: Text) ++ (verb status))
+    else
+      setMessage $ toHtml ("Only owner can edit a submission!!!" :: Text)
+  getEditSubmissionR submissionId
+  where verb True = "restored"
+        verb False = "removed"

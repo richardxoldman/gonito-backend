@@ -40,7 +40,7 @@ doMakePublic submissionId chan = do
 
 pushRepo :: String -> SHA1 -> String -> String -> Channel -> Handler ()
 pushRepo repoDir commit targetRepoUrl targetBranchName chan = do
-  (exitCode, _) <- runProgram (Just repoDir) gitPath [
+  (_, _) <- runProgram (Just repoDir) gitPath [
     "push",
     targetRepoUrl,
     (T.unpack $ fromSHA1ToText commit) ++ ":refs/heads/" ++ targetBranchName] chan

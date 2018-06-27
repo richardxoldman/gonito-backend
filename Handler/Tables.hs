@@ -20,7 +20,6 @@ import qualified Data.List as DL
 
 import GEval.Core
 
-import Text.Printf
 
 data LeaderboardEntry = LeaderboardEntry {
   leaderboardUser :: User,
@@ -40,6 +39,7 @@ submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ mconcat (map (\(Entity k t) -> resultCell t (extractScore k)) tests)
   ++ statusCell challengeName repoScheme challengeRepo (\(Entity submissionId submission, Entity userId _, _, _) -> (submissionId, submission, userId, mauthId))
 
+descriptionCell :: Foldable t => Table site (Entity Submission, b, c, t (Entity Tag, Entity SubmissionTag))
 descriptionCell = Table.widget "description" (
   \(Entity _ s, _, _ ,tagEnts) -> fragmentWithSubmissionTags (submissionDescription s) tagEnts)
 
@@ -59,6 +59,7 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo test = mempty
                                        leaderboardUserId e,
                                        mauthId))
 
+leaderboardDescriptionCell :: Table site (a, LeaderboardEntry)
 leaderboardDescriptionCell = Table.widget "description" (
   \(_,entry) -> fragmentWithSubmissionTags (submissionDescription $ leaderboardBestSubmission entry) (leaderboardTags entry))
 
@@ -78,6 +79,7 @@ statusCell challengeName repoScheme challengeRepo fun = Table.widget "" (statusC
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
 resultCell test fun = hoverTextCell ((testName test) ++ "/" ++ (Data.Text.pack $ show $ testMetric test)) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
 
+statusCellWidget :: Eq a => Text -> RepoScheme -> Repo -> (SubmissionId, Submission, a, Maybe a) -> WidgetFor App ()
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
@@ -91,15 +93,15 @@ statusCellWidget challengeName repoScheme challengeRepo (submissionId, submissio
                                   Nothing
 
 getAuxSubmissions :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation)] -> [(Key User, (User, [(Submission, Evaluation)]))]
-getAuxSubmissions testId evaluationMaps = map (processEvaluationMap testId) evaluationMaps
-   where processEvaluationMap testId ((Entity _ s), (Entity ui u), m) = (ui, (u, case Map.lookup testId m of
+getAuxSubmissions testId evaluationMaps = map processEvaluationMap evaluationMaps
+   where processEvaluationMap ((Entity _ s), (Entity ui u), m) = (ui, (u, case Map.lookup testId m of
                                                                                        Just e -> [(s, e)]
                                                                                        Nothing -> []))
 
 
 getAuxSubmissionEnts :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
-getAuxSubmissionEnts testId evaluationMaps = map (processEvaluationMap testId) evaluationMaps
-   where processEvaluationMap testId (s, (Entity ui u), m, _) = (ui, (u, case Map.lookup testId m of
+getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluationMaps
+   where processEvaluationMap (s, (Entity ui u), m, _) = (ui, (u, case Map.lookup testId m of
                                                                                        Just e -> [(s, e)]
                                                                                        Nothing -> []))
 
@@ -114,25 +116,28 @@ getLeaderboardEntries challengeId = do
   let auxSubmissions = getAuxSubmissionEnts mainTestId evaluationMaps
   let submissionsByUser = Map.fromListWith (\(u1, l1) (_, l2) -> (u1, l1++l2)) auxSubmissions
   let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluation a) (evaluationScore $ leaderboardEvaluation b)
-  entries' <- mapM (toEntry mainTest) $ filter (\(_, (_, s)) -> not (null s)) $ Map.toList submissionsByUser
+  entries' <- mapM (toEntry challengeId mainTest) $ filter (\(_, (_, s)) -> not (null s)) $ Map.toList submissionsByUser
   let entries = sortBy (flip entryComparator) entries'
   return (mainTest, entries)
 
 
-toEntry mainTest (ui, (u, ss)) = do
-  let bestOne = DL.maximumBy (submissionComparator mainTest) ss
+toEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> Test -> (Key User, (User, t (Entity Submission, Evaluation))) -> HandlerFor site LeaderboardEntry
+toEntry challengeId mainTest (ui, (u, ss)) = do
+  let bestOne = DL.maximumBy submissionComparator ss
   let submissionId = entityKey $ fst bestOne
   tagEnts <- runDB $ getTags submissionId
+  -- get all user submissions, including hidden ones
+  allUserSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId, SubmissionSubmitter ==. ui] [Desc SubmissionStamp]
   return $ LeaderboardEntry {
               leaderboardUser = u,
               leaderboardUserId = ui,
               leaderboardBestSubmission = (\(Entity _ s) -> s) $ fst bestOne,
               leaderboardBestSubmissionId = (\(Entity si _) -> si) $ fst bestOne,
               leaderboardEvaluation = snd bestOne,
-              leaderboardNumberOfSubmissions = length ss,
+              leaderboardNumberOfSubmissions = length allUserSubmissions,
               leaderboardTags = tagEnts
               }
-     where submissionComparator mainTest (_, e1) (_, e2) = (compareResult mainTest) (evaluationScore e1) (evaluationScore e2)
+     where submissionComparator (_, e1) (_, e2) = (compareResult mainTest) (evaluationScore e1) (evaluationScore e2)
 
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
@@ -147,7 +152,7 @@ compareFun TheHigherTheBetter = compare
 
 getChallengeSubmissionInfos :: ((Entity Submission) -> Bool) -> Key Challenge -> Handler ([(Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])], [Entity Test])
 getChallengeSubmissionInfos condition challengeId = do
-  allSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId] [Desc SubmissionStamp]
+  allSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId, SubmissionIsHidden !=. Just True] [Desc SubmissionStamp]
   let submissions = filter condition allSubmissions
   tests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
   evaluationMaps <- mapM getEvaluationMap submissions
