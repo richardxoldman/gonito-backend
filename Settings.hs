@@ -19,11 +19,18 @@ import Yesod.Default.Util          (WidgetFileSettings, widgetFileNoReload,
                                     widgetFileReload)
 
 data RepoScheme = SelfHosted | Branches
-                  deriving(Eq, Show)
+                  deriving (Eq, Show)
 
 toRepoScheme :: Text -> RepoScheme
 toRepoScheme "branches" = Branches
 toRepoScheme _ = SelfHosted
+
+data TagPermissions = OnlyAdminCanAddNewTags | EverybodyCanAddNewTags
+                      deriving (Eq, Show)
+
+toTagPermissions :: Text -> TagPermissions
+toTagPermissions "everybody-can-add-new-tags" = EverybodyCanAddNewTags
+toTagPermissions _ = OnlyAdminCanAddNewTags
 
 -- | Runtime settings to configure this application. These settings can be
 -- loaded from various sources: defaults, environment variables, config files,
@@ -71,6 +78,7 @@ data AppSettings = AppSettings
     -- ^ Repo host
     , appRepoHost               :: Text
     , appRepoScheme             :: RepoScheme
+    , appTagPermissions         :: TagPermissions
     }
 
 instance FromJSON AppSettings where
@@ -107,6 +115,9 @@ instance FromJSON AppSettings where
 
         scheme <- o .: "repo-scheme"
         appRepoScheme <- return $ toRepoScheme scheme
+
+        tagPermissions <- o .: "tag-permissions"
+        appTagPermissions <- return $ toTagPermissions tagPermissions
 
         return AppSettings {..}
 

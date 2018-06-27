@@ -11,24 +11,37 @@ import Handler.TagUtils
 getTagsR :: Handler Html
 getTagsR = do
   (formWidget, formEnctype) <- generateFormPost tagForm
-  mUser <- maybeAuth
-  doTags mUser formWidget formEnctype
+  doTags formWidget formEnctype
 
 postTagsR :: Handler Html
 postTagsR = do
   ((result, formWidget), formEnctype) <- runFormPost tagForm
-  mUser <- maybeAuth
-  when (checkIfAdmin mUser) $ do
+  canTagsBeAdded <- canAddTags
+  when canTagsBeAdded $ do
      case result of
       FormSuccess (t, d) -> do
                             _ <- runDB $ insert $ Tag t d
                             return ()
       _ -> do
            return ()
-  doTags mUser formWidget formEnctype
+  doTags formWidget formEnctype
 
-doTags mUser formWidget formEnctype = do
+
+canAddTags :: Handler Bool
+canAddTags = do
+  mUser <- maybeAuth
+
+  app <- getYesod
+  let tagPermissions = appTagPermissions $ appSettings app
+
+  case tagPermissions of
+    OnlyAdminCanAddNewTags -> return $ checkIfAdmin mUser
+    EverybodyCanAddNewTags -> return $ isJust mUser
+
+
+doTags formWidget formEnctype = do
   tags <- runDB $ selectList [] [Asc TagName]
+  canTagsBeAdded <- canAddTags
   defaultLayout $ do
     setTitle "Tags"
     $(widgetFile "tags")
