@@ -302,6 +302,7 @@ outForTest repoDir submissionId (Entity testId test) = do
   checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [outF]
   return Out {
     outSubmission=submissionId,
+    outVariant=Nothing,
     outTest=testId,
     outChecksum=SHA1 checksum }
 
