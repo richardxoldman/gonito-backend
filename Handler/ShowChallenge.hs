@@ -280,7 +280,9 @@ getOuts chan submissionId = do
   repoDir <- getRepoDir $ submissionRepo submission
   activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
   testsDone <- filterM (liftIO . doesOutExist repoDir) activeTests
-  outs <- mapM (outForTest repoDir submissionId) testsDone
+  theVariant <- getVariant submissionId "out"
+  outs' <- mapM (outForTest repoDir submissionId) testsDone
+  let outs = map (\o -> o { outVariant = Just theVariant}) outs'
   mapM_ checkOrInsertOut outs
   mapM_ (checkOrInsertEvaluation repoDir chan) outs
   return outs
@@ -305,6 +307,13 @@ outForTest repoDir submissionId (Entity testId test) = do
     outVariant=Nothing,
     outTest=testId,
     outChecksum=SHA1 checksum }
+
+getVariant :: SubmissionId -> Text -> Handler VariantId
+getVariant submissionId name = runDB $ do
+  maybeVariant <- getBy $ UniqueVariantSubmissionName submissionId name
+  case maybeVariant of
+    Just (Entity vid _) -> return vid
+    Nothing -> insert $ Variant submissionId name
 
 checkOrInsertOut :: Out -> Handler ()
 checkOrInsertOut out = do
