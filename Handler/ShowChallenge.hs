@@ -1,10 +1,9 @@
 module Handler.ShowChallenge where
 
 import Import
-import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
-                              withSmallInput, bfs)
+import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
-import Data.Monoid
+
 
 import qualified Data.Text.Lazy as TL
 import           Text.Markdown
@@ -22,7 +21,6 @@ import Handler.TagUtils
 import GEval.Core
 import GEval.OptionsParser
 
-import qualified Data.Map as Map
 
 import PersistSHA1
 
@@ -286,18 +284,23 @@ getOuts chan submissionId = do
   mapM_ (checkOrInsertEvaluation repoDir chan) outs
   return outs
 
+outFileName :: FilePath
 outFileName = "out.tsv"
 
+getOutFilePath :: FilePath -> Test -> FilePath
 getOutFilePath repoDir test = repoDir </> (T.unpack $ testName test) </> outFileName
 
+findOutFile :: FilePath -> Test -> IO (Maybe FilePath)
 findOutFile repoDir test = do
   let baseOut = getOutFilePath repoDir test
   findFilePossiblyCompressed baseOut
 
+doesOutExist :: FilePath -> Entity Test -> IO Bool
 doesOutExist repoDir (Entity _ test) = do
   result <- findOutFile repoDir test
   return $ isJust result
 
+outForTest :: MonadIO m => FilePath -> Key Submission -> Key Variant -> Entity Test -> m Out
 outForTest repoDir submissionId variantId (Entity testId test) = do
   (Just outF) <- liftIO $ findOutFile repoDir test
   checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [outF]
@@ -451,6 +454,7 @@ getChallengeSubmissions condition name = do
 
 challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests = $(widgetFile "challenge-all-submissions")
 
+challengeLayout :: Bool -> Challenge -> WidgetFor App () -> HandlerFor App Html
 challengeLayout withHeader challenge widget = do
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
   maybeUser <- maybeAuth
