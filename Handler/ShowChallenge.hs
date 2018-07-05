@@ -34,6 +34,8 @@ import Data.Attoparsec.Text
 
 import Data.Text (pack, unpack)
 
+import Data.Conduit.SmartSource
+
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
@@ -300,6 +302,7 @@ outForTest repoDir submissionId (Entity testId test) = do
   checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [outF]
   return Out {
     outSubmission=submissionId,
+    outVariant=Nothing,
     outTest=testId,
     outChecksum=SHA1 checksum }
 
@@ -325,7 +328,7 @@ checkOrInsertEvaluation repoDir chan out = do
       case resultOrException of
         Right (Left _) -> do
           err chan "Cannot parse options, check the challenge repo"
-        Right (Right (_, Just [result])) -> do
+        Right (Right (_, Just [(_, [result])])) -> do
           msg chan $ concat [ "Evaluated! Score ", (T.pack $ show result) ]
           time <- liftIO getCurrentTime
           _ <- runDB $ insert $ Evaluation {
@@ -342,7 +345,7 @@ checkOrInsertEvaluation repoDir chan out = do
         Left exception -> do
           err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
 
-rawEval :: FilePath -> Metric -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [MetricValue])))
+rawEval :: FilePath -> Metric -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [(SourceSpec, [MetricValue])])))
 rawEval challengeDir metric repoDir name = Import.try (runGEvalGetOptions [
                                                           "--alt-metric", (show metric),
                                                           "--expected-directory", challengeDir,

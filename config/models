@@ -59,6 +59,10 @@ Submission
     isPublic Bool default=False
     isHidden Bool Maybe
     UniqueSubmissionRepoCommitChallenge repo commit challenge
+Variant
+    submission SubmissionId
+    name Text
+    UniqueVariantSubmissionName submission name
 Fork
     source SubmissionId
     target SubmissionId
@@ -77,6 +81,7 @@ Comment
     text Textarea
 Out
     submission SubmissionId
+    variant VariantId Maybe
     test TestId
     checksum SHA1
     UniqueOutSubmissionTestChecksum submission test checksum
