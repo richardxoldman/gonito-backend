@@ -81,10 +81,11 @@ Comment
     text Textarea
 Out
     submission SubmissionId
-    variant VariantId Maybe
+    variant VariantId
     test TestId
     checksum SHA1
     UniqueOutSubmissionTestChecksum submission test checksum
+    UniqueOutVariantTestChecksum variant test checksum
 Tag
     name Text
     description Text Maybe

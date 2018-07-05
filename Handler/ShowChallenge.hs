@@ -281,8 +281,7 @@ getOuts chan submissionId = do
   activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
   testsDone <- filterM (liftIO . doesOutExist repoDir) activeTests
   theVariant <- getVariant submissionId "out"
-  outs' <- mapM (outForTest repoDir submissionId) testsDone
-  let outs = map (\o -> o { outVariant = Just theVariant}) outs'
+  outs <- mapM (outForTest repoDir submissionId theVariant) testsDone
   mapM_ checkOrInsertOut outs
   mapM_ (checkOrInsertEvaluation repoDir chan) outs
   return outs
@@ -299,12 +298,12 @@ doesOutExist repoDir (Entity _ test) = do
   result <- findOutFile repoDir test
   return $ isJust result
 
-outForTest repoDir submissionId (Entity testId test) = do
+outForTest repoDir submissionId variantId (Entity testId test) = do
   (Just outF) <- liftIO $ findOutFile repoDir test
   checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [outF]
   return Out {
     outSubmission=submissionId,
-    outVariant=Nothing,
+    outVariant=variantId,
     outTest=testId,
     outChecksum=SHA1 checksum }
 
