@@ -63,6 +63,11 @@ Variant
     submission SubmissionId
     name Text
     UniqueVariantSubmissionName submission name
+Parameter
+    variant VariantId
+    name Text
+    value Text
+    UniqueParameterName variant name
 Fork
     source SubmissionId
     target SubmissionId
