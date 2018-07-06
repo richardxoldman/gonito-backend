@@ -31,20 +31,20 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardTags :: [(Entity Tag, Entity SubmissionTag)]
 }
 
-submissionsTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])
+submissionsTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Entity Submission, Entity Variant, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])
 submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
-  ++ Table.text "submitter" (formatSubmitter . (\(_, Entity _ submitter, _, _) -> submitter))
-  ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _, _) -> s))
+  ++ Table.text "submitter" (formatSubmitter . (\(_, _, Entity _ submitter, _, _) -> submitter))
+  ++ timestampCell "when" (submissionStamp . (\(Entity _ s, _, _, _, _) -> s))
   ++ descriptionCell
   ++ mconcat (map (\(Entity k t) -> resultCell t (extractScore k)) tests)
-  ++ statusCell challengeName repoScheme challengeRepo (\(Entity submissionId submission, Entity userId _, _, _) -> (submissionId, submission, userId, mauthId))
+  ++ statusCell challengeName repoScheme challengeRepo (\(Entity submissionId submission, _, Entity userId _, _, _) -> (submissionId, submission, userId, mauthId))
 
-descriptionCell :: Foldable t => Table site (Entity Submission, b, c, t (Entity Tag, Entity SubmissionTag))
+descriptionCell :: Foldable t => Table site (Entity Submission, v, b, c, t (Entity Tag, Entity SubmissionTag))
 descriptionCell = Table.widget "description" (
-  \(Entity _ s, _, _ ,tagEnts) -> fragmentWithSubmissionTags (submissionDescription s) tagEnts)
+  \(Entity _ s, _,  _, _ ,tagEnts) -> fragmentWithSubmissionTags (submissionDescription s) tagEnts)
 
-extractScore :: Key Test -> (Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)]) -> Maybe Evaluation
-extractScore k (_, _, m, _) = lookup k m
+extractScore :: Key Test -> (Entity Submission, Entity Variant, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)]) -> Maybe Evaluation
+extractScore k (_, _, _, m, _) = lookup k m
 
 leaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> Test -> Table App (Int, LeaderboardEntry)
 leaderboardTable mauthId challengeName repoScheme challengeRepo test = mempty
@@ -99,9 +99,9 @@ getAuxSubmissions testId evaluationMaps = map processEvaluationMap evaluationMap
                                                                                        Nothing -> []))
 
 
-getAuxSubmissionEnts :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
+getAuxSubmissionEnts :: Key Test -> [(Entity Submission, Entity Variant, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
 getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluationMaps
-   where processEvaluationMap (s, (Entity ui u), m, _) = (ui, (u, case Map.lookup testId m of
+   where processEvaluationMap (s, v, (Entity ui u), m, _) = (ui, (u, case Map.lookup testId m of
                                                                                        Just e -> [(s, e)]
                                                                                        Nothing -> []))
 
@@ -150,20 +150,25 @@ compareFun :: MetricOrdering -> Double -> Double -> Ordering
 compareFun TheLowerTheBetter = flip compare
 compareFun TheHigherTheBetter = compare
 
-getChallengeSubmissionInfos :: ((Entity Submission) -> Bool) -> Key Challenge -> Handler ([(Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])], [Entity Test])
+getChallengeSubmissionInfos :: ((Entity Submission) -> Bool) -> Key Challenge -> Handler ([(Entity Submission,Entity Variant, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])], [Entity Test])
 getChallengeSubmissionInfos condition challengeId = do
   allSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId, SubmissionIsHidden !=. Just True] [Desc SubmissionStamp]
   let submissions = filter condition allSubmissions
   tests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
-  evaluationMaps <- mapM getEvaluationMap submissions
-  return (evaluationMaps, tests)
+  evaluationMaps <- mapM getEvaluationMapForSubmission submissions
+  return (concat evaluationMaps, tests)
 
-getEvaluationMap :: Entity Submission -> Handler (Entity Submission, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])
-getEvaluationMap s@(Entity submissionId submission) = do
-  outs <- runDB $ selectList [OutSubmission ==. submissionId] []
+getEvaluationMapForSubmission :: Entity Submission -> Handler [(Entity Submission, Entity Variant, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])]
+getEvaluationMapForSubmission s@(Entity submissionId submission)= do
+  variants <- runDB $ selectList [VariantSubmission ==. submissionId] []
+  mapM (getEvaluationMap s) variants
+
+getEvaluationMap :: Entity Submission -> Entity Variant -> Handler (Entity Submission, Entity Variant, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])
+getEvaluationMap s@(Entity submissionId submission) v@(Entity variantId variant) = do
+  outs <- runDB $ selectList [OutVariant ==. variantId] []
   user <- runDB $ get404 $ submissionSubmitter submission
   maybeEvaluations <- runDB $ mapM (\(Entity _ o) -> getBy $ UniqueEvaluationTestChecksum (outTest o) (outChecksum o)) outs
   let evaluations = catMaybes maybeEvaluations
   let m = Map.fromList $ map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
   tagEnts <- runDB $ getTags submissionId
-  return (s, Entity (submissionSubmitter submission) user, m, tagEnts)
+  return (s, v, Entity (submissionSubmitter submission) user, m, tagEnts)

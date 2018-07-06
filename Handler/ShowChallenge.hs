@@ -305,7 +305,6 @@ outForTest repoDir submissionId variantId (Entity testId test) = do
   (Just outF) <- liftIO $ findOutFile repoDir test
   checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [outF]
   return Out {
-    outSubmission=submissionId,
     outVariant=variantId,
     outTest=testId,
     outChecksum=SHA1 checksum }
@@ -319,7 +318,7 @@ getVariant submissionId name = runDB $ do
 
 checkOrInsertOut :: Out -> Handler ()
 checkOrInsertOut out = do
-  maybeOut <- runDB $ getBy $ UniqueOutSubmissionTestChecksum (outSubmission out) (outTest out) (outChecksum out)
+  maybeOut <- runDB $ getBy $ UniqueOutVariantTestChecksum (outVariant out) (outTest out) (outChecksum out)
   case maybeOut of
     Just _ -> return ()
     Nothing -> (runDB $ insert out) >> return ()

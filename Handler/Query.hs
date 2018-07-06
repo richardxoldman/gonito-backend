@@ -31,6 +31,7 @@ getApiTxtScoreR sha1Prefix = do
     [] -> return "NONE"
     _ -> return "AMBIGUOUS ARGUMENT"
 
+doGetScore :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistUniqueRead (YesodPersistBackend site), BackendCompatible SqlBackend (YesodPersistBackend site), YesodPersist site, PersistQueryRead (YesodPersistBackend site)) => Entity Submission -> HandlerFor site Text
 doGetScore submission = do
   let challengeId = submissionChallenge $ entityVal submission
   tests <- runDB $ selectList [TestChallenge ==. challengeId] []
@@ -39,8 +40,9 @@ doGetScore submission = do
   let submissionId = entityKey submission
 
   evals <- runDB $ E.select
-                   $ E.from $ \(out, evaluation) -> do
-                     E.where_ (out ^. OutSubmission E.==. E.val submissionId
+                   $ E.from $ \(out, evaluation, variant) -> do
+                     E.where_ (variant ^. VariantSubmission E.==. E.val submissionId
+                               E.&&. out ^. OutVariant E.==. variant ^. VariantId
                                E.&&. out ^. OutTest E.==. E.val mainTestId
                                E.&&. evaluation ^. EvaluationTest E.==. E.val mainTestId
                                E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum)

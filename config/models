@@ -85,11 +85,9 @@ Comment
     posted UTCTime default=now()
     text Textarea
 Out
-    submission SubmissionId
     variant VariantId
     test TestId
     checksum SHA1
-    UniqueOutSubmissionTestChecksum submission test checksum
     UniqueOutVariantTestChecksum variant test checksum
 Tag
     name Text
