@@ -9,6 +9,7 @@ import qualified Data.Text.Lazy as TL
 import           Text.Markdown
 
 import qualified Data.Text as T
+import qualified Data.Map.Strict as M
 
 import qualified Yesod.Table as Table
 
@@ -20,13 +21,15 @@ import Handler.TagUtils
 
 import GEval.Core
 import GEval.OptionsParser
-
+import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
 
 import PersistSHA1
 
 import Options.Applicative
 
 import System.IO (readFile)
+
+import System.FilePath (takeFileName, dropExtensions)
 
 import Data.Attoparsec.Text
 
@@ -282,9 +285,10 @@ getOuts chan submissionId = do
   let challengeId = submissionChallenge submission
   repoDir <- getRepoDir $ submissionRepo submission
   activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
-  testsDone <- filterM (liftIO . doesOutExist repoDir) activeTests
-  theVariant <- getVariant submissionId "out"
-  outs <- mapM (outForTest repoDir theVariant) testsDone
+
+  outs' <- mapM (outsForTest repoDir submissionId) activeTests
+  let outs = concat outs'
+
   mapM_ checkOrInsertOut outs
   mapM_ (checkOrInsertEvaluation repoDir chan) outs
   return outs
@@ -305,21 +309,49 @@ doesOutExist repoDir (Entity _ test) = do
   result <- findOutFile repoDir test
   return $ isJust result
 
-outForTest :: MonadIO m => FilePath -> Key Variant -> Entity Test -> m Out
-outForTest repoDir variantId (Entity testId test) = do
-  (Just outF) <- liftIO $ findOutFile repoDir test
-  checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [outF]
+outForTest :: MonadIO m => FilePath -> FilePath -> Key Variant -> Entity Test -> m Out
+outForTest repoDir outF variantId (Entity testId test) = do
+  let outPath = repoDir </> (T.unpack $ testName test) </> outF
+  checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [outPath]
   return Out {
     outVariant=variantId,
     outTest=testId,
     outChecksum=SHA1 checksum }
 
-getVariant :: SubmissionId -> Text -> Handler VariantId
-getVariant submissionId name = runDB $ do
+outsForTest :: FilePath -> SubmissionId -> Entity Test -> HandlerFor App [Out]
+outsForTest repoDir submissionId testEnt@(Entity _ test) = do
+  outFiles <- liftIO $ outFilesForTest repoDir test
+
+  forM outFiles $ \outFile -> do
+    theVariant <- getVariant submissionId outFile
+    outForTest repoDir outFile theVariant testEnt
+
+-- returns the filename (not file path)
+outFilesForTest :: FilePath -> Test -> IO [FilePath]
+outFilesForTest repoDir test = do
+    mMultipleOuts <- checkMultipleOutsCore repoDir (Data.Text.unpack $ testName test) "out.tsv"
+    case mMultipleOuts of
+      Just outFiles -> return $ map takeFileName outFiles
+      Nothing -> do
+        mOutFile <- findOutFile repoDir test
+        case mOutFile of
+          Just outF -> return [takeFileName outF]
+          Nothing -> return []
+
+getVariant :: SubmissionId -> FilePath -> Handler VariantId
+getVariant submissionId outFilePath = runDB $ do
+  let outFile = takeFileName outFilePath
+  let name = Data.Text.pack $ dropExtensions outFile
   maybeVariant <- getBy $ UniqueVariantSubmissionName submissionId name
   case maybeVariant of
     Just (Entity vid _) -> return vid
-    Nothing -> insert $ Variant submissionId name
+    Nothing -> do
+      vid <- insert $ Variant submissionId name
+      let (OutputFileParsed _ paramMap) = parseParamsFromFilePath outFile
+      forM_ (M.toList paramMap) $ \(param, val) -> do
+        _ <- insert $ Parameter vid param val
+        return ()
+      return vid
 
 checkOrInsertOut :: Out -> Handler ()
 checkOrInsertOut out = do
@@ -339,7 +371,8 @@ checkOrInsertEvaluation repoDir chan out = do
     Nothing -> do
       msg chan $ "Start evaluation..."
       challengeDir <- getRepoDir $ challengePrivateRepo challenge
-      resultOrException <- liftIO $ rawEval challengeDir (testMetric test) repoDir (testName test)
+      variant <- runDB $ get404 $ outVariant out
+      resultOrException <- liftIO $ rawEval challengeDir (testMetric test) repoDir (testName test) ((T.unpack $ variantName variant) <.> "tsv")
       case resultOrException of
         Right (Left _) -> do
           err chan "Cannot parse options, check the challenge repo"
@@ -360,11 +393,12 @@ checkOrInsertEvaluation repoDir chan out = do
         Left exception -> do
           err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
 
-rawEval :: FilePath -> Metric -> FilePath -> Text -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [(SourceSpec, [MetricValue])])))
-rawEval challengeDir metric repoDir name = Import.try (runGEvalGetOptions [
+rawEval :: FilePath -> Metric -> FilePath -> Text -> FilePath -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [(SourceSpec, [MetricValue])])))
+rawEval challengeDir metric repoDir name outF = Import.try (runGEvalGetOptions [
                                                           "--alt-metric", (show metric),
                                                           "--expected-directory", challengeDir,
                                                           "--out-directory", repoDir,
+                                                          "--out-file", outF,
                                                           "--test-name", (T.unpack name)])
 
 getSubmissionRepo :: Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
