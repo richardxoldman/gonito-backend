@@ -12,7 +12,7 @@ import Yesod.Table (Table)
 
 import qualified Data.Map as Map
 
-import Data.Text (pack)
+import Data.Text (pack, unpack, unwords)
 
 import PersistSHA1
 
@@ -20,6 +20,7 @@ import qualified Data.List as DL
 
 import GEval.Core
 
+import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
 
 data LeaderboardEntry = LeaderboardEntry {
   leaderboardUser :: User,
@@ -48,7 +49,20 @@ submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
 
 descriptionCell :: Table site TableEntry
 descriptionCell = Table.widget "description" (
-  \(TableEntry (Entity _ s) _  _ _ tagEnts _) -> fragmentWithSubmissionTags (submissionDescription s) tagEnts)
+  \(TableEntry (Entity _ s) (Entity _ v) _ _ tagEnts paramEnts) -> fragmentWithSubmissionTags
+                                                                      (descriptionToBeShown s v (map entityVal paramEnts))
+                                                                      tagEnts)
+
+
+descriptionToBeShown :: Submission -> Variant -> [Parameter] -> Text
+descriptionToBeShown s v params = (submissionDescription s) ++ (Data.Text.pack vdescription) ++ " " ++ paramsShown
+  where (OutputFileParsed r _) = parseParamsFromFilePath (Data.Text.unpack $ variantName v)
+        vdescription = if r == "out"
+                         then
+                           ""
+                         else
+                           " " ++ r
+        paramsShown = Data.Text.unwords $ map (\p -> parameterName p ++ "=" ++ parameterValue p) params
 
 extractScore :: Key Test -> TableEntry -> Maybe Evaluation
 extractScore k (TableEntry _  _  _ m _ _) = lookup k m
