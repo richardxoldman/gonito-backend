@@ -489,7 +489,7 @@ getChallengeSubmissions condition name = do
 
   challengeLayout True challenge (challengeAllSubmissionsWidget muserId challenge scheme challengeRepo evaluationMaps tests)
 
-challengeAllSubmissionsWidget :: Maybe UserId -> Challenge -> RepoScheme -> Repo -> [(Entity Submission, Entity Variant, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])] -> [Entity Test] -> WidgetFor App ()
+challengeAllSubmissionsWidget :: Maybe UserId -> Challenge -> RepoScheme -> Repo -> [TableEntry] -> [Entity Test] -> WidgetFor App ()
 challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests = $(widgetFile "challenge-all-submissions")
 
 challengeLayout :: Bool -> Challenge -> WidgetFor App () -> HandlerFor App Html
