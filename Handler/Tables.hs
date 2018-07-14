@@ -36,21 +36,22 @@ data TableEntry = TableEntry (Entity Submission)
                              (Entity User)
                              (Map (Key Test) Evaluation)
                              [(Entity Tag, Entity SubmissionTag)]
+                             [Entity Parameter]
 
 submissionsTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App TableEntry
 submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
-  ++ Table.text "submitter" (formatSubmitter . (\(TableEntry _  _ (Entity _ submitter) _ _) -> submitter))
-  ++ timestampCell "when" (submissionStamp . (\(TableEntry (Entity _ s) _ _ _ _) -> s))
+  ++ Table.text "submitter" (formatSubmitter . (\(TableEntry _  _ (Entity _ submitter) _ _ _) -> submitter))
+  ++ timestampCell "when" (submissionStamp . (\(TableEntry (Entity _ s) _ _ _ _ _) -> s))
   ++ descriptionCell
   ++ mconcat (map (\(Entity k t) -> resultCell t (extractScore k)) tests)
-  ++ statusCell challengeName repoScheme challengeRepo (\(TableEntry (Entity submissionId submission) _ (Entity userId _) _ _) -> (submissionId, submission, userId, mauthId))
+  ++ statusCell challengeName repoScheme challengeRepo (\(TableEntry (Entity submissionId submission) _ (Entity userId _) _ _ _) -> (submissionId, submission, userId, mauthId))
 
 descriptionCell :: Table site TableEntry
 descriptionCell = Table.widget "description" (
-  \(TableEntry (Entity _ s) _  _ _ tagEnts) -> fragmentWithSubmissionTags (submissionDescription s) tagEnts)
+  \(TableEntry (Entity _ s) _  _ _ tagEnts _) -> fragmentWithSubmissionTags (submissionDescription s) tagEnts)
 
 extractScore :: Key Test -> TableEntry -> Maybe Evaluation
-extractScore k (TableEntry _  _  _ m _) = lookup k m
+extractScore k (TableEntry _  _  _ m _ _) = lookup k m
 
 leaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> Test -> Table App (Int, LeaderboardEntry)
 leaderboardTable mauthId challengeName repoScheme challengeRepo test = mempty
@@ -107,7 +108,7 @@ getAuxSubmissions testId evaluationMaps = map processEvaluationMap evaluationMap
 
 getAuxSubmissionEnts :: Key Test -> [TableEntry] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
 getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluationMaps
-   where processEvaluationMap (TableEntry s _ (Entity ui u) m _) = (ui, (u, case Map.lookup testId m of
+   where processEvaluationMap (TableEntry s _ (Entity ui u) m _ _) = (ui, (u, case Map.lookup testId m of
                                                                                        Just e -> [(s, e)]
                                                                                        Nothing -> []))
 
@@ -177,4 +178,7 @@ getEvaluationMap s@(Entity submissionId submission) v@(Entity variantId _) = do
   let evaluations = catMaybes maybeEvaluations
   let m = Map.fromList $ map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
   tagEnts <- runDB $ getTags submissionId
-  return $ TableEntry s v (Entity (submissionSubmitter submission) user) m tagEnts
+
+  parameters <- runDB $ selectList [ParameterVariant ==. variantId] [Asc ParameterName]
+
+  return $ TableEntry s v (Entity (submissionSubmitter submission) user) m tagEnts parameters
