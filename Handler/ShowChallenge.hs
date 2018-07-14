@@ -55,6 +55,7 @@ getChallengeReadmeR name = do
   readme <- challengeReadme name
   challengeLayout False challenge $ toWidget readme
 
+challengeReadme :: Text -> HandlerFor App Html
 challengeReadme name = do
   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
   let repoId = challengePublicRepo challenge
@@ -63,6 +64,7 @@ challengeReadme name = do
   contents <- liftIO $ System.IO.readFile readmeFilePath
   return $ markdown def $ TL.pack contents
 
+showChallengeWidget :: Maybe UserId -> Challenge -> RepoScheme -> Repo -> Test -> Repo -> [LeaderboardEntry] -> WidgetFor App ()
 showChallengeWidget muserId challenge scheme challengeRepo test repo leaderboard = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
         maybeRepoLink = getRepoLink repo
@@ -107,6 +109,7 @@ getChallengeHowToR name = do
     Nothing -> return False
   challengeLayout False challenge (challengeHowTo challenge settings repo (idToBeShown challenge maybeUser) isIDSet isSSHUploaded mToken)
 
+idToBeShown :: p -> Maybe (Entity User) -> Text
 idToBeShown challenge maybeUser =
   case maybeUser of
    Just user ->  case userLocalId $ entityVal user of
@@ -115,9 +118,11 @@ idToBeShown challenge maybeUser =
    Nothing -> defaultIdToBe
   where defaultIdToBe = "YOURID" :: Text
 
+defaultRepo :: RepoScheme -> Challenge -> Repo -> Maybe (Entity User) -> Text
 defaultRepo SelfHosted challenge _ maybeUser = "ssh://gitolite@gonito.net/" ++ (idToBeShown challenge maybeUser) ++ "/" ++ (challengeName challenge)
 defaultRepo Branches _ repo _ = repoUrl repo
 
+defaultBranch :: IsString a => RepoScheme -> Maybe a
 defaultBranch SelfHosted = Just "master"
 defaultBranch Branches = Nothing
 
@@ -137,8 +142,8 @@ getChallengeSubmissionR name = do
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
 postChallengeSubmissionR name = do
-    (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
-    ((result, formWidget), formEnctype) <- runFormPost $ submissionForm Nothing Nothing Nothing
+    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
+    ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
     let submissionData = case result of
           FormSuccess res -> Just res
           _ -> Nothing
@@ -418,7 +423,6 @@ checkRepoAvailibility challengeId repoId chan = do
           return False
         Nothing -> return True
 
-
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
 submissionForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Text, Text, Maybe Text)
@@ -451,6 +455,7 @@ getChallengeSubmissions condition name = do
 
   challengeLayout True challenge (challengeAllSubmissionsWidget muserId challenge scheme challengeRepo evaluationMaps tests)
 
+challengeAllSubmissionsWidget :: Maybe UserId -> Challenge -> RepoScheme -> Repo -> [(Entity Submission, Entity Variant, Entity User, Map (Key Test) Evaluation, [(Entity Tag, Entity SubmissionTag)])] -> [Entity Test] -> WidgetFor App ()
 challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests = $(widgetFile "challenge-all-submissions")
 
 challengeLayout :: Bool -> Challenge -> WidgetFor App () -> HandlerFor App Html
