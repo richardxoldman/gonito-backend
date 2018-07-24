@@ -127,9 +127,9 @@ getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluation
                                                                                        Nothing -> []))
 
 
-getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge -> (TableEntry -> a) -> Handler (Test, [LeaderboardEntry])
-getLeaderboardEntriesByCriterion challengeId selector = do
-  (evaluationMaps, tests) <- getChallengeSubmissionInfos (\_ -> True) challengeId
+getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge -> ((Entity Submission) -> Bool) -> (TableEntry -> a) -> Handler (Test, [LeaderboardEntry])
+getLeaderboardEntriesByCriterion challengeId condition selector = do
+  (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
   let mainTestEnt = getMainTest tests
   let (Entity mainTestId mainTest) = mainTestEnt
   let auxItems = map (\i -> (selector i, [i])) $ filter (\(TableEntry _ _ _ em _ _) -> member mainTestId em) $ evaluationMaps
@@ -166,7 +166,7 @@ toLeaderboardEntry challengeId (Entity mainTestId mainTest) ss = do
      where submissionComparator (TableEntry _  _  _ em1 _ _) (TableEntry _  _ _ em2 _ _) = (compareResult mainTest) (evaluationScore (em1 Map.! mainTestId)) (evaluationScore (em2 Map.! mainTestId))
 
 getLeaderboardEntries :: Key Challenge -> Handler (Test, [LeaderboardEntry])
-getLeaderboardEntries challengeId = getLeaderboardEntriesByCriterion challengeId (\(TableEntry _ _ (Entity userId _) _ _ _) -> userId)
+getLeaderboardEntries challengeId = getLeaderboardEntriesByCriterion challengeId (const True) (\(TableEntry _ _ (Entity userId _) _ _ _) -> userId)
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
 compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ testMetric test) x y

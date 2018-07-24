@@ -14,34 +14,28 @@ getChallengeGraphDataR challengeName = submissionsToJSON (\_ -> True) challengeN
 submissionsToJSON :: ((Entity Submission) -> Bool) -> Text -> Handler Value
 submissionsToJSON condition challengeName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
-  (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
-  let mainTestEnt = getMainTest tests
-  let (Entity mainTestId _) = mainTestEnt
-  let auxSubmissions = getAuxSubmissionEnts mainTestId evaluationMaps
-  let naturalRange = getNaturalRange auxSubmissions
-  let submissionIds = map (\(Entity k _, _, _) -> k) $ concat $ map (\(_, (_, p)) -> p) auxSubmissions
+
+  (_, entries) <- getLeaderboardEntriesByCriterion challengeId condition (\(TableEntry (Entity submissionId _) _ _ _ _ _) -> submissionId)
+
+  let naturalRange = getNaturalRange entries
+  let submissionIds = map leaderboardBestSubmissionId entries
 
   forks <- runDB $ selectList [ForkSource <-. submissionIds, ForkTarget <-. submissionIds] []
 
-  return $ object [ "nodes" .= (Data.Maybe.catMaybes $ map (auxSubmissionToNode naturalRange) $ zip [0..] auxSubmissions),
+  return $ object [ "nodes" .= (Data.Maybe.catMaybes $ map (auxSubmissionToNode naturalRange) $ zip [0..] entries),
                     "edges" .= map forkToEdge forks ]
 
-getNaturalRange :: [(a1, (a2, [(a3, a4, Evaluation)]))] -> Double
-getNaturalRange auxSubmissions = (2.0 * (interQuantile $ Data.Maybe.catMaybes $ map getScore auxSubmissions))
+getNaturalRange :: [LeaderboardEntry] -> Double
+getNaturalRange entries = 2.0 * (interQuantile $ Data.Maybe.catMaybes $ map (evaluationScore . leaderboardEvaluation) entries)
 
-getScore :: (a1, (a2, [(a3, a4, Evaluation)])) -> Maybe Double
-getScore (_, (_, [])) = Nothing
-getScore (_, (_, [(_, _, evaluation)])) = evaluationScore evaluation
-
-auxSubmissionToNode :: Double -> (Int, (Key User, (User, [(Entity Submission, Entity Variant, Evaluation)]))) -> Maybe Value
-auxSubmissionToNode _ (_, (_, (_, []))) = Nothing
-auxSubmissionToNode naturalRange (n, (_, (_, [(Entity submissionId submission, Entity variantId _, evaluation)]))) = case evaluationScore evaluation of
+auxSubmissionToNode :: Double -> (Int, LeaderboardEntry) -> Maybe Value
+auxSubmissionToNode naturalRange (n, entry) = case evaluationScore $ leaderboardEvaluation entry of
   Just score ->  Just $ object [
-    "id" .= nodeId submissionId,
-    "x"  .= (stampToX $ submissionStamp submission),
+    "id" .= (nodeId $ leaderboardBestSubmissionId entry),
+    "x"  .= (stampToX $ submissionStamp $ leaderboardBestSubmission entry),
     "y"  .= (- ((score / naturalRange) * 100.0)),
     "size" .= (2 :: Int),
-    "label" .= submissionDescription submission ]
+    "label" .= submissionDescription (leaderboardBestSubmission entry) ]
   Nothing -> Nothing
 
 forkToEdge :: Entity Fork -> Value
