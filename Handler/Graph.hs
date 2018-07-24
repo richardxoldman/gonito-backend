@@ -3,7 +3,6 @@ module Handler.Graph where
 import Import
 
 import Handler.Tables
-import Handler.Shared
 import Data.Maybe
 import Data.List ((!!))
 import Database.Persist.Sql
@@ -22,20 +21,20 @@ submissionsToJSON condition challengeName = do
 
   forks <- runDB $ selectList [ForkSource <-. submissionIds, ForkTarget <-. submissionIds] []
 
-  return $ object [ "nodes" .= (Data.Maybe.catMaybes $ map (auxSubmissionToNode naturalRange) $ zip [0..] entries),
+  return $ object [ "nodes" .= (Data.Maybe.catMaybes $ map (auxSubmissionToNode naturalRange) $ entries),
                     "edges" .= map forkToEdge forks ]
 
 getNaturalRange :: [LeaderboardEntry] -> Double
 getNaturalRange entries = 2.0 * (interQuantile $ Data.Maybe.catMaybes $ map (evaluationScore . leaderboardEvaluation) entries)
 
-auxSubmissionToNode :: Double -> (Int, LeaderboardEntry) -> Maybe Value
-auxSubmissionToNode naturalRange (n, entry) = case evaluationScore $ leaderboardEvaluation entry of
+auxSubmissionToNode :: Double -> LeaderboardEntry -> Maybe Value
+auxSubmissionToNode naturalRange entry = case evaluationScore $ leaderboardEvaluation entry of
   Just score ->  Just $ object [
     "id" .= (nodeId $ leaderboardBestSubmissionId entry),
     "x"  .= (stampToX $ submissionStamp $ leaderboardBestSubmission entry),
     "y"  .= (- ((score / naturalRange) * 100.0)),
     "size" .= (2 :: Int),
-    "label" .= submissionDescription (leaderboardBestSubmission entry) ]
+    "label" .= descriptionToBeShown (leaderboardBestSubmission entry) (leaderboardBestVariant entry) (leaderboardParams entry) ]
   Nothing -> Nothing
 
 forkToEdge :: Entity Fork -> Value
