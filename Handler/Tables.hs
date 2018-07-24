@@ -27,9 +27,12 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardUserId :: UserId,
   leaderboardBestSubmission :: Submission,
   leaderboardBestSubmissionId :: SubmissionId,
+  leaderboardBestVariant :: Variant,
+  leaderboardBestVariantId :: VariantId,
   leaderboardEvaluation :: Evaluation,
   leaderboardNumberOfSubmissions :: Int,
-  leaderboardTags :: [(Entity Tag, Entity SubmissionTag)]
+  leaderboardTags :: [(Entity Tag, Entity SubmissionTag)],
+  leaderboardParams :: [Parameter]
 }
 
 data TableEntry = TableEntry (Entity Submission)
@@ -82,7 +85,11 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo test = mempty
 
 leaderboardDescriptionCell :: Table site (a, LeaderboardEntry)
 leaderboardDescriptionCell = Table.widget "description" (
-  \(_,entry) -> fragmentWithSubmissionTags (submissionDescription $ leaderboardBestSubmission entry) (leaderboardTags entry))
+  \(_,entry) -> fragmentWithSubmissionTags (descriptionToBeShown (leaderboardBestSubmission entry)
+                                                                (leaderboardBestVariant entry)
+                                                                (leaderboardParams entry))
+                                          (leaderboardTags entry)
+  )
 
 
 
@@ -113,20 +120,11 @@ statusCellWidget challengeName repoScheme challengeRepo (submissionId, submissio
                                 else
                                   Nothing
 
-getAuxSubmissions :: Key Test -> [(Entity Submission, Entity User, Map (Key Test) Evaluation)] -> [(Key User, (User, [(Submission, Evaluation)]))]
-getAuxSubmissions testId evaluationMaps = map processEvaluationMap evaluationMaps
-   where processEvaluationMap ((Entity _ s), (Entity ui u), m) = (ui, (u, case Map.lookup testId m of
-                                                                                       Just e -> [(s, e)]
-                                                                                       Nothing -> []))
-
-
-getAuxSubmissionEnts :: Key Test -> [TableEntry] -> [(Key User, (User, [((Entity Submission), Evaluation)]))]
+getAuxSubmissionEnts :: Key Test -> [TableEntry] -> [(Key User, (User, [(Entity Submission, Entity Variant, Evaluation)]))]
 getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluationMaps
-   where processEvaluationMap (TableEntry s _ (Entity ui u) m _ _) = (ui, (u, case Map.lookup testId m of
-                                                                                       Just e -> [(s, e)]
+   where processEvaluationMap (TableEntry s v (Entity ui u) m _ _) = (ui, (u, case Map.lookup testId m of
+                                                                                       Just e -> [(s, v, e)]
                                                                                        Nothing -> []))
-
-
 
 
 getLeaderboardEntries :: Key Challenge -> Handler (Test, [LeaderboardEntry])
@@ -142,23 +140,30 @@ getLeaderboardEntries challengeId = do
   return (mainTest, entries)
 
 
-toEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> Test -> (Key User, (User, t (Entity Submission, Evaluation))) -> HandlerFor site LeaderboardEntry
+toEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> Test -> (Key User, (User, t (Entity Submission, Entity Variant, Evaluation))) -> HandlerFor site LeaderboardEntry
 toEntry challengeId mainTest (ui, (u, ss)) = do
   let bestOne = DL.maximumBy submissionComparator ss
-  let submissionId = entityKey $ fst bestOne
+  let (bestSubmission, bestVariant, bestEvaluation) = bestOne
+  let submissionId = entityKey bestSubmission
   tagEnts <- runDB $ getTags submissionId
+
+  parameters <- runDB $ selectList [ParameterVariant ==. (entityKey bestVariant)] [Asc ParameterName]
+
   -- get all user submissions, including hidden ones
   allUserSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId, SubmissionSubmitter ==. ui] [Desc SubmissionStamp]
   return $ LeaderboardEntry {
               leaderboardUser = u,
               leaderboardUserId = ui,
-              leaderboardBestSubmission = (\(Entity _ s) -> s) $ fst bestOne,
-              leaderboardBestSubmissionId = (\(Entity si _) -> si) $ fst bestOne,
-              leaderboardEvaluation = snd bestOne,
+              leaderboardBestSubmission = entityVal bestSubmission,
+              leaderboardBestSubmissionId = entityKey bestSubmission,
+              leaderboardBestVariant = entityVal bestVariant,
+              leaderboardBestVariantId = entityKey bestVariant,
+              leaderboardEvaluation = bestEvaluation,
               leaderboardNumberOfSubmissions = length allUserSubmissions,
-              leaderboardTags = tagEnts
+              leaderboardTags = tagEnts,
+              leaderboardParams = map entityVal parameters
               }
-     where submissionComparator (_, e1) (_, e2) = (compareResult mainTest) (evaluationScore e1) (evaluationScore e2)
+     where submissionComparator (_, _, e1) (_, _, e2) = (compareResult mainTest) (evaluationScore e1) (evaluationScore e2)
 
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering

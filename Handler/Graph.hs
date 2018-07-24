@@ -13,27 +13,29 @@ getChallengeGraphDataR challengeName = submissionsToJSON (\_ -> True) challengeN
 
 submissionsToJSON :: ((Entity Submission) -> Bool) -> Text -> Handler Value
 submissionsToJSON condition challengeName = do
-  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName challengeName
+  (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
   (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
   let mainTestEnt = getMainTest tests
-  let (Entity mainTestId mainTest) = mainTestEnt
+  let (Entity mainTestId _) = mainTestEnt
   let auxSubmissions = getAuxSubmissionEnts mainTestId evaluationMaps
   let naturalRange = getNaturalRange auxSubmissions
-  let submissionIds = map (\(Entity k _, _) -> k) $ concat $ map (\(_, (_, p)) -> p) auxSubmissions
+  let submissionIds = map (\(Entity k _, _, _) -> k) $ concat $ map (\(_, (_, p)) -> p) auxSubmissions
 
   forks <- runDB $ selectList [ForkSource <-. submissionIds, ForkTarget <-. submissionIds] []
 
   return $ object [ "nodes" .= (Data.Maybe.catMaybes $ map (auxSubmissionToNode naturalRange) $ zip [0..] auxSubmissions),
                     "edges" .= map forkToEdge forks ]
 
+getNaturalRange :: [(a1, (a2, [(a3, a4, Evaluation)]))] -> Double
 getNaturalRange auxSubmissions = (2.0 * (interQuantile $ Data.Maybe.catMaybes $ map getScore auxSubmissions))
 
+getScore :: (a1, (a2, [(a3, a4, Evaluation)])) -> Maybe Double
 getScore (_, (_, [])) = Nothing
-getScore (_, (_, [(_, evaluation)])) = evaluationScore evaluation
+getScore (_, (_, [(_, _, evaluation)])) = evaluationScore evaluation
 
-auxSubmissionToNode :: Double -> (Int, (Key User, (User, [(Entity Submission, Evaluation)]))) -> Maybe Value
+auxSubmissionToNode :: Double -> (Int, (Key User, (User, [(Entity Submission, Entity Variant, Evaluation)]))) -> Maybe Value
 auxSubmissionToNode _ (_, (_, (_, []))) = Nothing
-auxSubmissionToNode naturalRange (n, (_, (_, [(Entity submissionId submission, evaluation)]))) = case evaluationScore evaluation of
+auxSubmissionToNode naturalRange (n, (_, (_, [(Entity submissionId submission, Entity variantId _, evaluation)]))) = case evaluationScore evaluation of
   Just score ->  Just $ object [
     "id" .= nodeId submissionId,
     "x"  .= (stampToX $ submissionStamp submission),
