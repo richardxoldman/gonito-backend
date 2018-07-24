@@ -127,33 +127,33 @@ getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluation
                                                                                        Nothing -> []))
 
 
-getLeaderboardEntries :: Key Challenge -> Handler (Test, [LeaderboardEntry])
-getLeaderboardEntries challengeId = do
+getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge -> (TableEntry -> a) -> Handler (Test, [LeaderboardEntry])
+getLeaderboardEntriesByCriterion challengeId selector = do
   (evaluationMaps, tests) <- getChallengeSubmissionInfos (\_ -> True) challengeId
   let mainTestEnt = getMainTest tests
   let (Entity mainTestId mainTest) = mainTestEnt
-  let auxSubmissions = getAuxSubmissionEnts mainTestId evaluationMaps
-  let submissionsByUser = Map.fromListWith (\(u1, l1) (_, l2) -> (u1, l1++l2)) auxSubmissions
+  let auxItems = map (\i -> (selector i, [i])) $ filter (\(TableEntry _ _ _ em _ _) -> member mainTestId em) $ evaluationMaps
+  let auxItemsMap = Map.fromListWith (++) auxItems
   let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluation a) (evaluationScore $ leaderboardEvaluation b)
-  entries' <- mapM (toEntry challengeId mainTest) $ filter (\(_, (_, s)) -> not (null s)) $ Map.toList submissionsByUser
+  entries' <- mapM (toLeaderboardEntry challengeId mainTestEnt) $ filter (\ll -> not (null ll)) $ map snd $ Map.toList auxItemsMap
   let entries = sortBy (flip entryComparator) entries'
   return (mainTest, entries)
 
-
-toEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> Test -> (Key User, (User, t (Entity Submission, Entity Variant, Evaluation))) -> HandlerFor site LeaderboardEntry
-toEntry challengeId mainTest (ui, (u, ss)) = do
+toLeaderboardEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> Entity Test -> t TableEntry -> HandlerFor site LeaderboardEntry
+toLeaderboardEntry challengeId (Entity mainTestId mainTest) ss = do
   let bestOne = DL.maximumBy submissionComparator ss
-  let (bestSubmission, bestVariant, bestEvaluation) = bestOne
+  let (TableEntry bestSubmission bestVariant user evals _ _) = bestOne
+  let bestEvaluation = evals Map.! mainTestId
   let submissionId = entityKey bestSubmission
   tagEnts <- runDB $ getTags submissionId
 
   parameters <- runDB $ selectList [ParameterVariant ==. (entityKey bestVariant)] [Asc ParameterName]
 
   -- get all user submissions, including hidden ones
-  allUserSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId, SubmissionSubmitter ==. ui] [Desc SubmissionStamp]
+  allUserSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId, SubmissionSubmitter ==. entityKey user] [Desc SubmissionStamp]
   return $ LeaderboardEntry {
-              leaderboardUser = u,
-              leaderboardUserId = ui,
+              leaderboardUser = entityVal user,
+              leaderboardUserId = entityKey user,
               leaderboardBestSubmission = entityVal bestSubmission,
               leaderboardBestSubmissionId = entityKey bestSubmission,
               leaderboardBestVariant = entityVal bestVariant,
@@ -163,8 +163,10 @@ toEntry challengeId mainTest (ui, (u, ss)) = do
               leaderboardTags = tagEnts,
               leaderboardParams = map entityVal parameters
               }
-     where submissionComparator (_, _, e1) (_, _, e2) = (compareResult mainTest) (evaluationScore e1) (evaluationScore e2)
+     where submissionComparator (TableEntry _  _  _ em1 _ _) (TableEntry _  _ _ em2 _ _) = (compareResult mainTest) (evaluationScore (em1 Map.! mainTestId)) (evaluationScore (em2 Map.! mainTestId))
 
+getLeaderboardEntries :: Key Challenge -> Handler (Test, [LeaderboardEntry])
+getLeaderboardEntries challengeId = getLeaderboardEntriesByCriterion challengeId (\(TableEntry _ _ (Entity userId _) _ _ _) -> userId)
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
 compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ testMetric test) x y
