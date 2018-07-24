@@ -18,6 +18,7 @@ import Handler.Shared
 import Handler.Runner
 import Handler.Tables
 import Handler.TagUtils
+import Handler.MakePublic
 
 import GEval.Core
 import GEval.OptionsParser
@@ -203,7 +204,14 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
       _ <- getOuts chan submissionId
 
       runDB $ addTags submissionId (if isNothing mTags then mCommitTags else mTags) []
-      msg chan "Done"
+      msg chan "SUBMISSION CREATED"
+
+      app <- getYesod
+      if appAutoOpening $ appSettings app
+        then
+          doMakePublic submissionId chan
+        else
+          return ()
     Nothing -> return ()
 
 getSubmission :: UserId -> Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)

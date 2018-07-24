@@ -79,6 +79,7 @@ data AppSettings = AppSettings
     , appRepoHost               :: Text
     , appRepoScheme             :: RepoScheme
     , appTagPermissions         :: TagPermissions
+    , appAutoOpening            :: Bool
     }
 
 instance FromJSON AppSettings where
@@ -118,6 +119,8 @@ instance FromJSON AppSettings where
 
         tagPermissions <- o .: "tag-permissions"
         appTagPermissions <- return $ toTagPermissions tagPermissions
+
+        appAutoOpening            <- o .:? "auto-opening" .!= False
 
         return AppSettings {..}
 
