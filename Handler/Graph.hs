@@ -10,6 +10,15 @@ import Database.Persist.Sql
 getChallengeGraphDataR :: Text -> Handler Value
 getChallengeGraphDataR challengeName = submissionsToJSON (\_ -> True) challengeName
 
+getChallengeParamGraphDataR :: Text -> Text -> Handler Value
+getChallengeParamGraphDataR challengeName paramName = do
+  return $ object [ "xs" .= object [
+                        "data1" .= ("x1" :: Text),
+                        "data2" .= ("x2" :: Text)],
+                    "columns" .= [
+                      ["x1"::Text, "10", "30", "40"],
+                      ["x2", "10", "20", "50"] ]]
+
 submissionsToJSON :: ((Entity Submission) -> Bool) -> Text -> Handler Value
 submissionsToJSON condition challengeName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName

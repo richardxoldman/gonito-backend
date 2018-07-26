@@ -20,6 +20,7 @@
 /challenge-how-to/#Text ChallengeHowToR GET
 /challenge-graph-data/#Text ChallengeGraphDataR GET
 /challenge-discussion/#Text ChallengeDiscussionR GET POST
+/challenge-param-graph-data/#Text/#Text ChallengeParamGraphDataR GET
 /challenge-discussion-rss/#Text ChallengeDiscussionFeedR GET
 /trigger-remotely TriggerRemotelyR POST
 /trigger-locally TriggerLocallyR POST
