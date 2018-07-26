@@ -108,19 +108,19 @@ gatherOutput ph hout herr chan = work mempty mempty
                 -- Get any last bit written between the read and the status
                 -- check.
                 _ <- takeFinalBit herr resterr
-                all <- takeFinalBit hout restout
-                return (ec, all)
+                allTheRest <- takeFinalBit hout restout
+                return (ec, allTheRest)
     takeABit h acc = do
-      bs <- liftIO $ BS.hGetNonBlocking hout (64 * 1024)
+      bs <- liftIO $ BS.hGetNonBlocking h (64 * 1024)
       let acc' = acc <> (decodeUtf8 bs)
       let (fullLines, rest) = processOutput acc'
       mapM_ (msg chan) fullLines
       return rest
     takeFinalBit h rest = do
-      last <- liftIO $ BS.hGetContents h
-      let all = rest <> (decodeUtf8 last)
-      mapM_ (msg chan) $ lines all
-      return all
+      lastPart <- liftIO $ BS.hGetContents h
+      let allTheRest = rest <> (decodeUtf8 lastPart)
+      mapM_ (msg chan) $ lines allTheRest
+      return allTheRest
 
 msg :: Channel -> Text -> Handler ()
 msg chan m = liftIO $ atom $ writeTChan chan $ Just (m ++ "\n")
