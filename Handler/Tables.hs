@@ -132,17 +132,23 @@ getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluation
                                                                                        Nothing -> []))
 
 
-getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge -> ((Entity Submission) -> Bool) -> (TableEntry -> a) -> Handler (Test, [LeaderboardEntry])
+getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge
+                                             -> ((Entity Submission) -> Bool)
+                                             -> (TableEntry -> a)
+                                             -> Handler (Test, [LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntriesByCriterion challengeId condition selector = do
-  (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
+  infos@(evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
   let mainTestEnt = getMainTest tests
   let (Entity mainTestId mainTest) = mainTestEnt
   let auxItems = map (\i -> (selector i, [i])) $ filter (\(TableEntry _ _ _ em _ _) -> member mainTestId em) $ evaluationMaps
   let auxItemsMap = Map.fromListWith (++) auxItems
   let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluation a) (evaluationScore $ leaderboardEvaluation b)
-  entries' <- mapM (toLeaderboardEntry challengeId mainTestEnt) $ filter (\ll -> not (null ll)) $ map snd $ Map.toList auxItemsMap
+  entries' <- mapM (toLeaderboardEntry challengeId mainTestEnt)
+             $ filter (\ll -> not (null ll))
+             $ map snd
+             $ Map.toList auxItemsMap
   let entries = sortBy (flip entryComparator) entries'
-  return (mainTest, entries)
+  return (mainTest, entries, infos)
 
 toLeaderboardEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> Entity Test -> t TableEntry -> HandlerFor site LeaderboardEntry
 toLeaderboardEntry challengeId (Entity mainTestId mainTest) ss = do
@@ -155,7 +161,9 @@ toLeaderboardEntry challengeId (Entity mainTestId mainTest) ss = do
   parameters <- runDB $ selectList [ParameterVariant ==. (entityKey bestVariant)] [Asc ParameterName]
 
   -- get all user submissions, including hidden ones
-  allUserSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId, SubmissionSubmitter ==. entityKey user] [Desc SubmissionStamp]
+  allUserSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId,
+                                           SubmissionSubmitter ==. entityKey user]
+                                          [Desc SubmissionStamp]
   return $ LeaderboardEntry {
               leaderboardUser = entityVal user,
               leaderboardUserId = entityKey user,
@@ -170,8 +178,11 @@ toLeaderboardEntry challengeId (Entity mainTestId mainTest) ss = do
               }
      where submissionComparator (TableEntry _  _  _ em1 _ _) (TableEntry _  _ _ em2 _ _) = (compareResult mainTest) (evaluationScore (em1 Map.! mainTestId)) (evaluationScore (em2 Map.! mainTestId))
 
-getLeaderboardEntries :: Key Challenge -> Handler (Test, [LeaderboardEntry])
-getLeaderboardEntries challengeId = getLeaderboardEntriesByCriterion challengeId (const True) (\(TableEntry _ _ (Entity userId _) _ _ _) -> userId)
+getLeaderboardEntries :: Key Challenge -> Handler (Test, [LeaderboardEntry], ([TableEntry], [Entity Test]))
+getLeaderboardEntries challengeId =
+  getLeaderboardEntriesByCriterion challengeId
+                                   (const True)
+                                   (\(TableEntry _ _ (Entity userId _) _ _ _) -> userId)
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
 compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ testMetric test) x y
@@ -183,9 +194,13 @@ compareFun :: MetricOrdering -> Double -> Double -> Ordering
 compareFun TheLowerTheBetter = flip compare
 compareFun TheHigherTheBetter = compare
 
-getChallengeSubmissionInfos :: ((Entity Submission) -> Bool) -> Key Challenge -> Handler ([TableEntry], [Entity Test])
+getChallengeSubmissionInfos :: ((Entity Submission) -> Bool)
+                              -> Key Challenge
+                              -> Handler ([TableEntry], [Entity Test])
 getChallengeSubmissionInfos condition challengeId = do
-  allSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId, SubmissionIsHidden !=. Just True] [Desc SubmissionStamp]
+  allSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId,
+                                       SubmissionIsHidden !=. Just True]
+                                      [Desc SubmissionStamp]
   let submissions = filter condition allSubmissions
   tests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
   evaluationMaps <- mapM getEvaluationMapForSubmission submissions

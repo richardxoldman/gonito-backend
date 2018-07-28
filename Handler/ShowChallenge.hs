@@ -44,7 +44,7 @@ getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   Just repo <- runDB $ get $ challengePublicRepo challenge
-  (mainTest, leaderboard) <- getLeaderboardEntries challengeId
+  (mainTest, leaderboard, _) <- getLeaderboardEntries challengeId
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth
 

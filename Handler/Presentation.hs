@@ -6,7 +6,6 @@ import Handler.ShowChallenge
 import Handler.Tables
 
 import qualified Yesod.Table as Table
-import Yesod.Table (Table)
 
 import Text.Hamlet (hamletFile)
 
@@ -30,7 +29,7 @@ getPresentation4RealR :: Handler Html
 getPresentation4RealR = do
   readme <- challengeReadme sampleChallengeName
 
-  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName sampleChallengeName
+  (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName sampleChallengeName
 
   (Just (Entity sampleUserId _)) <- runDB $ getBy $ UniqueUser sampleUserIdent
   let condition = (\(Entity _ submission) -> (submissionSubmitter submission == sampleUserId))
@@ -54,11 +53,11 @@ getPresentationDATeCH2017R = do
   presentationLayout $(widgetFile "presentation-datech-2017")
 
 
+getSampleLeaderboard :: Text -> HandlerFor App (WidgetT App IO ())
 getSampleLeaderboard name = do
-  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
+  (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
 
-  Just repo <- runDB $ get $ challengePublicRepo challenge
-  (test, leaderboard) <- getLeaderboardEntries challengeId
+  (test, leaderboard, _) <- getLeaderboardEntries challengeId
   let leaderboardWithRanks = zip [1..] (take 10 leaderboard)
 
   app <- getYesod
@@ -66,13 +65,11 @@ getSampleLeaderboard name = do
 
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
-  return $ Table.buildBootstrap (leaderboardTable Nothing (challengeName challenge) scheme challengeRepo test) leaderboardWithRanks
+  return $ Table.buildBootstrap (leaderboardTable Nothing
+                                                  (challengeName challenge)
+                                                  scheme challengeRepo test)
+                                leaderboardWithRanks
 
 presentationLayout widget = do
-  master <- getYesod
-  mmsg <- getMessage
-
-  maybeUser <- maybeAuth
-
   pc <- widgetToPageContent widget
   withUrlRenderer $(hamletFile "templates/presentation-layout.hamlet")

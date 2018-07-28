@@ -71,7 +71,9 @@ submissionsToJSON :: ((Entity Submission) -> Bool) -> Text -> Handler Value
 submissionsToJSON condition challengeName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
 
-  (_, entries) <- getLeaderboardEntriesByCriterion challengeId condition (\(TableEntry (Entity submissionId _) _ _ _ _ _) -> submissionId)
+  (_, entries, _) <- getLeaderboardEntriesByCriterion challengeId
+                                                     condition
+                                                     (\(TableEntry (Entity submissionId _) _ _ _ _ _) -> submissionId)
 
   let naturalRange = getNaturalRange entries
   let submissionIds = map leaderboardBestSubmissionId entries
