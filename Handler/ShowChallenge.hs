@@ -110,10 +110,17 @@ getChallengeHowToR name = do
                   Nothing -> False
   isSSHUploaded <- case maybeUser of
     Just (Entity userId _) -> do
-      keys <- runDB $ selectList [PublicKeyUser ==. userId] []
-      return $ not (null keys)
+      ukeys <- runDB $ selectList [PublicKeyUser ==. userId] []
+      return $ not (null ukeys)
     Nothing -> return False
-  challengeLayout False challenge (challengeHowTo challenge settings repo (idToBeShown challenge maybeUser) isIDSet isSSHUploaded mToken)
+  challengeLayout False challenge (challengeHowTo
+                                   challenge
+                                   settings
+                                   repo
+                                   (idToBeShown challenge maybeUser)
+                                   isIDSet
+                                   isSSHUploaded
+                                   mToken)
 
 idToBeShown :: p -> Maybe (Entity User) -> Text
 idToBeShown _ maybeUser =
@@ -257,13 +264,14 @@ findTagsLine = tagsLine <|> (anyLine >> findTagsLine)
 
 tagsLine :: Data.Attoparsec.Text.Parser Text
 tagsLine = do
-  (string "tags" <|> string "labels" <|> string "Tags" <|> string "Labels")
-  char ':'
+  _ <- (string "tags" <|> string "labels" <|> string "Tags" <|> string "Labels")
+  _ <- char ':'
   skipMany space
   s <- many notEndOfLine
   endOfLine
   return $ Data.Text.pack s
 
+commaSep :: Data.Attoparsec.Text.Parser a -> Data.Attoparsec.Text.Parser [a]
 commaSep p  = p `sepBy` (skipMany space *> char ',' *> skipMany space)
 
 nonEmptyLine :: Data.Attoparsec.Text.Parser Text
@@ -285,9 +293,9 @@ notSpace = satisfy (\c -> c /= '\r' && c /= '\n' && c /= ' ' && c /= '\t')
 notEndOfLine :: Data.Attoparsec.Text.Parser Char
 notEndOfLine = satisfy (\c -> c /= '\r' && c /= '\n')
 
+emptyLine :: Data.Attoparsec.Text.Parser ()
 emptyLine = do
-  many space
-  endOfLine
+  many space *> endOfLine
 
 getOuts :: Channel -> Key Submission -> Handler ([Out])
 getOuts chan submissionId = do
@@ -502,15 +510,31 @@ getChallengeSubmissions condition name = do
                $ concat
                $ map (\entry -> map (parameterName . entityVal) (tableEntryParams entry)) evaluationMaps
 
-  challengeLayout True challenge (challengeAllSubmissionsWidget muserId challenge scheme challengeRepo evaluationMaps tests params)
+  challengeLayout True challenge (challengeAllSubmissionsWidget muserId
+                                                                challenge
+                                                                scheme
+                                                                challengeRepo
+                                                                evaluationMaps
+                                                                tests
+                                                                params)
 
-challengeAllSubmissionsWidget :: Maybe UserId -> Challenge -> RepoScheme -> Repo -> [TableEntry] -> [Entity Test] -> [Text] -> WidgetFor App ()
+challengeAllSubmissionsWidget :: Maybe UserId
+                                -> Challenge
+                                -> RepoScheme
+                                -> Repo
+                                -> [TableEntry]
+                                -> [Entity Test]
+                                -> [Text]
+                                -> WidgetFor App ()
 challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests params =
   $(widgetFile "challenge-all-submissions")
   where chartJSs = mconcat $ map (getChartJs challenge mainTest) params
         mainTest = entityVal $ getMainTest tests
 
-getChartJs :: Challenge -> Test -> Text -> JavascriptUrl (Route App)
+getChartJs :: Challenge
+             -> Test
+             -> Text
+             -> JavascriptUrl (Route App)
 getChartJs challenge test param = [julius|
 $.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) param}", function(data) {
         c3.generate({
