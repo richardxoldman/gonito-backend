@@ -316,8 +316,18 @@ thenCmp :: Ordering -> Ordering -> Ordering
 thenCmp EQ o2 = o2
 thenCmp o1 _  = o1
 
+-- get the test with the highest priority
 getMainTest :: [Entity Test] -> Entity Test
 getMainTest tests = DL.maximumBy testComparator tests
+
+-- get all the non-dev tests starting with the one with the highest priorty
+-- (or all the tests if there are no non-dev tests)
+getMainTests :: [Entity Test] -> [Entity Test]
+getMainTests tests = sortBy (flip testComparator) tests'
+   where tests' = if null tests''
+                    then tests
+                    else tests''
+         tests'' = filter (not . ("dev-" `isPrefixOf`) . testName . entityVal) tests
 
 testComparator :: Entity Test -> Entity Test -> Ordering
 testComparator (Entity _ a) (Entity _ b) =
