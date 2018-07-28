@@ -44,9 +44,11 @@ getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   Just repo <- runDB $ get $ challengePublicRepo challenge
-  (mainTest, leaderboard, _) <- getLeaderboardEntries challengeId
+  (mainTest, leaderboard, (entries, tests)) <- getLeaderboardEntries challengeId
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth
+
+  let params = getAllParams entries
 
   app <- getYesod
   let scheme = appRepoScheme $ appSettings app
@@ -58,7 +60,9 @@ getShowChallengeR name = do
                                                       challengeRepo
                                                       mainTest
                                                       repo
-                                                      leaderboard)
+                                                      leaderboard
+                                                      params
+                                                      tests)
 
 getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR name = do
@@ -82,8 +86,19 @@ showChallengeWidget :: Maybe UserId
                       -> Test
                       -> Repo
                       -> [LeaderboardEntry]
+                      -> [Text]
+                      -> [Entity Test]
                       -> WidgetFor App ()
-showChallengeWidget muserId challenge scheme challengeRepo test repo leaderboard = $(widgetFile "show-challenge")
+showChallengeWidget muserId
+                    challenge
+                    scheme
+                    challengeRepo
+                    test
+                    repo
+                    leaderboard
+                    params
+                    tests
+  = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
         maybeRepoLink = getRepoLink repo
 
@@ -516,10 +531,7 @@ getChallengeSubmissions condition name = do
 
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
-  let params = sort
-               $ nub
-               $ concat
-               $ map (\entry -> map (parameterName . entityVal) (tableEntryParams entry)) evaluationMaps
+  let params = getAllParams evaluationMaps
 
   challengeLayout True challenge (challengeAllSubmissionsWidget muserId
                                                                 challenge
@@ -528,6 +540,12 @@ getChallengeSubmissions condition name = do
                                                                 evaluationMaps
                                                                 tests
                                                                 params)
+
+getAllParams :: [TableEntry] -> [Text]
+getAllParams entries = sort
+               $ nub
+               $ concat
+               $ map (\entry -> map (parameterName . entityVal) (tableEntryParams entry)) entries
 
 challengeAllSubmissionsWidget :: Maybe UserId
                                 -> Challenge

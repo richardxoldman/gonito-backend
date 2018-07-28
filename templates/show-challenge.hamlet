@@ -11,3 +11,5 @@ $nothing
 
 <script src="/static/js/sigma.min.js">
 <script src="/static/js/sigma.parsers.json.min.js">
+
+^{paramGraphsWidget challenge tests params}
