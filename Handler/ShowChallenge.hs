@@ -87,7 +87,6 @@ showChallengeWidget muserId challenge scheme challengeRepo test repo leaderboard
   where leaderboardWithRanks = zip [1..] leaderboard
         maybeRepoLink = getRepoLink repo
 
-
 getRepoLink :: Repo -> Maybe Text
 getRepoLink repo
   | sitePrefix `isPrefixOf` url = Just $ (browsableGitRepo bareRepoName) ++ "/" ++ (repoBranch repo)
@@ -540,6 +539,9 @@ challengeAllSubmissionsWidget :: Maybe UserId
                                 -> WidgetFor App ()
 challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests params =
   $(widgetFile "challenge-all-submissions")
+
+paramGraphsWidget :: Challenge -> [Entity Test] -> [Text] -> WidgetFor App ()
+paramGraphsWidget challenge tests params = $(widgetFile "param-graphs")
   where chartJSs = getCharsJss challenge selectedTests params
         selectedTests = getMainTests tests
 

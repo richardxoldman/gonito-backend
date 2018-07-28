@@ -1,0 +1,13 @@
+$if not (null params)
+  <h3>Graphs by parameters
+
+  $forall param <- params
+     <h4>
+      <tt>#{param}
+     $forall test <- selectedTests
+       <a name="link-chart-#{param}-#{toPathPiece $ entityKey test}">
+       <div id="chart-#{param}-#{toPathPiece $ entityKey test}">
+       [<a href="#link-chart-#{param}-#{toPathPiece $ entityKey test}">direct link</a>]
+
+  <script src="/static/js/d3.min.js" charset="utf-8"></script>
+  <script src="/static/js/c3.min.js"></script>
