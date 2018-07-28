@@ -18,17 +18,15 @@ data ParamGraphItem = ParamGraphItem TableEntry Text Text MetricValue
 
 data ParamGraphSeries = ParamGraphSeries Text [(TableEntry, Text, MetricValue)]
 
-getChallengeParamGraphDataR :: Text -> Text -> Handler Value
-getChallengeParamGraphDataR challengeName paramName = do
+getChallengeParamGraphDataR :: Text -> (Key Test) -> Text -> Handler Value
+getChallengeParamGraphDataR challengeName testId paramName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
 
   (entries, tests) <- getChallengeSubmissionInfos (const True) challengeId
 
-  let mainTestId = entityKey $ getMainTest tests
-
   let values = map (findParamValue paramName) entries
 
-  let items = Data.Maybe.catMaybes $ map (toParamGraphItem mainTestId paramName) $ zip entries values
+  let items = Data.Maybe.catMaybes $ map (toParamGraphItem testId paramName) $ zip entries values
 
   let series = map (\(label, rs) -> ParamGraphSeries label rs)
                $ organizeBy

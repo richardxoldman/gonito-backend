@@ -529,16 +529,16 @@ challengeAllSubmissionsWidget :: Maybe UserId
 challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests params =
   $(widgetFile "challenge-all-submissions")
   where chartJSs = mconcat $ map (getChartJs challenge mainTest) params
-        mainTest = entityVal $ getMainTest tests
+        mainTest = getMainTest tests
 
 getChartJs :: Challenge
-             -> Test
+             -> Entity Test
              -> Text
              -> JavascriptUrl (Route App)
-getChartJs challenge test param = [julius|
-$.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) param}", function(data) {
+getChartJs challenge (Entity testId test) param = [julius|
+$.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) testId param}", function(data) {
         c3.generate({
-                bindto: '#chart-' + #{toJSON param},
+                bindto: '#chart-' + #{toJSON param} + '-' + #{toJSON testId},
                 data: data,
                 axis: {
                    x: {

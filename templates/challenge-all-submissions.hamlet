@@ -15,7 +15,7 @@ $if not (null params)
   <h3>Graphs by parameters
 
   $forall param <- params
-    <div id="chart-#{param}"></div>
+    <div id="chart-#{param}-#{toPathPiece $ entityKey mainTest}"></div>
 
   <script src="/static/js/d3.min.js" charset="utf-8"></script>
   <script src="/static/js/c3.min.js"></script>

@@ -5,8 +5,7 @@ module Foundation where
 import Database.Persist.Sql        (ConnectionPool, runSqlPool)
 import Import.NoFoundation
 import Text.Hamlet                 (hamletFile)
-import Yesod.Auth.HashDB           (HashDBUser(..),authHashDB,authHashDBWithForm)
-import Yesod.Auth.Message          (AuthMessage (InvalidLogin))
+import Yesod.Auth.HashDB           (HashDBUser(..), authHashDBWithForm)
 import qualified Yesod.Core.Unsafe as Unsafe
 import Yesod.Core.Types            (Logger)
 import Yesod.Default.Util          (addStaticContentExternal)
@@ -50,6 +49,7 @@ mkMessage "App" "messages" "en"
 -- | A convenient synonym for creating forms.
 type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
 
+isTrustedAuthorized :: (AuthEntity (HandlerSite m) ~ User, AuthId (HandlerSite m) ~ Key User, MonadHandler m, YesodAuthPersist (HandlerSite m)) => m AuthResult
 isTrustedAuthorized = do
   mauth <- maybeAuth
   case mauth of
@@ -58,6 +58,7 @@ isTrustedAuthorized = do
       | isTrusted user -> return Authorized
       | otherwise    -> return $ Unauthorized "???"
 
+isAdmin :: (AuthEntity (HandlerSite m) ~ User, AuthId (HandlerSite m) ~ Key User, MonadHandler m, YesodAuthPersist (HandlerSite m)) => m AuthResult
 isAdmin = do
   mauth <- maybeAuth
   case mauth of
@@ -153,7 +154,7 @@ instance Yesod App where
 
     isAuthorized (ApiTxtScoreR _) _ = return Authorized
 
-    isAuthorized (ChallengeParamGraphDataR _ _) _ = return Authorized
+    isAuthorized (ChallengeParamGraphDataR _ _ _) _ = return Authorized
 
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
@@ -228,6 +229,7 @@ contactEmailLabel site =
      Nothing -> ""
    where maybeContactMail = appContactEmail $ appSettings site
 
+myLoginForm :: App -> Route site -> WidgetFor site ()
 myLoginForm site action = $(whamletFile "templates/auth.hamlet")
 
 instance YesodAuthPersist App
