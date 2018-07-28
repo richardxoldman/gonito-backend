@@ -53,7 +53,12 @@ getShowChallengeR name = do
 
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
-  challengeLayout True challenge (showChallengeWidget muserId challenge scheme challengeRepo mainTest repo leaderboard)
+  challengeLayout True challenge (showChallengeWidget muserId
+                                                      challenge scheme
+                                                      challengeRepo
+                                                      mainTest
+                                                      repo
+                                                      leaderboard)
 
 getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR name = do
@@ -70,7 +75,14 @@ challengeReadme name = do
   contents <- liftIO $ System.IO.readFile readmeFilePath
   return $ markdown def $ TL.pack contents
 
-showChallengeWidget :: Maybe UserId -> Challenge -> RepoScheme -> Repo -> Test -> Repo -> [LeaderboardEntry] -> WidgetFor App ()
+showChallengeWidget :: Maybe UserId
+                      -> Challenge
+                      -> RepoScheme
+                      -> Repo
+                      -> Test
+                      -> Repo
+                      -> [LeaderboardEntry]
+                      -> WidgetFor App ()
 showChallengeWidget muserId challenge scheme challengeRepo test repo leaderboard = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
         maybeRepoLink = getRepoLink repo
@@ -139,7 +151,7 @@ defaultBranch :: IsString a => RepoScheme -> Maybe a
 defaultBranch SelfHosted = Just "master"
 defaultBranch Branches = Nothing
 
-challengeHowTo challenge settings repo idToBeShown isIDSet isSSHUploaded mToken = $(widgetFile "challenge-how-to")
+challengeHowTo challenge settings repo shownId isIDSet isSSHUploaded mToken = $(widgetFile "challenge-how-to")
 
 getChallengeSubmissionR :: Text -> Handler Html
 getChallengeSubmissionR name = do

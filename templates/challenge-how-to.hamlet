@@ -42,7 +42,7 @@ $case (appRepoScheme settings)
        \ (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
 
   <pre>
-    git clone #{appRepoHost settings}#{idToBeShown}/#{challengeName challenge}
+    git clone #{appRepoHost settings}#{shownId}/#{challengeName challenge}
 
   <p>(Warning about empty repository is expected, don't worry about it.)
 
@@ -86,14 +86,14 @@ $case (appRepoScheme settings)
   cd #{challengeName challenge}
   git add foo.py build.sh # add your source codes
 
-$maybe gitAnnexRemote <- (repoGitAnnexRemote repo)
+$if isJust (repoGitAnnexRemote repo)
   <pre>
     # if your output files are large or if they should not pushed to the regular repo (e.g. contain sensitive information):
     git annex add dev-0/out.tsv test-A/out.tsv
     git annex copy --to storage
     # otherwise (e.g. they are just class labels), add the output files in a regular manner:
     git add dev-0/out.tsv test-A/out.tsv
-$nothing
+$else
   <pre>
     git add dev-0/out.tsv test-A/out.tsv # add your output files
 
