@@ -10,3 +10,5 @@
        'pageLength': 50,
        'order': [[1, 'desc']]});
   } );
+
+^{chartJSs}

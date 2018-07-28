@@ -38,6 +38,8 @@ import Data.Text (pack, unpack)
 
 import Data.Conduit.SmartSource
 
+import Data.List (nub)
+
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
@@ -114,7 +116,7 @@ getChallengeHowToR name = do
   challengeLayout False challenge (challengeHowTo challenge settings repo (idToBeShown challenge maybeUser) isIDSet isSSHUploaded mToken)
 
 idToBeShown :: p -> Maybe (Entity User) -> Text
-idToBeShown challenge maybeUser =
+idToBeShown _ maybeUser =
   case maybeUser of
    Just user ->  case userLocalId $ entityVal user of
                  Just localId -> localId
@@ -495,10 +497,37 @@ getChallengeSubmissions condition name = do
 
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
-  challengeLayout True challenge (challengeAllSubmissionsWidget muserId challenge scheme challengeRepo evaluationMaps tests)
+  let params = sort
+               $ nub
+               $ concat
+               $ map (\entry -> map (parameterName . entityVal) (tableEntryParams entry)) evaluationMaps
 
-challengeAllSubmissionsWidget :: Maybe UserId -> Challenge -> RepoScheme -> Repo -> [TableEntry] -> [Entity Test] -> WidgetFor App ()
-challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests = $(widgetFile "challenge-all-submissions")
+  challengeLayout True challenge (challengeAllSubmissionsWidget muserId challenge scheme challengeRepo evaluationMaps tests params)
+
+challengeAllSubmissionsWidget :: Maybe UserId -> Challenge -> RepoScheme -> Repo -> [TableEntry] -> [Entity Test] -> [Text] -> WidgetFor App ()
+challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests params =
+  $(widgetFile "challenge-all-submissions")
+  where chartJSs = mconcat $ map (getChartJs challenge mainTest) params
+        mainTest = entityVal $ getMainTest tests
+
+getChartJs :: Challenge -> Test -> Text -> JavascriptUrl (Route App)
+getChartJs challenge test param = [julius|
+$.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) param}", function(data) {
+        c3.generate({
+                bindto: '#chart-' + #{toJSON param},
+                data: data,
+                axis: {
+                   x: {
+                     label: #{toJSON param},
+                   },
+                   y: {
+                     label: #{toJSON testFormatted},
+                   }
+                }
+    }) });
+|]
+   where testFormatted = formatTest test
+
 
 challengeLayout :: Bool -> Challenge -> WidgetFor App () -> HandlerFor App Html
 challengeLayout withHeader challenge widget = do

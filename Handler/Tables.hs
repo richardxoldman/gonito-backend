@@ -42,6 +42,11 @@ data TableEntry = TableEntry (Entity Submission)
                              [(Entity Tag, Entity SubmissionTag)]
                              [Entity Parameter]
 
+-- TODO change into a record
+tableEntryParams (TableEntry _ _ _ _ _ paramEnts) = paramEnts
+tableEntryMapping (TableEntry _ _ _ mapping _ _) = mapping
+tableEntryTagsInfo (TableEntry _ _ _ _ tagsInfo _) = tagsInfo
+
 submissionsTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App TableEntry
 submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.text "submitter" (formatSubmitter . (\(TableEntry _  _ (Entity _ submitter) _ _ _) -> submitter))
@@ -65,7 +70,7 @@ descriptionToBeShown s v params = (submissionDescription s) ++ (Data.Text.pack v
                            ""
                          else
                            " " ++ r
-        paramsShown = Data.Text.unwords $ map (\p -> parameterName p ++ "=" ++ parameterValue p) params
+        paramsShown = Data.Text.unwords $ map formatParameter params
 
 extractScore :: Key Test -> TableEntry -> Maybe Evaluation
 extractScore k (TableEntry _  _  _ m _ _) = lookup k m
@@ -105,7 +110,7 @@ statusCell :: Text -> RepoScheme -> Repo -> (a -> (SubmissionId, Submission, Use
 statusCell challengeName repoScheme challengeRepo fun = Table.widget "" (statusCellWidget challengeName repoScheme challengeRepo . fun)
 
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
-resultCell test fun = hoverTextCell ((testName test) ++ "/" ++ (Data.Text.pack $ show $ testMetric test)) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
+resultCell test fun = hoverTextCell (formatTest test) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
 
 statusCellWidget :: Eq a => Text -> RepoScheme -> Repo -> (SubmissionId, Submission, a, Maybe a) -> WidgetFor App ()
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")

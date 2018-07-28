@@ -332,6 +332,12 @@ formatTruncatedScore (Just precision) (Just evaluation) = case evaluationScore e
   Just score -> T.pack $ printf "%0.*f" precision score
   Nothing -> formatFullScore Nothing
 
+formatParameter :: Parameter -> Text
+formatParameter param = parameterName param ++ "=" ++ parameterValue param
+
+formatTest :: Test -> Text
+formatTest test = (testName test) ++ "/" ++ (T.pack $ show $ testMetric test)
+
 findFilePossiblyCompressed :: FilePath -> IO (Maybe FilePath)
 findFilePossiblyCompressed baseFilePath = do
   let possibleFiles = [baseFilePath] ++ (map (baseFilePath <.>)  ["gz", "bz2", "xz"])

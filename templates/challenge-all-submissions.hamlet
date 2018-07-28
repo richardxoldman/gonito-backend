@@ -3,7 +3,19 @@
 
 ^{Table.buildBootstrap (submissionsTable muserId (challengeName challenge) scheme challengeRepo tests) submissions}
 
+$if not (null params)
+   <h3>Submission graph
+
 <div id="graph-container">
 
 <script src="/static/js/sigma.min.js">
 <script src="/static/js/sigma.parsers.json.min.js">
+
+$if not (null params)
+  <h3>Graphs by parameters
+
+  $forall param <- params
+    <div id="chart-#{param}"></div>
+
+  <script src="/static/js/d3.min.js" charset="utf-8"></script>
+  <script src="/static/js/c3.min.js"></script>
