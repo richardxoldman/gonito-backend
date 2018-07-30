@@ -53,7 +53,7 @@ submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ timestampCell "when" (submissionStamp . (\(TableEntry (Entity _ s) _ _ _ _ _) -> s))
   ++ descriptionCell
   ++ mconcat (map (\(Entity k t) -> resultCell t (extractScore k)) tests)
-  ++ statusCell challengeName repoScheme challengeRepo (\(TableEntry (Entity submissionId submission) _ (Entity userId _) _ _ _) -> (submissionId, submission, userId, mauthId))
+  ++ statusCell challengeName repoScheme challengeRepo (\(TableEntry (Entity submissionId submission) (Entity variantId variant) (Entity userId _) _ _ _) -> (submissionId, submission, variantId, variant, userId, mauthId))
 
 descriptionCell :: Table site TableEntry
 descriptionCell = Table.widget "description" (
@@ -85,6 +85,8 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo test = mempty
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
   ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
                                        leaderboardBestSubmission e,
+                                       leaderboardBestVariantId e,
+                                       leaderboardBestVariant e,
                                        leaderboardUserId e,
                                        mauthId))
 
@@ -106,14 +108,14 @@ timestampCell :: Text -> (a -> UTCTime) -> Table site a
 timestampCell h timestampFun = hoverTextCell h (Data.Text.pack . shorterFormat . timestampFun) (Data.Text.pack . show . timestampFun)
    where shorterFormat = formatTime defaultTimeLocale "%Y-%m-%d %H:%M"
 
-statusCell :: Text -> RepoScheme -> Repo -> (a -> (SubmissionId, Submission, UserId, Maybe UserId)) -> Table App a
+statusCell :: Text -> RepoScheme -> Repo -> (a -> (SubmissionId, Submission, VariantId, Variant, UserId, Maybe UserId)) -> Table App a
 statusCell challengeName repoScheme challengeRepo fun = Table.widget "" (statusCellWidget challengeName repoScheme challengeRepo . fun)
 
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
 resultCell test fun = hoverTextCell (formatTest test) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
 
-statusCellWidget :: Eq a => Text -> RepoScheme -> Repo -> (SubmissionId, Submission, a, Maybe a) -> WidgetFor App ()
-statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, userId, mauthId) = $(widgetFile "submission-status")
+statusCellWidget :: Eq a => Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, a, Maybe a) -> WidgetFor App ()
+statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, userId, mauthId) = $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
           isOwner = (mauthId == Just userId)

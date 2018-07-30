@@ -11,7 +11,19 @@
  $forall (achievement, workingOnId) <- achievements
   <li><a href=@{SubmissionForAchievementR submissionId workingOnId}>send to review for #{achievementName $ entityVal achievement} achievement
 
-<h4>
+$maybe variantId <- mVariantId
+  <h4>Variant parameters
+
+  $forall param <- variantParams
+       <p>#{parameterName $ entityVal param} = #{parameterValue $ entityVal param}
+
+  <h5>Add new parameter
+
+  <form method=post action=@{AddVariantParamR submissionId variantId}#form enctype=#{formEnctype2}>
+    ^{addVariantParamWidget}
+    <button .btn .btn-primary type="submit">
+      _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
+  <hr>
 
 $if submissionIsHidden submission == Just True
   <p>Submission is hidden!

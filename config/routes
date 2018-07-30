@@ -53,6 +53,8 @@
 /my-score MyScoreR GET
 
 /edit-submission/#SubmissionId EditSubmissionR GET POST
+/edit-submission-and-variant/#SubmissionId/#VariantId EditSubmissionAndVariantR GET POST
+/add-variant-param/#SubmissionId/#VariantId AddVariantParamR POST
 
 /presentation/4real Presentation4RealR GET
 /presentation/datech-2017 PresentationDATeCH2017R GET

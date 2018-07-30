@@ -12,18 +12,40 @@ import Handler.MakePublic
 
 import Data.Text as T
 
+postAddVariantParamR :: SubmissionId -> VariantId -> Handler Html
+postAddVariantParamR submissionId variantId = do
+  ((result, _), _) <- runFormPost addVariantParamForm
+  let FormSuccess (pName, pValue) = result
+  _ <- runDB $ insert $ Parameter {
+    parameterVariant = variantId,
+    parameterName = pName,
+    parameterValue = pValue }
+  getEditSubmissionAndVariantR submissionId variantId
+
 getEditSubmissionR :: SubmissionId -> Handler Html
-getEditSubmissionR submissionId = do
+getEditSubmissionR submissionId = getEditSubmissionG submissionId Nothing
+
+getEditSubmissionAndVariantR :: SubmissionId -> VariantId -> Handler Html
+getEditSubmissionAndVariantR submissionId variantId = getEditSubmissionG submissionId (Just variantId)
+
+getEditSubmissionG :: SubmissionId -> (Maybe VariantId) -> Handler Html
+getEditSubmissionG submissionId mVariantId = do
   submission <- runDB $ get404 submissionId
   tags <- runDB $ getTags submissionId
   let mTagsAsText = case tags of
         [] -> Nothing
         _ -> Just $ T.intercalate ", " $ Import.map (tagName . entityVal . fst) tags
   (formWidget, formEnctype) <- generateFormPost $ editSubmissionForm (submissionDescription submission) mTagsAsText
-  doEditSubmission formWidget formEnctype submissionId
+  doEditSubmission formWidget formEnctype submissionId mVariantId
 
 postEditSubmissionR :: SubmissionId -> Handler Html
-postEditSubmissionR submissionId = do
+postEditSubmissionR submissionId = postEditSubmissionG submissionId Nothing
+
+postEditSubmissionAndVariantR :: SubmissionId -> VariantId -> Handler Html
+postEditSubmissionAndVariantR submissionId variantId = postEditSubmissionG submissionId (Just variantId)
+
+postEditSubmissionG :: SubmissionId -> (Maybe VariantId) -> Handler Html
+postEditSubmissionG submissionId mVariantId = do
   submission <- runDB $ get404 submissionId
   ((result, _), _) <- runFormPost $ editSubmissionForm (submissionDescription submission) Nothing
   let FormSuccess (description, tags) = result
@@ -43,7 +65,7 @@ postEditSubmissionR submissionId = do
      do
       setMessage $ toHtml ("Only owner can edit a submission!!!" :: Text)
       return ()
-  getEditSubmissionR submissionId
+  getEditSubmissionG submissionId mVariantId
 
 
 getPossibleAchievements :: (BaseBackend backend ~ SqlBackend, PersistUniqueRead backend, PersistQueryRead backend, MonadIO m) => Key User -> Key Submission -> ReaderT backend m [(Entity Achievement, Key WorkingOn)]
@@ -55,7 +77,7 @@ getPossibleAchievements userId submissionId = do
   let rets = Import.zip achievements workingOns
   return $ Import.map (\(a, (Just w)) -> (a, entityKey w)) $ Import.filter (\(_, mw) -> isJust mw) $ rets
 
-doEditSubmission formWidget formEnctype submissionId = do
+doEditSubmission formWidget formEnctype submissionId mVariantId = do
   submission <- runDB $ get404 submissionId
   submissionFull <- getFullInfo (Entity submissionId submission)
   let view = queryResult submissionFull
@@ -66,6 +88,12 @@ doEditSubmission formWidget formEnctype submissionId = do
 
   achievements <- runDB $ getPossibleAchievements userId submissionId
 
+  variantParams <- case mVariantId of
+    Just variantId -> runDB $ selectList [ParameterVariant ==. variantId] [Asc ParameterName]
+    Nothing -> return []
+
+  (addVariantParamWidget, formEnctype2) <- generateFormPost $ addVariantParamForm
+
   defaultLayout $ do
     setTitle "Edit a submission"
     $(widgetFile "edit-submission")
@@ -74,6 +102,12 @@ editSubmissionForm :: Text -> Maybe Text -> Form (Text, Maybe Text)
 editSubmissionForm description mTags = renderBootstrap3 BootstrapBasicForm $ (,)
     <$> areq textField (bfs MsgSubmissionDescription) (Just description)
     <*> aopt textField (tagsfs MsgSubmissionTags) (Just mTags)
+
+
+addVariantParamForm :: Form (Text, Text)
+addVariantParamForm = renderBootstrap3 BootstrapBasicForm $ (,)
+    <$> areq textField (bfs MsgParameterName) Nothing
+    <*> areq textField (bfs MsgParameterValue) Nothing
 
 
 getHideSubmissionR :: SubmissionId -> Handler Html

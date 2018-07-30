@@ -1,5 +1,5 @@
 $if isOwner
-  <a href="@{EditSubmissionR submissionId}">
+  <a href="@{EditSubmissionAndVariantR submissionId variantId}">
     <span class="glyphicon glyphicon-pencil" title="click to edit the submission" aria-hidden="true">
 
   <a href="@{HideSubmissionR submissionId}">
