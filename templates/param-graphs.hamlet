@@ -6,7 +6,7 @@ $if not (null params)
       <tt>#{param}
      $forall test <- selectedTests
        <a name="link-chart-#{param}-#{toPathPiece $ entityKey test}">
-       <div id="chart-#{param}-#{toPathPiece $ entityKey test}">
+       <div style="height:800px" id="chart-#{param}-#{toPathPiece $ entityKey test}">
        [<a href="#link-chart-#{param}-#{toPathPiece $ entityKey test}">direct link</a>]
 
   <script src="/static/js/d3.min.js" charset="utf-8"></script>
