@@ -122,11 +122,12 @@ cloneRepo repoCloningSpec chan = do
   let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
   let branch = repoSpecBranch $ cloningSpecRepo repoCloningSpec
   maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
+  userId <- requireAuthId
   case maybeRepo of
     Just _ -> do
       err chan "Repo already there"
       return Nothing
-    Nothing -> cloneRepo' repoCloningSpec chan
+    Nothing -> cloneRepo' userId repoCloningSpec chan
 
 updateRepo :: Key Repo -> Channel -> Handler Bool
 updateRepo repoId chan = do
@@ -172,8 +173,8 @@ getLastCommitMessage repoDir chan = do
              ExitSuccess -> Just out
              ExitFailure _ -> Nothing
 
-cloneRepo' :: RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
-cloneRepo' repoCloningSpec chan = do
+cloneRepo' :: UserId -> RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
+cloneRepo' userId repoCloningSpec chan = do
       let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
       msg chan $ concat ["Preparing to clone repo ", url]
       msg chan "Cloning..."
@@ -186,7 +187,6 @@ cloneRepo' repoCloningSpec chan = do
             maybeHeadCommit <- getHeadCommit tmpRepoDir chan
             case maybeHeadCommit of
               Just commitRaw -> do
-                userId <- requireAuthId
                 time <- liftIO getCurrentTime
                 repoId <- runDB $ insert $ Repo {
                   repoUrl=url,

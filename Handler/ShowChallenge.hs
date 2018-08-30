@@ -226,7 +226,7 @@ trigger userId challengeName url mBranch = do
 
 doCreateSubmission :: UserId -> Key Challenge -> Maybe Text -> Maybe Text -> RepoSpec -> Channel -> Handler ()
 doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
-  maybeRepoKey <- getSubmissionRepo challengeId repoSpec chan
+  maybeRepoKey <- getSubmissionRepo userId challengeId repoSpec chan
   case maybeRepoKey of
     Just repoId -> do
       repo <- runDB $ get404 repoId
@@ -445,8 +445,8 @@ rawEval challengeDir metric repoDir name outF = Import.try (runGEvalGetOptions [
                                                           "--out-file", outF,
                                                           "--test-name", (T.unpack name)])
 
-getSubmissionRepo :: Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
-getSubmissionRepo challengeId repoSpec chan = do
+getSubmissionRepo :: UserId -> Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
+getSubmissionRepo userId challengeId repoSpec chan = do
   let url = repoSpecUrl repoSpec
   let branch = repoSpecBranch repoSpec
   let gitAnnexRemote = repoSpecGitAnnexRemote repoSpec
@@ -482,7 +482,7 @@ getSubmissionRepo challengeId repoSpec chan = do
                 repoSpecGitAnnexRemote = Nothing
                 }
         }
-      cloneRepo' repoCloningSpec chan
+      cloneRepo' userId repoCloningSpec chan
 
 checkRepoAvailibility :: Key Challenge -> Key Repo -> Channel -> Handler Bool
 checkRepoAvailibility challengeId repoId chan = do
