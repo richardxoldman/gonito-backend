@@ -3,8 +3,6 @@ module Handler.YourAccount where
 import Import
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
-import Text.Regex.TDFA
-
 import Data.Conduit.Binary
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
@@ -55,6 +53,7 @@ checkPassword Nothing = True
 checkPassword (Just "") = True
 checkPassword (Just passwd) = isPasswordAcceptable passwd
 
+autocompleteOff :: (RenderMessage master msg2, RenderMessage master msg1) => msg1 -> msg2 -> FieldSettings master
 autocompleteOff name tooltip = setts { fsAttrs = (fsAttrs setts) ++ [("autocomplete", "nope")]}
    where setts = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }
 
@@ -66,20 +65,6 @@ yourAccountForm maybeName maybeLocalId maybeSshPubKey anonimised = renderBootstr
     <*> aopt textField (fieldWithTooltip MsgSshPubKey MsgSshPubKeyTooltip) (Just maybeSshPubKey)
     <*> fileAFormOpt (bfs MsgAvatar)
     <*> areq checkBoxField (bfs MsgWantToBeAnonimised) (Just anonimised)
-
-localIdRegexp :: Regex
-localIdRegexp = makeRegexOpts defaultCompOpt{newSyntax=True} defaultExecOpt ("\\`[a-z][-a-z0-9]{0,31}\\'" ::String)
-
-unwantedLocalIds :: [Text]
-unwantedLocalIds = ["git",
-                    "gitolite",
-                    "admin",
-                    "root",
-                    "filipg"]
-
-isLocalIdAcceptable :: Text -> Bool
-isLocalIdAcceptable localId =
-  match localIdRegexp (unpack localId) && not (localId `elem` unwantedLocalIds)
 
 updateUserAccount :: Key User -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe FileInfo -> Bool -> Handler ()
 updateUserAccount userId name maybeLocalId maybePassword maybeSshPubKey maybeAvatarFile anonimised = do

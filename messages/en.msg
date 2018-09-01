@@ -64,3 +64,5 @@ RemoveSubmission: remove submission
 RestoreSubmission: restore submission
 ParameterName: parameter name
 ParameterValue: parameter value
+ChallengeName: computer-friendly name ("slug")
+ChallengeNameTooltip: to be used in the URLs (only lower-case letters, digits or hyphens, must start with a lower-case letter), once set cannot be changed!

@@ -2,7 +2,7 @@ module Handler.CreateChallenge where
 
 import Import
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3,
-                              withSmallInput)
+                              bfs)
 
 import Handler.Shared
 import Handler.Runner
@@ -25,19 +25,15 @@ import Data.Conduit.Binary (sinkLbs, sourceFile)
 
 getCreateChallengeR :: Handler Html
 getCreateChallengeR = do
-    (formWidget, formEnctype) <- generateFormPost sampleForm
-    let submission = Nothing :: Maybe (Import.FileInfo, Text)
-        handlerName = "getCreateChallengeR" :: Text
+    (formWidget, formEnctype) <- generateFormPost createChallengeForm
     defaultLayout $ do
-        aDomId <- newIdent
         setTitle "Welcome To Yesod!"
         $(widgetFile "create-challenge")
 
 postCreateChallengeR :: Handler TypedContent
 postCreateChallengeR = do
-    ((result, formWidget), formEnctype) <- runFormPost sampleForm
-    let handlerName = "postCreateChallengeR" :: Text
-        challengeData = case result of
+    ((result, _), _) <- runFormPost createChallengeForm
+    let challengeData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
         Just (name, publicUrl, publicBranch, publicGitAnnexRemote,
@@ -47,7 +43,20 @@ postCreateChallengeR = do
     user <- runDB $ get404 userId
     if userIsAdmin user
       then
-        runViewProgress $ doCreateChallenge name publicUrl publicBranch publicGitAnnexRemote privateUrl privateBranch privateGitAnnexRemote
+       do
+        let name' = T.strip name
+
+        if isLocalIdAcceptable name'
+          then
+            runViewProgress $ doCreateChallenge name'
+                                                (T.strip publicUrl)
+                                                (T.strip publicBranch)
+                                                (T.strip <$> publicGitAnnexRemote)
+                                                (T.strip privateUrl)
+                                                (T.strip privateBranch)
+                                                (T.strip <$> privateGitAnnexRemote)
+          else
+            runViewProgress $ (flip err) "unexpected challenge ID (use only lower-case letters, digits and hyphens, start with a letter)"
       else
         runViewProgress $ (flip err) "MUST BE AN ADMIN TO CREATE A CHALLENGE"
 
@@ -56,12 +65,12 @@ doCreateChallenge name publicUrl publicBranch publicGitAnnexRemote privateUrl pr
   maybePublicRepoId <- cloneRepo (RepoCloningSpec {
                                     cloningSpecRepo = RepoSpec {
                                         repoSpecUrl = publicUrl,
-                                        repoSpecBranch = publicBranch,
-                                        repoSpecGitAnnexRemote = publicGitAnnexRemote},
-                                    cloningSpecReferenceRepo = RepoSpec {
+                                          repoSpecBranch = publicBranch,
+                                          repoSpecGitAnnexRemote = publicGitAnnexRemote},
+                                      cloningSpecReferenceRepo = RepoSpec {
                                         repoSpecUrl = publicUrl,
-                                        repoSpecBranch = publicBranch,
-                                        repoSpecGitAnnexRemote = publicGitAnnexRemote}}) chan
+                                          repoSpecBranch = publicBranch,
+                                          repoSpecGitAnnexRemote = publicGitAnnexRemote}}) chan
   case maybePublicRepoId of
     Just publicRepoId -> do
       publicRepo <- runDB $ get404 publicRepoId
@@ -76,8 +85,8 @@ doCreateChallenge name publicUrl publicBranch publicGitAnnexRemote privateUrl pr
                                              repoSpecBranch = (repoBranch publicRepo),
                                              repoSpecGitAnnexRemote = (repoGitAnnexRemote publicRepo)}}) chan
       case maybePrivateRepoId of
-          Just privateRepoId -> addChallenge name publicRepoId privateRepoId chan
-          Nothing -> return ()
+        Just privateRepoId -> addChallenge name publicRepoId privateRepoId chan
+        Nothing -> return ()
     Nothing -> return ()
 
 addChallenge :: Text -> (Key Repo) -> (Key Repo) -> Channel -> Handler ()
@@ -184,12 +193,12 @@ never = depth ==? 0
 testDirFilter :: FindClause Bool
 testDirFilter = (fileType ==? Directory) &&? (SFF.fileName ~~? "dev-*" ||? SFF.fileName ~~? "test-*")
 
-sampleForm :: Form (Text, Text, Text, Maybe Text, Text, Text, Maybe Text)
-sampleForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
-    <$> areq textField (fieldSettingsLabel MsgName) Nothing
-    <*> areq textField (fieldSettingsLabel MsgPublicUrl) Nothing
-    <*> areq textField (fieldSettingsLabel MsgBranch) Nothing
-    <*> aopt textField (fieldSettingsLabel MsgGitAnnexRemote) Nothing
-    <*> areq textField (fieldSettingsLabel MsgPrivateUrl) Nothing
-    <*> areq textField (fieldSettingsLabel MsgBranch) Nothing
-    <*> aopt textField (fieldSettingsLabel MsgGitAnnexRemote) Nothing
+createChallengeForm :: Form (Text, Text, Text, Maybe Text, Text, Text, Maybe Text)
+createChallengeForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
+    <$> areq textField (fieldWithTooltip MsgChallengeName MsgChallengeNameTooltip) Nothing
+    <*> areq textField (bfs MsgPublicUrl) Nothing
+    <*> areq textField (bfs MsgBranch) (Just "master")
+    <*> aopt textField (bfs MsgGitAnnexRemote) Nothing
+    <*> areq textField (bfs MsgPrivateUrl) Nothing
+    <*> areq textField (bfs MsgBranch) (Just "dont-peek")
+    <*> aopt textField (bfs MsgGitAnnexRemote) Nothing

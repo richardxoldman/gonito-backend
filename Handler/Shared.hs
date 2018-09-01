@@ -35,6 +35,8 @@ import qualified Test.RandomStrings as RS
 import qualified Crypto.Nonce as Nonce
 import System.IO.Unsafe (unsafePerformIO)
 
+import Text.Regex.TDFA
+
 arena :: Handler FilePath
 arena = do
   app <- getYesod
@@ -363,3 +365,17 @@ findFilePossiblyCompressed baseFilePath = do
   return $ case foundFiles of
     [] -> Nothing
     (h:_) -> Just h
+
+localIdRegexp :: Regex
+localIdRegexp = makeRegexOpts defaultCompOpt{newSyntax=True} defaultExecOpt ("\\`[a-z][-a-z0-9]{0,31}\\'" ::String)
+
+unwantedLocalIds :: [Text]
+unwantedLocalIds = ["git",
+                    "gitolite",
+                    "admin",
+                    "root",
+                    "filipg"]
+
+isLocalIdAcceptable :: Text -> Bool
+isLocalIdAcceptable localId =
+  match localIdRegexp (unpack localId) && not (localId `elem` unwantedLocalIds)
