@@ -15,3 +15,9 @@
         <hr>
         <ul class="list-group">
             <li class="list-group-item">You don't need to specify your ID and SSH public key, if you don't use private repos hosted on Gonito.net.
+        <hr>
+        <ul class="list-group">
+            $maybe token <- userTriggerToken user
+               <li class="list-group-item">Your token for triggering evaluation is <code>#{token}</code>
+            $nothing
+               <li class="list-group-item">Your token for triggering evaluation is not set yet, ask the administrator to do this
