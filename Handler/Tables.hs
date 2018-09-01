@@ -112,7 +112,7 @@ statusCell :: Text -> RepoScheme -> Repo -> (a -> (SubmissionId, Submission, Var
 statusCell challengeName repoScheme challengeRepo fun = Table.widget "" (statusCellWidget challengeName repoScheme challengeRepo . fun)
 
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
-resultCell test fun = hoverTextCell (formatTest test) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
+resultCell test fun = hoverTextCell (formatTestForHtml test) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
 
 statusCellWidget :: Eq a => Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, a, Maybe a) -> WidgetFor App ()
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, userId, mauthId) = $(widgetFile "submission-status")

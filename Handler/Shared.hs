@@ -353,6 +353,9 @@ formatParameter param = parameterName param ++ "=" ++ parameterValue param
 formatTest :: Test -> Text
 formatTest test = (testName test) ++ "/" ++ (T.pack $ show $ testMetric test)
 
+formatTestForHtml :: Test -> Text
+formatTestForHtml test = (testName test) ++ " " ++ (T.pack $ show $ testMetric test)
+
 findFilePossiblyCompressed :: FilePath -> IO (Maybe FilePath)
 findFilePossiblyCompressed baseFilePath = do
   let possibleFiles = [baseFilePath] ++ (map (baseFilePath <.>)  ["gz", "bz2", "xz"])
