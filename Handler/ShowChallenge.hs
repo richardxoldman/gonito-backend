@@ -20,6 +20,8 @@ import Handler.Tables
 import Handler.TagUtils
 import Handler.MakePublic
 
+import qualified Text.Read as TR
+
 import GEval.Core
 import GEval.OptionsParser
 import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
@@ -48,7 +50,7 @@ getShowChallengeR name = do
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth
 
-  let params = getAllParams entries
+  let params = getNumericalParams entries
 
   app <- getYesod
   let scheme = appRepoScheme $ appSettings app
@@ -534,7 +536,7 @@ getChallengeSubmissions condition name = do
 
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
-  let params = getAllParams evaluationMaps
+  let params = getNumericalParams evaluationMaps
 
   challengeLayout True challenge (challengeAllSubmissionsWidget muserId
                                                                 challenge
@@ -543,6 +545,21 @@ getChallengeSubmissions condition name = do
                                                                 evaluationMaps
                                                                 tests
                                                                 params)
+
+getNumericalParams :: [TableEntry] -> [Text]
+getNumericalParams entries = filter (isNumericalParam entries) $ getAllParams entries
+
+isNumericalParam :: [TableEntry] -> Text -> Bool
+isNumericalParam entries param =
+  all doesTextRepresentNumber
+  $ concat
+  $ map ((map parameterValue)
+       . (filter (\p -> parameterName p == param))
+       . (map entityVal)
+       . tableEntryParams) entries
+
+doesTextRepresentNumber :: Text -> Bool
+doesTextRepresentNumber t = isJust $ ((TR.readMaybe $ T.unpack t) :: Maybe Double)
 
 getAllParams :: [TableEntry] -> [Text]
 getAllParams entries = sort
