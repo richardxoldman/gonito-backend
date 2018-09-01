@@ -104,22 +104,19 @@ $case (appRepoScheme settings)
   $of SelfHosted
     <pre>
       git push origin master
+    <h3>Repos hosted on Gonito.net
+    <p>If you use a repo hosted here, a submission and evaluation is triggered automatically. You'll see the evaluation results in your console while pushing.
   $of Branches
     <pre>
       git push origin my-brilliant-solution:my-brilliant-solution
 
-<h3>Repos hosted on Gonito.net
-
-<p>If you use a repo hosted here, a submission and evaluation is triggered automatically. You'll see the evaluation results in your console while pushing.
-
 <h3>External repos
 
-<p>If you use an external repo (e.g. at your own of Gitolite or at GitHub), you can configure a webhook.
+<p>If you use an external repo (e.g. at your own of Gitolite or at GitLab/GitHub), you can configure a webhook.
 $maybe token <- mToken
    <p>Your webook is:
    <pre>
-     #{appRoot settings}/trigger-remotely?token=#{token}&branch=master&challenge=#{challengeName challenge}&url=URL_TO_YOUR_REPO
-   <p>(must be POSTed)
+     wget --timeout=0 --quiet -O - '#{appRoot settings}/trigger-remotely' --post-data 'token=#{token}&branch=#{myBranch}&challenge=#{challengeName challenge}&url=URL_TO_YOUR_REPO'
 
 <h3>Manual submission
 

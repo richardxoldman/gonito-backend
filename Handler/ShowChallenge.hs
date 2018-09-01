@@ -166,6 +166,9 @@ defaultBranch SelfHosted = Just "master"
 defaultBranch Branches = Nothing
 
 challengeHowTo challenge settings repo shownId isIDSet isSSHUploaded mToken = $(widgetFile "challenge-how-to")
+  where myBranch = case appRepoScheme settings of
+          SelfHosted -> "master" :: Text
+          _ -> "my-brilliant-branch"
 
 getChallengeSubmissionR :: Text -> Handler Html
 getChallengeSubmissionR name = do
