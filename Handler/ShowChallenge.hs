@@ -563,11 +563,11 @@ challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions
 
 paramGraphsWidget :: Challenge -> [Entity Test] -> [Text] -> WidgetFor App ()
 paramGraphsWidget challenge tests params = $(widgetFile "param-graphs")
-  where chartJSs = getCharsJss challenge selectedTests params
+  where chartJSs = getChartJss challenge selectedTests params
         selectedTests = getMainTests tests
 
-getCharsJss :: Challenge -> [Entity Test] -> [Text] -> JavascriptUrl (Route App)
-getCharsJss challenge tests params =
+getChartJss :: Challenge -> [Entity Test] -> [Text] -> JavascriptUrl (Route App)
+getChartJss challenge tests params =
   mconcat $ [(getChartJs challenge test param) | test <- tests, param <- params]
 
 getChartJs :: Challenge
