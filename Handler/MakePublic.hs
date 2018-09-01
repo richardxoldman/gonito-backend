@@ -11,11 +11,13 @@ import Data.Text as T
 import Handler.Runner
 
 getMakePublicR :: SubmissionId -> Handler TypedContent
-getMakePublicR submissionId = runViewProgress $ doMakePublic submissionId
+getMakePublicR submissionId = do
+  userId <- requireAuthId
+  runViewProgress $ doMakePublic userId submissionId
 
-doMakePublic :: SubmissionId -> Channel -> Handler ()
-doMakePublic submissionId chan = do
-  isOwner <- checkWhetherUserRepo submissionId
+doMakePublic :: UserId -> SubmissionId -> Channel -> Handler ()
+doMakePublic userId submissionId chan = do
+  isOwner <- checkWhetherGivenUserRepo userId submissionId
   if not isOwner
    then
     err chan "Only the submitter can make a submission public!"
@@ -48,6 +50,10 @@ pushRepo repoDir commit targetRepoUrl targetBranchName chan = do
 
 checkWhetherUserRepo :: SubmissionId -> Handler Bool
 checkWhetherUserRepo submissionId = do
-  submission <- runDB $ get404 submissionId
   userId <- requireAuthId
+  checkWhetherGivenUserRepo userId submissionId
+
+checkWhetherGivenUserRepo :: UserId -> SubmissionId -> Handler Bool
+checkWhetherGivenUserRepo userId submissionId = do
+  submission <- runDB $ get404 submissionId
   return $ userId == submissionSubmitter submission

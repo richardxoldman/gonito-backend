@@ -244,7 +244,7 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
       app <- getYesod
       if appAutoOpening $ appSettings app
         then
-          doMakePublic submissionId chan
+          doMakePublic userId submissionId chan
         else
           return ()
     Nothing -> return ()
