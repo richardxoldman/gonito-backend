@@ -243,7 +243,10 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
       submissionId <- getSubmission userId repoId (repoCurrentCommit repo) challengeId (fromMaybe (fromMaybe "???" mCommitDescription) mDescription) chan
       _ <- getOuts chan submissionId
 
-      runDB $ addTags submissionId (if isNothing mTags then mCommitTags else mTags) []
+      currentTagIds <- runDB $ selectList [SubmissionTagSubmission ==. submissionId] []
+
+      runDB $ addTags submissionId (if isNothing mTags then mCommitTags else mTags) (
+        map (submissionTagTag . entityVal) currentTagIds)
       msg chan "SUBMISSION CREATED"
 
       app <- getYesod
