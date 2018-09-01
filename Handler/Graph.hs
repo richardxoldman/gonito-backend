@@ -3,7 +3,7 @@ module Handler.Graph where
 import Import
 
 import Handler.Tables
-import Handler.Shared (getMainTest, formatParameter)
+import Handler.Shared (formatParameter, formatScore)
 import Data.Maybe
 import Data.List ((!!))
 import Database.Persist.Sql
@@ -21,6 +21,7 @@ data ParamGraphSeries = ParamGraphSeries Text [(TableEntry, Text, MetricValue)]
 getChallengeParamGraphDataR :: Text -> (Key Test) -> Text -> Handler Value
 getChallengeParamGraphDataR challengeName testId paramName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
+  test <- runDB $ get404 testId
 
   (entries, tests) <- getChallengeSubmissionInfos (const True) challengeId
 
@@ -34,11 +35,11 @@ getChallengeParamGraphDataR challengeName testId paramName = do
 
   return $ object [
     "xs" .= object (map (\(ParamGraphSeries seriesName _) -> (seriesName .= (xSeriesName seriesName))) series),
-    "columns" .= ((map toYColumn series) ++ (map toXColumn series))
+    "columns" .= ((map (toYColumn $ testPrecision test) series) ++ (map toXColumn series))
                   ]
-toYColumn :: ParamGraphSeries -> [Text]
-toYColumn (ParamGraphSeries seriesName items) =
-  seriesName : (map (\(_,_,v) -> pack $ show v) items)
+toYColumn :: Maybe Int -> ParamGraphSeries -> [Text]
+toYColumn mPrecision (ParamGraphSeries seriesName items) =
+  seriesName : (map (\(_,_,v) -> formatScore mPrecision v) items)
 
 toXColumn :: ParamGraphSeries -> [Text]
 toXColumn (ParamGraphSeries seriesName items) =

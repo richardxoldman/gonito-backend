@@ -349,6 +349,10 @@ formatTruncatedScore (Just precision) (Just evaluation) = case evaluationScore e
   Just score -> T.pack $ printf "%0.*f" precision score
   Nothing -> formatFullScore Nothing
 
+formatScore :: Maybe Int -> Double -> Text
+formatScore Nothing = T.pack . show
+formatScore (Just precision) = T.pack . (printf "%0.*f" precision)
+
 formatParameter :: Parameter -> Text
 formatParameter param = parameterName param ++ "=" ++ parameterValue param
 
