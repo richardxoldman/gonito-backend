@@ -338,8 +338,11 @@ testComparator (Entity _ a) (Entity _ b) =
   ((fromMaybe unknownPriority $ testPriority b) `compare` (fromMaybe unknownPriority $ testPriority a))
   where unknownPriority = 9999
 
+formatNonScientifically :: Double -> Text
+formatNonScientifically = T.pack . (printf "%f")
+
 formatFullScore :: Maybe Evaluation -> Text
-formatFullScore (Just evaluation) = fromMaybe "???" (T.pack <$> show <$> evaluationScore evaluation)
+formatFullScore (Just evaluation) = fromMaybe "???" (formatNonScientifically <$> evaluationScore evaluation)
 formatFullScore Nothing = "N/A"
 
 formatTruncatedScore :: Maybe Int -> Maybe Evaluation -> Text

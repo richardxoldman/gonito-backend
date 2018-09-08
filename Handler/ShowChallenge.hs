@@ -419,7 +419,7 @@ checkOrInsertEvaluation repoDir chan out = do
   maybeEvaluation <- runDB $ getBy $ UniqueEvaluationTestChecksum (outTest out) (outChecksum out)
   case maybeEvaluation of
     Just (Entity _ evaluation) -> do
-      msg chan $ concat ["Already evaluated with score ", (T.pack $ fromMaybe "???" $ show <$> evaluationScore evaluation)]
+      msg chan $ concat ["Already evaluated with score ", (fromMaybe "???" $ formatNonScientifically <$> evaluationScore evaluation)]
     Nothing -> do
       msg chan $ "Start evaluation..."
       challengeDir <- getRepoDir $ challengePrivateRepo challenge
@@ -429,7 +429,7 @@ checkOrInsertEvaluation repoDir chan out = do
         Right (Left _) -> do
           err chan "Cannot parse options, check the challenge repo"
         Right (Right (_, Just [(_, [result])])) -> do
-          msg chan $ concat [ "Evaluated! Score ", (T.pack $ show result) ]
+          msg chan $ concat [ "Evaluated! Score ", (formatNonScientifically result) ]
           time <- liftIO getCurrentTime
           _ <- runDB $ insert $ Evaluation {
             evaluationTest=outTest out,
