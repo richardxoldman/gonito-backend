@@ -103,6 +103,8 @@ showChallengeWidget muserId
   = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
         maybeRepoLink = getRepoLink repo
+        delta = Number 4
+        higherTheBetterArray = getIsHigherTheBetterArray [test]
 
 getRepoLink :: Repo -> Maybe Text
 getRepoLink repo
@@ -570,6 +572,7 @@ getAllParams entries = sort
                $ concat
                $ map (\entry -> map (parameterName . entityVal) (tableEntryParams entry)) entries
 
+
 challengeAllSubmissionsWidget :: Maybe UserId
                                 -> Challenge
                                 -> RepoScheme
@@ -580,6 +583,8 @@ challengeAllSubmissionsWidget :: Maybe UserId
                                 -> WidgetFor App ()
 challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests params =
   $(widgetFile "challenge-all-submissions")
+  where delta = Number 3
+        higherTheBetterArray = getIsHigherTheBetterArray $ map entityVal tests
 
 paramGraphsWidget :: Challenge -> [Entity Test] -> [Text] -> WidgetFor App ()
 paramGraphsWidget challenge tests params = $(widgetFile "param-graphs")

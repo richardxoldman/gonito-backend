@@ -37,6 +37,11 @@ import System.IO.Unsafe (unsafePerformIO)
 
 import Text.Regex.TDFA
 
+import Data.Aeson.Types
+import GEval.Core
+
+import qualified Data.Vector as DV
+
 arena :: Handler FilePath
 arena = do
   app <- getYesod
@@ -386,3 +391,13 @@ unwantedLocalIds = ["git",
 isLocalIdAcceptable :: Text -> Bool
 isLocalIdAcceptable localId =
   match localIdRegexp (unpack localId) && not (localId `elem` unwantedLocalIds)
+
+-- need to transfer the information into a JS script
+getIsHigherTheBetterArray :: [Test] -> Value
+getIsHigherTheBetterArray = Array
+                            . DV.fromList
+                            . map (convertIsHigherTheBetter
+                                   . getMetricOrdering
+                                   . testMetric)
+   where convertIsHigherTheBetter TheHigherTheBetter = Bool True
+         convertIsHigherTheBetter _ = Bool False

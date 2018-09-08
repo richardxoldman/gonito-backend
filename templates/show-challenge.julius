@@ -5,7 +5,11 @@
     }
   });
 
+  var columnDefs = $.fn.dataTable.getColumnDefs(#{delta}, #{higherTheBetterArray});
+
   $(document).ready(function() {
      $("table").DataTable({
-       'pageLength': 50});
-  } );
+       'pageLength': 50,
+       'columnDefs': columnDefs
+       })
+  });
