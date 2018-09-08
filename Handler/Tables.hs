@@ -29,7 +29,7 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardBestSubmissionId :: SubmissionId,
   leaderboardBestVariant :: Variant,
   leaderboardBestVariantId :: VariantId,
-  leaderboardEvaluation :: Evaluation,
+  leaderboardEvaluationMap :: Map (Key Test) Evaluation,
   leaderboardNumberOfSubmissions :: Int,
   leaderboardTags :: [(Entity Tag, Entity SubmissionTag)],
   leaderboardParams :: [Parameter]
@@ -75,13 +75,13 @@ descriptionToBeShown s v params = (submissionDescription s) ++ (Data.Text.pack v
 extractScore :: Key Test -> TableEntry -> Maybe Evaluation
 extractScore k (TableEntry _  _  _ m _ _) = lookup k m
 
-leaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> Test -> Table App (Int, LeaderboardEntry)
-leaderboardTable mauthId challengeName repoScheme challengeRepo test = mempty
+leaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Int, LeaderboardEntry)
+leaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.int "#" fst
   ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd)
   ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
   ++ leaderboardDescriptionCell
-  ++ resultCell test ((\e -> Just e) . leaderboardEvaluation . snd)
+  ++ mconcat (map (\(Entity k t) -> resultCell t (extractScoreFromLeaderboardEntry k . snd)) tests)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
   ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
                                        leaderboardBestSubmission e,
@@ -89,6 +89,9 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo test = mempty
                                        leaderboardBestVariant e,
                                        leaderboardUserId e,
                                        mauthId))
+
+extractScoreFromLeaderboardEntry :: Key Test -> LeaderboardEntry -> Maybe Evaluation
+extractScoreFromLeaderboardEntry k entry = lookup k (leaderboardEvaluationMap entry)
 
 leaderboardDescriptionCell :: Table site (a, LeaderboardEntry)
 leaderboardDescriptionCell = Table.widget "description" (
@@ -137,26 +140,29 @@ getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluation
 getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge
                                              -> ((Entity Submission) -> Bool)
                                              -> (TableEntry -> a)
-                                             -> Handler (Test, [LeaderboardEntry], ([TableEntry], [Entity Test]))
+                                             -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntriesByCriterion challengeId condition selector = do
-  infos@(evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
+  (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
+  let mainTests = getMainTests tests
   let mainTestEnt = getMainTest tests
   let (Entity mainTestId mainTest) = mainTestEnt
-  let auxItems = map (\i -> (selector i, [i])) $ filter (\(TableEntry _ _ _ em _ _) -> member mainTestId em) $ evaluationMaps
+  let auxItems = map (\i -> (selector i, [i]))
+                 $ filter (\(TableEntry _ _ _ em _ _) -> member mainTestId em)
+                 $ evaluationMaps
   let auxItemsMap = Map.fromListWith (++) auxItems
-  let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluation a) (evaluationScore $ leaderboardEvaluation b)
-  entries' <- mapM (toLeaderboardEntry challengeId mainTestEnt)
+  let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluationMap a Map.! mainTestId)
+                                                     (evaluationScore $ leaderboardEvaluationMap b Map.! mainTestId)
+  entries' <- mapM (toLeaderboardEntry challengeId mainTests)
              $ filter (\ll -> not (null ll))
              $ map snd
              $ Map.toList auxItemsMap
   let entries = sortBy (flip entryComparator) entries'
-  return (mainTest, entries, infos)
+  return (entries, (evaluationMaps, mainTests))
 
-toLeaderboardEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> Entity Test -> t TableEntry -> HandlerFor site LeaderboardEntry
-toLeaderboardEntry challengeId (Entity mainTestId mainTest) ss = do
+toLeaderboardEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> [Entity Test] -> t TableEntry -> HandlerFor site LeaderboardEntry
+toLeaderboardEntry challengeId tests ss = do
   let bestOne = DL.maximumBy submissionComparator ss
   let (TableEntry bestSubmission bestVariant user evals _ _) = bestOne
-  let bestEvaluation = evals Map.! mainTestId
   let submissionId = entityKey bestSubmission
   tagEnts <- runDB $ getTags submissionId
 
@@ -173,14 +179,17 @@ toLeaderboardEntry challengeId (Entity mainTestId mainTest) ss = do
               leaderboardBestSubmissionId = entityKey bestSubmission,
               leaderboardBestVariant = entityVal bestVariant,
               leaderboardBestVariantId = entityKey bestVariant,
-              leaderboardEvaluation = bestEvaluation,
+              leaderboardEvaluationMap = evals,
               leaderboardNumberOfSubmissions = length allUserSubmissions,
               leaderboardTags = tagEnts,
               leaderboardParams = map entityVal parameters
               }
-     where submissionComparator (TableEntry _  _  _ em1 _ _) (TableEntry _  _ _ em2 _ _) = (compareResult mainTest) (evaluationScore (em1 Map.! mainTestId)) (evaluationScore (em2 Map.! mainTestId))
+     where (Entity mainTestId mainTest) = getMainTest tests
+           submissionComparator (TableEntry _  _  _ em1 _ _) (TableEntry _  _ _ em2 _ _) =
+             (compareResult mainTest) (evaluationScore (em1 Map.! mainTestId))
+                                      (evaluationScore (em2 Map.! mainTestId))
 
-getLeaderboardEntries :: Key Challenge -> Handler (Test, [LeaderboardEntry], ([TableEntry], [Entity Test]))
+getLeaderboardEntries :: Key Challenge -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntries challengeId =
   getLeaderboardEntriesByCriterion challengeId
                                    (const True)

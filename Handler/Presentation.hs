@@ -53,11 +53,11 @@ getPresentationDATeCH2017R = do
   presentationLayout $(widgetFile "presentation-datech-2017")
 
 
-getSampleLeaderboard :: Text -> HandlerFor App (WidgetT App IO ())
+getSampleLeaderboard :: Text -> HandlerFor App (WidgetFor App ())
 getSampleLeaderboard name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
 
-  (test, leaderboard, _) <- getLeaderboardEntries challengeId
+  (leaderboard, (_, tests)) <- getLeaderboardEntries challengeId
   let leaderboardWithRanks = zip [1..] (take 10 leaderboard)
 
   app <- getYesod
@@ -67,7 +67,7 @@ getSampleLeaderboard name = do
 
   return $ Table.buildBootstrap (leaderboardTable Nothing
                                                   (challengeName challenge)
-                                                  scheme challengeRepo test)
+                                                  scheme challengeRepo tests)
                                 leaderboardWithRanks
 
 presentationLayout widget = do

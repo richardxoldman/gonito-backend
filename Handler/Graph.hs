@@ -3,7 +3,7 @@ module Handler.Graph where
 import Import
 
 import Handler.Tables
-import Handler.Shared (formatParameter, formatScore)
+import Handler.Shared (formatParameter, formatScore, getMainTest)
 import Data.Maybe
 import Data.List ((!!))
 import Database.Persist.Sql
@@ -23,7 +23,7 @@ getChallengeParamGraphDataR challengeName testId paramName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
   test <- runDB $ get404 testId
 
-  (entries, tests) <- getChallengeSubmissionInfos (const True) challengeId
+  (entries, _) <- getChallengeSubmissionInfos (const True) challengeId
 
   let values = map (findParamValue paramName) entries
 
@@ -72,23 +72,29 @@ submissionsToJSON :: ((Entity Submission) -> Bool) -> Text -> Handler Value
 submissionsToJSON condition challengeName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
 
-  (_, entries, _) <- getLeaderboardEntriesByCriterion challengeId
-                                                     condition
-                                                     (\(TableEntry (Entity submissionId _) _ _ _ _ _) -> submissionId)
+  (entries, _) <- getLeaderboardEntriesByCriterion challengeId
+                                                  condition
+                                                  (\(TableEntry (Entity submissionId _) _ _ _ _ _) -> submissionId)
 
-  let naturalRange = getNaturalRange entries
+
+  tests <- runDB $ selectList [TestChallenge ==. challengeId] []
+  let mainTestId = entityKey $ getMainTest tests
+
+  let naturalRange = getNaturalRange mainTestId entries
   let submissionIds = map leaderboardBestSubmissionId entries
 
   forks <- runDB $ selectList [ForkSource <-. submissionIds, ForkTarget <-. submissionIds] []
 
-  return $ object [ "nodes" .= (Data.Maybe.catMaybes $ map (auxSubmissionToNode naturalRange) $ entries),
+  return $ object [ "nodes" .= (Data.Maybe.catMaybes
+                                $ map (auxSubmissionToNode mainTestId naturalRange)
+                                $ entries),
                     "edges" .= map forkToEdge forks ]
 
-getNaturalRange :: [LeaderboardEntry] -> Double
-getNaturalRange entries = 2.0 * (interQuantile $ Data.Maybe.catMaybes $ map (evaluationScore . leaderboardEvaluation) entries)
+getNaturalRange :: TestId -> [LeaderboardEntry] -> Double
+getNaturalRange testId entries = 2.0 * (interQuantile $ Data.Maybe.catMaybes $ map (\entry -> evaluationScore $ ((leaderboardEvaluationMap entry) M.! testId)) entries)
 
-auxSubmissionToNode :: Double -> LeaderboardEntry -> Maybe Value
-auxSubmissionToNode naturalRange entry = case evaluationScore $ leaderboardEvaluation entry of
+auxSubmissionToNode :: TestId -> Double -> LeaderboardEntry -> Maybe Value
+auxSubmissionToNode testId naturalRange entry = case evaluationScore $ ((leaderboardEvaluationMap entry) M.! testId) of
   Just score ->  Just $ object [
     "id" .= (nodeId $ leaderboardBestSubmissionId entry),
     "x"  .= (stampToX $ submissionStamp $ leaderboardBestSubmission entry),

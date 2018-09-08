@@ -330,7 +330,7 @@ getMainTest tests = DL.maximumBy testComparator tests
 -- get all the non-dev tests starting with the one with the highest priorty
 -- (or all the tests if there are no non-dev tests)
 getMainTests :: [Entity Test] -> [Entity Test]
-getMainTests tests = sortBy (flip testComparator) tests'
+getMainTests tests = sortBy testComparator tests'
    where tests' = if null tests''
                     then tests
                     else tests''

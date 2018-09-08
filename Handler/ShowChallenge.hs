@@ -46,7 +46,7 @@ getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   Just repo <- runDB $ get $ challengePublicRepo challenge
-  (mainTest, leaderboard, (entries, tests)) <- getLeaderboardEntries challengeId
+  (leaderboard, (entries, tests)) <- getLeaderboardEntries challengeId
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth
 
@@ -60,7 +60,6 @@ getShowChallengeR name = do
   challengeLayout True challenge (showChallengeWidget muserId
                                                       challenge scheme
                                                       challengeRepo
-                                                      mainTest
                                                       repo
                                                       leaderboard
                                                       params
@@ -85,7 +84,6 @@ showChallengeWidget :: Maybe UserId
                       -> Challenge
                       -> RepoScheme
                       -> Repo
-                      -> Test
                       -> Repo
                       -> [LeaderboardEntry]
                       -> [Text]
@@ -95,7 +93,6 @@ showChallengeWidget muserId
                     challenge
                     scheme
                     challengeRepo
-                    test
                     repo
                     leaderboard
                     params
@@ -104,7 +101,7 @@ showChallengeWidget muserId
   where leaderboardWithRanks = zip [1..] leaderboard
         maybeRepoLink = getRepoLink repo
         delta = Number 4
-        higherTheBetterArray = getIsHigherTheBetterArray [test]
+        higherTheBetterArray = getIsHigherTheBetterArray $ map entityVal tests
 
 getRepoLink :: Repo -> Maybe Text
 getRepoLink repo
@@ -589,7 +586,7 @@ challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions
 paramGraphsWidget :: Challenge -> [Entity Test] -> [Text] -> WidgetFor App ()
 paramGraphsWidget challenge tests params = $(widgetFile "param-graphs")
   where chartJSs = getChartJss challenge selectedTests params
-        selectedTests = getMainTests tests
+        selectedTests = reverse $ getMainTests tests
 
 getChartJss :: Challenge -> [Entity Test] -> [Text] -> JavascriptUrl (Route App)
 getChartJss challenge tests params =
