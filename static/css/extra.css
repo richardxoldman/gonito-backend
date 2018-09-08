@@ -1,0 +1,13 @@
+body {
+  padding-top: 80px;
+}
+
+.navbar-header {
+    position: relative;
+}
+
+.navbar-toggle {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}

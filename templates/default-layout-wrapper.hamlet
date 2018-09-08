@@ -15,6 +15,7 @@ $newline never
     <!--datatables, including JQuery-->
     <link rel="stylesheet" type="text/css" href="/static/css/datatables.min.css"/>
     <link rel="stylesheet" type="text/css" href="/static/css/c3.min.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/css/extra.css"/>
     <script type="text/javascript" src="/static/js/datatables.min.js">
     <script type="text/javascript" src="/static/js/datatables-extended.js">
 
@@ -37,14 +38,14 @@ $newline never
 
     <script>
       document.documentElement.className = document.documentElement.className.replace(/\bno-js\b/,'js');
-  <body style="padding-top: 100px">
-    <div class="container">
+  <body>
+    <div class="container-fluid">
       <header>
       <div id="main" role="main">
         ^{pageBody pc}
 
     <footer class="footer" style="padding-top: 30px">
-       <div class="container">
+       <div class="container-fluid">
          <p class="text-muted">#{appCopyright $ appSettings master}
 
     $maybe analytics <- appAnalytics $ appSettings master
