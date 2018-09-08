@@ -44,15 +44,17 @@ import Data.List (nub)
 
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
+  app <- getYesod
+  let leaderboardStyle = appLeaderboardStyle $ appSettings app
+
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   Just repo <- runDB $ get $ challengePublicRepo challenge
-  (leaderboard, (entries, tests)) <- getLeaderboardEntries challengeId
+  (leaderboard, (entries, tests)) <- getLeaderboardEntries leaderboardStyle challengeId
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth
 
   let params = getNumericalParams entries
 
-  app <- getYesod
   let scheme = appRepoScheme $ appSettings app
 
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge

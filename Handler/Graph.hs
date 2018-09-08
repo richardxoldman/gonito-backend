@@ -74,7 +74,7 @@ submissionsToJSON condition challengeName = do
 
   (entries, _) <- getLeaderboardEntriesByCriterion challengeId
                                                   condition
-                                                  (\(TableEntry (Entity submissionId _) _ _ _ _ _) -> submissionId)
+                                                  (\(TableEntry (Entity submissionId _) _ _ _ _ _) -> [submissionId])
 
 
   tests <- runDB $ selectList [TestChallenge ==. challengeId] []
@@ -91,7 +91,9 @@ submissionsToJSON condition challengeName = do
                     "edges" .= map forkToEdge forks ]
 
 getNaturalRange :: TestId -> [LeaderboardEntry] -> Double
-getNaturalRange testId entries = 2.0 * (interQuantile $ Data.Maybe.catMaybes $ map (\entry -> evaluationScore $ ((leaderboardEvaluationMap entry) M.! testId)) entries)
+getNaturalRange testId entries = 2.0 * (interQuantile
+                                        $ Data.Maybe.catMaybes
+                                        $ map (\entry -> evaluationScore $ ((leaderboardEvaluationMap entry) M.! testId)) entries)
 
 auxSubmissionToNode :: TestId -> Double -> LeaderboardEntry -> Maybe Value
 auxSubmissionToNode testId naturalRange entry = case evaluationScore $ ((leaderboardEvaluationMap entry) M.! testId) of
@@ -137,7 +139,7 @@ quantileAsc q xs
     | q < 0 || q > 1 = error "quantile out of range"
     | otherwise = xs !! (quantIndex (length xs) q)
     where quantIndex :: Int -> Double -> Int
-          quantIndex len q = case round $ q * (fromIntegral len - 1) of
+          quantIndex len q' = case round $ q' * (fromIntegral len - 1) of
                                idx | idx < 0    -> error "Quantile index too small"
                                    | idx >= len -> error "Quantile index too large"
                                    | otherwise  -> idx

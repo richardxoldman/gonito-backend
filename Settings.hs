@@ -32,6 +32,13 @@ toTagPermissions :: Text -> TagPermissions
 toTagPermissions "everybody-can-add-new-tags" = EverybodyCanAddNewTags
 toTagPermissions _ = OnlyAdminCanAddNewTags
 
+data LeaderboardStyle = BySubmitter | ByTag
+                        deriving (Eq, Show)
+
+toLeaderboardStyle :: Text -> LeaderboardStyle
+toLeaderboardStyle "by-tag" = ByTag
+toLeaderboardStyle _ = BySubmitter
+
 -- | Runtime settings to configure this application. These settings can be
 -- loaded from various sources: defaults, environment variables, config files,
 -- theoretically even a database.
@@ -80,6 +87,7 @@ data AppSettings = AppSettings
     , appRepoScheme             :: RepoScheme
     , appTagPermissions         :: TagPermissions
     , appAutoOpening            :: Bool
+    , appLeaderboardStyle       :: LeaderboardStyle
     }
 
 instance FromJSON AppSettings where
@@ -114,13 +122,10 @@ instance FromJSON AppSettings where
 
         appRepoHost               <- o .: "repo-host"
 
-        scheme <- o .: "repo-scheme"
-        appRepoScheme <- return $ toRepoScheme scheme
-
-        tagPermissions <- o .: "tag-permissions"
-        appTagPermissions <- return $ toTagPermissions tagPermissions
-
+        appRepoScheme             <- toRepoScheme <$> o .: "repo-scheme"
+        appTagPermissions         <- toTagPermissions <$> o .: "tag-permissions"
         appAutoOpening            <- o .:? "auto-opening" .!= False
+        appLeaderboardStyle       <- toLeaderboardStyle <$> o .: "leaderboard-style"
 
         return AppSettings {..}
 

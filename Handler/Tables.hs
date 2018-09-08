@@ -139,14 +139,15 @@ getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluation
 
 getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge
                                              -> ((Entity Submission) -> Bool)
-                                             -> (TableEntry -> a)
+                                             -> (TableEntry -> [a])
                                              -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntriesByCriterion challengeId condition selector = do
   (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
   let mainTests = getMainTests tests
   let mainTestEnt = getMainTest tests
   let (Entity mainTestId mainTest) = mainTestEnt
-  let auxItems = map (\i -> (selector i, [i]))
+  let auxItems = concat
+                 $ map (\i -> map (\s -> (s, [i])) (selector i))
                  $ filter (\(TableEntry _ _ _ em _ _) -> member mainTestId em)
                  $ evaluationMaps
   let auxItemsMap = Map.fromListWith (++) auxItems
@@ -156,7 +157,8 @@ getLeaderboardEntriesByCriterion challengeId condition selector = do
              $ filter (\ll -> not (null ll))
              $ map snd
              $ Map.toList auxItemsMap
-  let entries = sortBy (flip entryComparator) entries'
+  let entries = DL.nubBy (\a b -> leaderboardBestVariantId a == leaderboardBestVariantId b)
+                $ sortBy (flip entryComparator) entries'
   return (entries, (evaluationMaps, mainTests))
 
 toLeaderboardEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> [Entity Test] -> t TableEntry -> HandlerFor site LeaderboardEntry
@@ -189,11 +191,17 @@ toLeaderboardEntry challengeId tests ss = do
              (compareResult mainTest) (evaluationScore (em1 Map.! mainTestId))
                                       (evaluationScore (em2 Map.! mainTestId))
 
-getLeaderboardEntries :: Key Challenge -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
-getLeaderboardEntries challengeId =
+getLeaderboardEntries :: LeaderboardStyle -> Key Challenge -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
+getLeaderboardEntries BySubmitter challengeId =
   getLeaderboardEntriesByCriterion challengeId
                                    (const True)
-                                   (\(TableEntry _ _ (Entity userId _) _ _ _) -> userId)
+                                   (\(TableEntry _ _ (Entity userId _) _ _ _) -> [userId])
+getLeaderboardEntries ByTag challengeId =
+  getLeaderboardEntriesByCriterion challengeId
+                                   (const True)
+                                   (noEmptyList . (map (entityKey . fst)) . tableEntryTagsInfo)
+  where noEmptyList [] = [Nothing]
+        noEmptyList l = map Just l
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
 compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ testMetric test) x y
