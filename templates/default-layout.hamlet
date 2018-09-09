@@ -35,12 +35,12 @@
                     <li><a href="@{MyScoreR}">_{MsgYourScore}</a></li>
                     <li><a href="@{AuthR LogoutR}">_{MsgLogOut}</a></li>
         $nothing
-            <ul class="nav navbar-nav">
+            <ul class="nav navbar-nav navbar-collapse collapse">
                 <li><a href="@{Presentation4RealR}">_{MsgAbout}</a>
                 <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a>
                 <li><a href="@{TagsR}">_{MsgListTags}</a>
 
-            <ul class="nav navbar-nav navbar-right">
+            <ul class="nav navbar-nav navbar-collapse collapse navbar-right">
                 <li><a href="@{AuthR LoginR}">log in</a>
 
 $maybe msg <- mmsg
