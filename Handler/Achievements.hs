@@ -11,7 +11,6 @@ import Handler.Shared
 
 import Handler.AchievementUtils
 
-import Data.Time.Clock
 import Data.Time.LocalTime
 
 import Data.Text
@@ -103,7 +102,7 @@ $if canGiveUpWorkingOn
 
 getSubmissionForAchievementR :: SubmissionId -> WorkingOnId -> Handler Html
 getSubmissionForAchievementR submissionId workingOnId = do
-   (Entity userId user) <- requireAuth
+   (Entity userId _) <- requireAuth
    submission <- runDB $ get404 submissionId
    workingOn <- runDB $ get404 workingOnId
    if submissionSubmitter submission == userId && workingOnUser workingOn == userId
@@ -151,7 +150,7 @@ getStartWorkingOnR achievementId = do
 
 getGiveUpWorkingOnR :: AchievementId -> Handler Html
 getGiveUpWorkingOnR achievementId = do
-  (Entity userId user) <- requireAuth
+  (Entity userId _) <- requireAuth
 
   alreadyWorkingOn <- runDB $ selectList [WorkingOnUser ==. userId,
                                          WorkingOnAchievement ==. achievementId,
@@ -171,11 +170,11 @@ getGiveUpWorkingOnR achievementId = do
 
 
 determineWhetherCanStartWorkingOn Nothing _ _ = False
-determineWhetherCanStartWorkingOn (Just (Entity userId user)) peopleWorkingOn maxWinners =
+determineWhetherCanStartWorkingOn (Just (Entity userId _)) peopleWorkingOn maxWinners =
   (Import.all (\e -> (userId /= entityKey e)) peopleWorkingOn) && (checkLimit peopleWorkingOn maxWinners)
 
 determineWhetherCanGiveUpWorkingOn Nothing _ = False
-determineWhetherCanGiveUpWorkingOn (Just (Entity userId user)) peopleWorkingOn =
+determineWhetherCanGiveUpWorkingOn (Just (Entity userId _)) peopleWorkingOn =
   (Import.any (\e -> (userId == entityKey e)) peopleWorkingOn)
 
 checkLimit _ Nothing = True
@@ -230,7 +229,6 @@ getEditAchievementR achievementId = do
 postEditAchievementR :: AchievementId -> Handler Html
 postEditAchievementR achievementId = do
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
-  achievement <- runDB $ get404 achievementId
   ((result, formWidget), formEnctype) <- runFormPost (achievementForm Nothing Nothing)
   mUser <- maybeAuth
 
