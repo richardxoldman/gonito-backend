@@ -1,5 +1,6 @@
 #!/bin/bash -xe
 
+rm -rf ../geval
 git clone git://gonito.net/geval
 mv geval ..
 stack install
