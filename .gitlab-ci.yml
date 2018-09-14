@@ -1,0 +1,14 @@
+image: fpco/stack-build
+
+stages:
+  - build
+
+build:
+  stage: build
+  script:
+    - apt-get update
+    - apt-get install libfcgi-dev -y
+    - ./build.sh
+  artifacts:
+    paths:
+      - gonito-distribution.tar.gz
