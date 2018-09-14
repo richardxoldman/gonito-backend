@@ -98,6 +98,7 @@ SubmissionTag
     tag TagId
     accepted Bool Maybe
     UniqueSubmissionTag submission tag
+-- for machine learning courses
 Achievement
     name Text
     challenge ChallengeId
@@ -133,4 +134,13 @@ Participant
     user UserId
     course CourseId
     UniqueUserCourse user course
+-- for "KPI" dashboard
+Indicator
+    test TestId
+    filterCondition Text Maybe
+    targetCondition Text Maybe
+Target
+    indicator IndicatorId
+    deadline UTCTime
+    value Double
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)

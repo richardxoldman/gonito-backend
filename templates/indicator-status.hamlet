@@ -1,0 +1,6 @@
+$if (checkIfAdmin mUser)
+  <a href="@{EditIndicatorR indicatorId}">
+    <span class="glyphicon glyphicon-pencil" title="click to edit the submission" aria-hidden="true">
+
+  <a href="@{DeleteIndicatorR indicatorId}">
+    <span class="glyphicon glyphicon-remove" title="click to remove the submission" aria-hidden="true">
