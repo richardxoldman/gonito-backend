@@ -52,6 +52,12 @@
 /score/#UserId ScoreR GET
 /my-score MyScoreR GET
 
+/dashboard DashboardR GET POST
+/edit-indicator/#IndicatorId EditIndicatorR GET POST
+/delete-indicator/#IndicatorId DeleteIndicatorR GET
+/delete-target/#TargetId DeleteTargetR GET
+/add-target/#IndicatorId AddTargetR POST
+
 /edit-submission/#SubmissionId EditSubmissionR GET POST
 /edit-submission-and-variant/#SubmissionId/#VariantId EditSubmissionAndVariantR GET POST
 /add-variant-param/#SubmissionId/#VariantId AddVariantParamR POST

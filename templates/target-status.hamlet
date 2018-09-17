@@ -1,0 +1,3 @@
+$if (checkIfAdmin mUser)
+  <a href="@{DeleteTargetR targetId}">
+    <span class="glyphicon glyphicon-remove" title="click to remove the submission" aria-hidden="true">

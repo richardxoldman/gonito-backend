@@ -66,3 +66,12 @@ ParameterName: parameter name
 ParameterValue: parameter value
 ChallengeName: computer-friendly name ("slug")
 ChallengeNameTooltip: to be used in the URLs (only lower-case letters, digits or hyphens, must start with a lower-case letter), once set cannot be changed!
+FilterCondition: filter condition
+FilterConditionTooltip: the condition used to pre-select all submission — an extra graph will be drawed for all submissions matching this condition (not necessarily the target condition)
+TargetCondition: target condition
+TargetConditionTooltip: the condition which is required for a submission to be considered for realising the target
+TargetDeadlineDay: target day
+TargetDeadlineTime: target time
+TargetValue: target value to be reached before the target date
+Test: test
+Dashboard: dashboard

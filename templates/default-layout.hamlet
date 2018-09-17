@@ -19,6 +19,7 @@
                 <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a>
                 <li><a href="@{TagsR}">_{MsgListTags}</a>
                 <li><a href="@{AchievementsR}">_{MsgAchievements}</a>
+                <li><a href="@{DashboardR}">_{MsgDashboard}</a>
                 $if userIsAdmin $ entityVal user
                     <li class="dropdown">
                         <a id="admin" href="#" class="dropdown-toggle" data-toggle="dropdown">_{MsgManage}<span class="caret"></span>
@@ -39,6 +40,7 @@
                 <li><a href="@{Presentation4RealR}">_{MsgAbout}</a>
                 <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a>
                 <li><a href="@{TagsR}">_{MsgListTags}</a>
+                <li><a href="@{DashboardR}">_{MsgDashboard}</a>
 
             <ul class="nav navbar-nav navbar-collapse collapse navbar-right">
                 <li><a href="@{AuthR LoginR}">log in</a>
