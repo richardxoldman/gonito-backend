@@ -53,6 +53,7 @@ library
                      Handler.ExtraPoints
                      Handler.Runner
                      Handler.Dashboard
+                     Data.SubmissionConditions
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -142,6 +143,7 @@ library
                  , attoparsec
                  , random-strings
                  , wai
+                 , megaparsec
 
 executable         gonito
     if flag(library-only)
