@@ -89,6 +89,7 @@ library
                  , classy-prelude-conduit        >= 0.10.2
                  , classy-prelude-yesod          >= 0.10.2
                  , bytestring                    >= 0.9        && < 0.11
+                 , case-insensitive
                  , text                          >= 0.11       && < 2.0
                  , persistent                    >= 2.0        && < 2.9
                  , persistent-postgresql         >= 2.1.1      && < 2.9
@@ -140,6 +141,7 @@ library
                  , extra
                  , attoparsec
                  , random-strings
+                 , wai
 
 executable         gonito
     if flag(library-only)
@@ -187,8 +189,9 @@ test-suite test
 
     build-depends: base
                  , gonito
-                 , yesod-test >= 1.4.3 && < 1.5
+                 , yesod-test >= 1.6 && < 1.7
                  , yesod-core
+                 , yesod-auth                    >= 1.6        && < 1.7
                  , yesod
                  , persistent
                  , persistent-postgresql
@@ -200,3 +203,4 @@ test-suite test
                  , classy-prelude
                  , classy-prelude-yesod
                  , wai-handler-fastcgi
+                 , wai

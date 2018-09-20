@@ -8,6 +8,8 @@ import Text.Hamlet                 (hamletFile)
 import Yesod.Auth.HashDB           (HashDBUser(..), authHashDBWithForm)
 import qualified Yesod.Core.Unsafe as Unsafe
 import Yesod.Core.Types            (Logger)
+import qualified Data.CaseInsensitive as CI
+import qualified Data.Text.Encoding as TE
 import Yesod.Default.Util          (addStaticContentExternal)
 
 instance HashDBUser User where
@@ -48,6 +50,10 @@ mkMessage "App" "messages" "en"
 
 -- | A convenient synonym for creating forms.
 type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
+
+-- | A convenient synonym for database access functions.
+type DB a = forall (m :: * -> *).
+    (MonadIO m) => ReaderT SqlBackend m a
 
 isTrustedAuthorized :: (AuthEntity (HandlerSite m) ~ User, AuthId (HandlerSite m) ~ Key User, MonadHandler m, YesodAuthPersist (HandlerSite m)) => m AuthResult
 isTrustedAuthorized = do
@@ -91,6 +97,16 @@ instance Yesod App where
     makeSessionBackend app = Just <$> defaultClientSessionBackend
         120    -- timeout in minutes
         ((appVarDir $ appSettings app) </> "config/client_session_key.aes")
+
+    -- Yesod Middleware allows you to run code before and after each handler function.
+    -- The defaultYesodMiddleware adds the response header "Vary: Accept, Accept-Language" and performs authorization checks.
+    -- Some users may also want to add the defaultCsrfMiddleware, which:
+    --   a) Sets a cookie with a CSRF token in it.
+    --   b) Validates that incoming write requests include that token in either a header or POST parameter.
+    -- To add it, chain it together with the defaultMiddleware: yesodMiddleware = defaultYesodMiddleware . defaultCsrfMiddleware
+    -- For details, see the CSRF documentation in the Yesod.Core.Handler module of the yesod-core package.
+    yesodMiddleware :: ToTypedContent res => Handler res -> Handler res
+    yesodMiddleware = defaultYesodMiddleware
 
     defaultLayout widget = do
         master <- getYesod
