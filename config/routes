@@ -25,6 +25,8 @@
 /trigger-remotely TriggerRemotelyR POST
 /trigger-locally TriggerLocallyR POST
 
+/indicator-graph-data/#IndicatorId IndicatorGraphDataR GET
+
 /q QueryFormR GET POST
 /q/#Text QueryResultsR  GET
 

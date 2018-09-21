@@ -47,6 +47,9 @@ tableEntryParams (TableEntry _ _ _ _ _ paramEnts) = paramEnts
 tableEntryMapping (TableEntry _ _ _ mapping _ _) = mapping
 tableEntryTagsInfo (TableEntry _ _ _ _ tagsInfo _) = tagsInfo
 
+tableEntryStamp :: TableEntry -> UTCTime
+tableEntryStamp (TableEntry submission _ _ _ _ _) = submissionStamp $ entityVal submission
+
 submissionsTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App TableEntry
 submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.text "submitter" (formatSubmitter . (\(TableEntry _  _ (Entity _ submitter) _ _ _) -> submitter))
@@ -208,10 +211,6 @@ compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ testMet
 compareResult _ (Just _) Nothing = GT
 compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ
-
-compareFun :: MetricOrdering -> Double -> Double -> Ordering
-compareFun TheLowerTheBetter = flip compare
-compareFun TheHigherTheBetter = compare
 
 getChallengeSubmissionInfos :: ((Entity Submission) -> Bool)
                               -> Key Challenge

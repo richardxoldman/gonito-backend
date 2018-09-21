@@ -3,13 +3,20 @@ module Handler.Graph where
 import Import
 
 import Handler.Tables
-import Handler.Shared (formatParameter, formatScore, getMainTest)
+import Handler.Dashboard (indicatorToEntry, prettyIndicatorEntry, formatTarget, IndicatorEntry(..))
+import Handler.Shared (formatParameter, formatScore, getMainTest, compareFun)
 import Data.Maybe
 import Data.List ((!!))
 import Database.Persist.Sql
-import GEval.Core (MetricValue)
+import GEval.Core (MetricValue, getMetricOrdering)
 import qualified Data.Map as M
+import qualified Data.Text as T
 
+import Data.Aeson (KeyValue)
+
+import Data.SubmissionConditions (parseCondition, checkCondition, VariantEntry(..))
+
+-- graphs for parameters
 
 getChallengeGraphDataR :: Text -> Handler Value
 getChallengeGraphDataR challengeName = submissionsToJSON (\_ -> True) challengeName
@@ -37,6 +44,7 @@ getChallengeParamGraphDataR challengeName testId paramName = do
     "xs" .= object (map (\(ParamGraphSeries seriesName _) -> (seriesName .= (xSeriesName seriesName))) series),
     "columns" .= ((map (toYColumn $ testPrecision test) series) ++ (map toXColumn series))
                   ]
+
 toYColumn :: Maybe Int -> ParamGraphSeries -> [Text]
 toYColumn mPrecision (ParamGraphSeries seriesName items) =
   seriesName : (map (\(_,_,v) -> formatScore mPrecision v) items)
@@ -122,7 +130,172 @@ edgeId = ("e" ++) . show . fromSqlKey
 stampToX :: UTCTime -> Integer
 stampToX = toModifiedJulianDay . utctDay
 
--- taken from Math.Statistics
+-- Indicator graph
+
+-- Reduce a list to item which are larger than the largest item encountered so far.
+-- (Needed to plot a step graph.)
+monotonicBy :: (a -> b) -> (b -> b -> Ordering) -> [a] -> [a]
+monotonicBy _ _ [] = []
+monotonicBy extractor comparator (theFirst:theRest) = (theFirst : (monotonicBy' theFirst theRest))
+  where monotonicBy' _ [] = []
+        monotonicBy' theBest (h:t) = if extractor h `comparator` extractor theBest == GT
+                                     then
+                                       (h:(monotonicBy' h t))
+                                     else
+                                       monotonicBy' theBest t
+
+getIndicatorGraphDataR :: IndicatorId -> Handler Value
+getIndicatorGraphDataR indicatorId = do
+  indicator <- runDB $ get404 indicatorId
+  indicatorEntry <- indicatorToEntry (Entity indicatorId indicator)
+  let label = prettyIndicatorEntry indicatorEntry
+
+  let testId = indicatorTest indicator
+  test <- runDB $ get404 testId
+  let mPrecision = testPrecision test
+
+  (entries, _) <- getChallengeSubmissionInfos (const True) (testChallenge test)
+
+  theNow <- liftIO $ getCurrentTime -- needed to draw the "now" vertical line
+
+  -- first we apply the "filter condition"
+  let filteredEntries =
+        filterEntries (indicatorFilterCondition indicator)
+        $ sortBy (\a b  -> (tableEntryStamp a) `compare` (tableEntryStamp b)) entries
+
+  -- ... all the entires that passed the "filter condition" are split according
+  -- to whether the main "target condition" is fulfilled or not,
+  -- "other..." will mean items for which "target condition" is not fulfilled
+  -- (but the "filter condition" was), they are also going to be used to draw
+  -- an auxilliary graph
+  let (targetEntries, otherEntries) =
+        partitionEntries (indicatorTargetCondition indicator) filteredEntries
+  let (scores, timePoints) = addNow theNow $ entriesToPoints (Entity testId test) targetEntries
+  let (otherScores, otherTimePoints) = addNow theNow $ entriesToPoints (Entity testId test) otherEntries
+  let otherLabel = label <> " (other filtered)"
+
+  -- grid lines for targets would not be taken into account when determining y range,
+  -- that's why we need to enforce y range manually if needed
+  -- (x range are not modified this way)
+  let targetValues = map (targetValue . entityVal) $ indicatorEntryTargets indicatorEntry
+  let maxRange = getBound compare scores targetValues
+  let minRange = getBound (flip compare) scores targetValues
+
+  -- we return a JSON object required by the C3 library
+  return $ object [
+    "bindto" .=  ("#indicator-chart-" ++ (show $ unSqlBackendKey $ unIndicatorKey indicatorId)),
+    "data" .= object [
+        "xs" .= object ([
+           label .= ("xt" :: String)
+           ] ++ (listIf (not $ null otherScores) [otherLabel .= ("xo" :: String)])),
+        "columns" .= ([
+            ("xt" : timePoints),
+            (label : (map (formatScore mPrecision) scores))]
+            ++ (listIf (not $ null otherScores) [
+                   ("xo" : otherTimePoints),
+                   (otherLabel : (map (formatScore mPrecision) otherScores))])),
+        "types" .= object [
+            label .= ("area-step" :: String),
+            otherLabel .= ("step" :: String)
+            ]
+        ],
+    "axis" .= object [
+        "x" .= object [
+            "type" .= ("timeseries" :: String),
+              "tick" .= object [
+              "format" .= ("%Y-%m-%d" :: String)
+              ]
+            ],
+        "y" .= object ((getBoundAttr "max" maxRange) ++ (getBoundAttr "min" minRange))
+        ],
+    "line" .= object [
+        "step" .= object [
+            "type" .= ("step-after" :: String)
+            ]
+        ],
+    "grid" .= targetsToLines theNow indicatorEntry
+    ]
+
+formatTimestamp :: UTCTime -> Text
+formatTimestamp = T.pack . formatTime defaultTimeLocale "%Y-%m-%d"
+
+-- add fake entry for the current time
+addNow :: UTCTime -> ([Double], [Text]) -> ([Double], [Text])
+addNow _ ([], []) = ([], [])
+addNow theNow (scores, timepoints) = (scores ++ [last $ impureNonNull scores], timepoints ++ [formatTimestamp theNow])
+
+entriesToPoints :: Entity Test -> [TableEntry] -> ([Double], [Text])
+entriesToPoints (Entity testId test) entries = (scores, timePoints)
+  where timePoints = map (formatTimestamp . tableEntryStamp) relevantEntries
+        scores = map (\entry -> fromJust $ evaluationScore $ (tableEntryMapping entry) M.! testId) relevantEntries
+        relevantEntries =
+          monotonicBy (\entry -> fromJust $ evaluationScore $ (tableEntryMapping entry) M.! testId) comparator
+          $ filter (\entry -> testId `M.member` (tableEntryMapping entry)
+                             && isJust (evaluationScore ((tableEntryMapping entry) M.! testId))) entries
+        comparator = compareFun $ getMetricOrdering $ testMetric test
+
+targetsToLines :: UTCTime -> IndicatorEntry -> Value
+targetsToLines theNow indicator = object [
+  "y" .= object [
+      "lines" .= map (\target -> object [
+                         "value" .= (targetValue $ entityVal target),
+                          "text" .= formatTarget target
+                         ]) targets
+      ],
+  "x" .= object [
+      "lines" .= ((map (\target -> object [
+                         "value" .= (formatTimestamp $ targetDeadline $ entityVal target),
+                         "text" .= formatTarget target
+                         ]) targets)
+        ++ [object [
+               "value" .= formatTimestamp theNow,
+               "text" .= ("now" :: String)
+               ]])
+      ]
+  ]
+  where targets = indicatorEntryTargets indicator
+
+getBound :: (a -> a -> Ordering) -> [a] -> [a] -> Maybe a
+getBound _ [] _ = Nothing
+getBound _ _ [] = Nothing
+getBound comparator mainList extraList =
+  let mainMax = maximumBy comparator (impureNonNull mainList)
+      extraMax = maximumBy comparator (impureNonNull extraList)
+  in case extraMax `comparator` mainMax of
+       GT -> Just extraMax
+       _ -> Nothing
+
+getBoundAttr :: KeyValue p => Text -> Maybe Double -> [p]
+getBoundAttr _ Nothing = []
+getBoundAttr label (Just s) = [
+    label .= s
+  ]
+
+listIf :: Bool -> [a] -> [a]
+listIf True l = l
+listIf False _ = []
+
+filterEntries :: Maybe Text -> [TableEntry] -> [TableEntry]
+filterEntries Nothing = id
+filterEntries (Just condition) = filter (\entry -> checkCondition conditionParsed (toVariantEntry entry))
+  where conditionParsed = parseCondition condition
+        toVariantEntry :: TableEntry -> VariantEntry
+        toVariantEntry entry = VariantEntry {
+          variantEntryTags = map (entityVal . fst) $ tableEntryTagsInfo entry,
+          variantEntryParams = map entityVal $ tableEntryParams entry
+          }
+
+partitionEntries :: Maybe Text -> [TableEntry] -> ([TableEntry], [TableEntry])
+partitionEntries Nothing entries = (entries, [])
+partitionEntries (Just condition) entries = partition (\entry -> checkCondition conditionParsed (toVariantEntry entry)) entries
+  where conditionParsed = parseCondition condition
+        toVariantEntry :: TableEntry -> VariantEntry
+        toVariantEntry entry = VariantEntry {
+          variantEntryTags = map (entityVal . fst) $ tableEntryTagsInfo entry,
+          variantEntryParams = map entityVal $ tableEntryParams entry
+          }
+
+-- auxiliary functions taken from Math.Statistics
 
 interQuantile :: (Fractional b, Ord b) => [b] -> b
 interQuantile [] = 10.0

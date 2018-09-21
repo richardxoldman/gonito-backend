@@ -1,5 +1,13 @@
 <h1>Dashboard
 
+$forall indicatorEntry <- indicatorEntries
+   <div style="height:800px" id="indicator-chart-#{toPathPiece $ entityKey $ indicatorEntryIndicator indicatorEntry}">
+
+ <script src="/static/js/d3.min.js" charset="utf-8"></script>
+ <script src="/static/js/c3.min.js"></script>
+
+<hr>
+
 ^{Table.buildBootstrap (indicatorTable mUser) indicatorEntries}
 
 <hr>

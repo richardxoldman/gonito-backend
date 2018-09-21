@@ -401,3 +401,7 @@ getIsHigherTheBetterArray = Array
                                    . testMetric)
    where convertIsHigherTheBetter TheHigherTheBetter = Bool True
          convertIsHigherTheBetter _ = Bool False
+
+compareFun :: MetricOrdering -> Double -> Double -> Ordering
+compareFun TheLowerTheBetter = flip compare
+compareFun TheHigherTheBetter = compare

@@ -1,5 +1,3 @@
-
-
 module Handler.Dashboard where
 
 import Import
@@ -116,10 +114,21 @@ doDashboard mUser formWidget formEnctype = do
   indicators <- runDB $ selectList [] [Asc IndicatorId]
 
   indicatorEntries <- mapM indicatorToEntry indicators
+  let indicatorJSs = getIndicatorChartJss indicatorEntries
 
   defaultLayout $ do
     setTitle "Dashboard"
     $(widgetFile "dashboard")
+
+getIndicatorChartJss :: [IndicatorEntry] -> JavascriptUrl (Route App)
+getIndicatorChartJss entries =
+  mconcat $ map (getIndicatorChartJs . entityKey . indicatorEntryIndicator) entries
+
+getIndicatorChartJs :: IndicatorId -> JavascriptUrl (Route App)
+getIndicatorChartJs indicatorId = [julius|
+$.getJSON("@{IndicatorGraphDataR indicatorId}", function(data) {
+        c3.generate(data) });
+|]
 
 indicatorToEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site) => Entity Indicator -> HandlerFor site IndicatorEntry
 indicatorToEntry indicatorEnt@(Entity indicatorId indicator) = runDB $ do
@@ -183,7 +192,7 @@ formatTargets :: IndicatorEntry -> Text
 formatTargets = T.intercalate ", " . (map formatTarget) . indicatorEntryTargets
 
 formatTarget :: Entity Target -> Text
-formatTarget (Entity _ target) = (T.pack $ show $ targetValue target) <> " (" <> (T.pack $ show $ targetDeadline target) ++ ")"
+formatTarget (Entity _ target) = (T.pack $ show $ targetValue target) <> " (" <> (T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M" $ targetDeadline target) ++ ")"
 
 indicatorStatusCell :: Maybe (Entity User) -> Table.Table App IndicatorEntry
 indicatorStatusCell mUser = Table.widget "" (indicatorStatusCellWidget mUser)
