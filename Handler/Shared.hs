@@ -173,13 +173,6 @@ getHeadCommit repoDir chan = do
       err chan "cannot determine HEAD commit"
       return Nothing
 
-getLastCommitMessage :: FilePath -> Channel -> Handler (Maybe Text)
-getLastCommitMessage repoDir chan = do
-  (exitCode, out) <- runProgram (Just repoDir) gitPath ["log", "-1", "--pretty=%B"] chan
-  return $ case exitCode of
-             ExitSuccess -> Just out
-             ExitFailure _ -> Nothing
-
 cloneRepo' :: UserId -> RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
 cloneRepo' userId repoCloningSpec chan = do
       let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec

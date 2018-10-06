@@ -20,6 +20,8 @@ import Handler.Tables
 import Handler.TagUtils
 import Handler.MakePublic
 
+import Gonito.ExtractMetadata (ExtractionOptions(..), extractMetadataFromRepoDir, GonitoMetadata(..))
+
 import qualified Text.Read as TR
 
 import GEval.Core
@@ -33,8 +35,6 @@ import Options.Applicative
 import System.IO (readFile)
 
 import System.FilePath (takeFileName, dropExtensions)
-
-import Data.Attoparsec.Text
 
 import Data.Text (pack, unpack)
 
@@ -238,15 +238,26 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
       repo <- runDB $ get404 repoId
 
       repoDir <- getRepoDir repoId
-      commitMessage <- getLastCommitMessage repoDir chan
-      let (mCommitDescription, mCommitTags) = parseCommitMessage commitMessage
 
-      submissionId <- getSubmission userId repoId (repoCurrentCommit repo) challengeId (fromMaybe (fromMaybe "???" mCommitDescription) mDescription) chan
+      gonitoMetadata <- liftIO
+                       $ extractMetadataFromRepoDir repoDir (ExtractionOptions {
+                                                                extractionOptionsDescription = mDescription,
+                                                                extractionOptionsTags = mTags,
+                                                                extractionOptionsGeneralParams = Nothing,
+                                                                extractionOptionsParamFiles = Nothing,
+                                                                extractionOptionsMLRunPath = Nothing })
+
+      submissionId <- getSubmission userId
+                                   repoId
+                                   (repoCurrentCommit repo)
+                                   challengeId
+                                   (gonitoMetadataDescription gonitoMetadata)
+                                   chan
       _ <- getOuts chan submissionId
 
       currentTagIds <- runDB $ selectList [SubmissionTagSubmission ==. submissionId] []
 
-      runDB $ addTags submissionId (if isNothing mTags then mCommitTags else mTags) (
+      runDB $ addTags submissionId (gonitoMetadataTags gonitoMetadata)  (
         map (submissionTagTag . entityVal) currentTagIds)
       msg chan "SUBMISSION CREATED"
 
@@ -277,60 +288,6 @@ getSubmission userId repoId commit challengeId description chan = do
         submissionSubmitter=userId,
         submissionIsPublic=False,
         submissionIsHidden=Just False }
-
-parseCommitMessage :: Maybe Text -> (Maybe Text, Maybe Text)
-parseCommitMessage Nothing = (Nothing, Nothing)
-parseCommitMessage (Just commitMessage) =
-  case parseOnly commitMessageParser commitMessage of
-    Left _ -> (Nothing, Nothing)
-    Right (d, ts) -> (d, ts)
-
-commitMessageParser :: Data.Attoparsec.Text.Parser (Maybe Text, Maybe Text)
-commitMessageParser = do
-  skipMany emptyLine
-  d <- nonEmptyLine
-  mTs <- (do
-          ts <- findTagsLine
-          return $ Just ts) <|> (return Nothing)
-  return (Just d, mTs)
-
-findTagsLine :: Data.Attoparsec.Text.Parser Text
-findTagsLine = tagsLine <|> (anyLine >> findTagsLine)
-
-tagsLine :: Data.Attoparsec.Text.Parser Text
-tagsLine = do
-  _ <- (string "tags" <|> string "labels" <|> string "Tags" <|> string "Labels")
-  _ <- char ':'
-  skipMany space
-  s <- many notEndOfLine
-  endOfLine
-  return $ Data.Text.pack s
-
-commaSep :: Data.Attoparsec.Text.Parser a -> Data.Attoparsec.Text.Parser [a]
-commaSep p  = p `sepBy` (skipMany space *> char ',' *> skipMany space)
-
-nonEmptyLine :: Data.Attoparsec.Text.Parser Text
-nonEmptyLine = do
-  skipMany space
-  l1 <- notSpace
-  l <- (many notEndOfLine)
-  endOfLine
-  return $ Data.Text.pack (l1:l)
-
-anyLine :: Data.Attoparsec.Text.Parser ()
-anyLine = do
-  skipMany notEndOfLine
-  endOfLine
-
-notSpace :: Data.Attoparsec.Text.Parser Char
-notSpace = satisfy (\c -> c /= '\r' && c /= '\n' && c /= ' ' && c /= '\t')
-
-notEndOfLine :: Data.Attoparsec.Text.Parser Char
-notEndOfLine = satisfy (\c -> c /= '\r' && c /= '\n')
-
-emptyLine :: Data.Attoparsec.Text.Parser ()
-emptyLine = do
-  many space *> endOfLine
 
 getOuts :: Channel -> Key Submission -> Handler ([Out])
 getOuts chan submissionId = do

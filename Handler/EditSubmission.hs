@@ -10,6 +10,8 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 import Handler.TagUtils
 import Handler.MakePublic
 
+import Gonito.ExtractMetadata (parseTags)
+
 import Data.Text as T
 
 postAddVariantParamR :: SubmissionId -> VariantId -> Handler Html
@@ -58,7 +60,7 @@ postEditSubmissionG submissionId mVariantId = do
       sts <- selectList [SubmissionTagSubmission ==. submissionId] []
       let currentTagIds = Import.map (submissionTagTag . entityVal) sts
 
-      addTags submissionId tags currentTagIds
+      addTags submissionId (parseTags tags) currentTagIds
 
       return ()
     else

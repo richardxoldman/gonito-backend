@@ -1,0 +1,8 @@
+[submodule "test/fake-git-repos/simple"]
+	path = test/fake-git-repos/simple
+	url = git://gonito.net/gonito-fake-repo-for-tests
+	branch = simple
+[submodule "test/fake-git-repos/with-gonito-yaml"]
+	path = test/fake-git-repos/with-gonito-yaml
+	url = git://gonito.net/gonito-fake-repo-for-tests
+	branch = with-gonito-yaml

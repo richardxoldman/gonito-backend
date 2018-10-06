@@ -54,6 +54,7 @@ library
                      Handler.Runner
                      Handler.Dashboard
                      Data.SubmissionConditions
+                     Gonito.ExtractMetadata
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -206,3 +207,5 @@ test-suite test
                  , classy-prelude-yesod
                  , wai-handler-fastcgi
                  , wai
+                 , containers
+                 , unordered-containers

@@ -15,6 +15,9 @@ import Data.Time.LocalTime
 
 import Data.Text
 
+import qualified Data.Set as S
+import Gonito.ExtractMetadata (parseTags)
+
 import qualified Yesod.Table as Table
 
 getGonitoInClassR :: Handler Html
@@ -38,7 +41,7 @@ postAchievementsR = do
       FormSuccess (name, description, points, deadlineDay, deadlineTime, maxSubmitters, mTags, challengeId, courseId) -> do
                             achievementId <- runDB $ insert $ Achievement name challengeId points description (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) maxSubmitters courseId
 
-                            tids <- runDB $ tagsAsTextToTagIds mTags
+                            tids <- runDB $ tagsAsTextToTagIds (parseTags mTags)
 
                             _ <- mapM (\tid -> runDB $ insert $ AchievementTag achievementId tid) tids
 
@@ -83,11 +86,14 @@ achievementsTable canEdit = mempty
   ++ Table.string "max submitters" (formatMaxSubmitters . achievementInfoMaxWinners)
   ++ workingOnCell
 
+achievementNameEntry :: Bool -> Table.Table App AchievementInfo
 achievementNameEntry True = Table.linked "achievement" (achievementInfoName) (EditAchievementR . achievementInfoId)
 achievementNameEntry False = Table.text "achievement" achievementInfoName
 
+workingOnCell :: Table.Table App AchievementInfo
 workingOnCell = Table.widget "who's working on it?" workingOnWidget
 
+workingOnWidget :: AchievementInfo -> WidgetFor App ()
 workingOnWidget ainfo = [whamlet|
 #{srs}
 
@@ -180,6 +186,7 @@ determineWhetherCanGiveUpWorkingOn (Just (Entity userId _)) peopleWorkingOn =
 checkLimit _ Nothing = True
 checkLimit peopleWorkingOn (Just m) = (Import.length peopleWorkingOn) < m
 
+formatSubmitters :: [Entity User] -> Text
 formatSubmitters userEnts = Data.Text.intercalate ", " $ Import.map (formatSubmitter . entityVal) userEnts
 
 formatMaxSubmitters :: Maybe Int -> String
@@ -198,6 +205,7 @@ achievementForm mAchievement mTags = renderBootstrap3 BootstrapBasicForm $ (,,,,
     <*> challengesSelectFieldList (achievementChallenge <$> mAchievement)
     <*> coursesSelectFieldList (achievementCourse <$> mAchievement)
 
+tagsToText :: [Entity Tag] -> Maybe Text
 tagsToText [] = Nothing
 tagsToText tags = Just $ Data.Text.intercalate ", " $ Import.map (tagName . entityVal) tags
 
@@ -246,7 +254,7 @@ postEditAchievementR achievementId = do
                                 AchievementCourse =. courseId]
 
           deleteWhere [AchievementTagAchievement ==. achievementId]
-          tids <- tagsAsTextToTagIds mTags
+          tids <- tagsAsTextToTagIds (parseTags mTags)
           mapM (\tid -> insert $ AchievementTag achievementId tid) tids
 
         setMessage $ toHtml ("OK! Achievement modified" :: Text)

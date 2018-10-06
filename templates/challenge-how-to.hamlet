@@ -121,3 +121,14 @@ $maybe token <- mToken
 <h3>Manual submission
 
 <p>In case other methods fail, you can submit your solution manually — go to the <a href="@{ChallengeSubmissionR $ challengeName challenge}">submit form</a>.
+
+<h2>Submission metadata
+
+<p>Gonito can take the description, tags and parameters of a submission from a number of sources (in order of precedence):
+
+<ol>
+  <li>submission form (when submitting manually),
+  <li>git commit message,
+  <li>names of output files (only for parameters)
+
+<p>It might seem a little bit complicated, but you could simply use the method which is the most convenient for you.
