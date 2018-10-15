@@ -6,5 +6,5 @@
 $if submissionIsPublic $ fsiSubmission submission
   <div .subm-repo>publicly available at: <code>#{publicSubmissionRepo}</code> / branch <code>#{publicSubmissionBranch}</code>
   <div .subm-browsable>browsable at: <a href="#{browsableUrl}">#{browsableUrl}</a>
-  <div .subm-clonable>to get it run: <code>git clone #{publicSubmissionRepo} -b #{publicSubmissionBranch}</code>
+  <div .subm-clonable>to get it run: <code>git clone --single-branch #{publicSubmissionRepo} -b #{publicSubmissionBranch}</code>
 <hr>

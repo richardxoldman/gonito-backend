@@ -214,6 +214,7 @@ rawClone tmpRepoDir repoCloningSpec chan = runWithChannel chan $ do
   let referenceBranch = repoSpecBranch $ cloningSpecReferenceRepo repoCloningSpec
   runProg Nothing gitPath ["clone",
                            "--progress",
+                           "--single-branch",
                            "--branch",
                            T.unpack referenceBranch,
                            T.unpack referenceUrl,

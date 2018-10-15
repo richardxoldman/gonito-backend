@@ -42,7 +42,7 @@ $case (appRepoScheme settings)
        \ (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
 
   <pre>
-    git clone #{appRepoHost settings}#{shownId}/#{challengeName challenge}
+    git clone --single-branch #{appRepoHost settings}#{shownId}/#{challengeName challenge}
 
   <p>(Warning about empty repository is expected, don't worry about it.)
 
@@ -55,7 +55,7 @@ $case (appRepoScheme settings)
     <p>Clone the repo:
 
     <pre>
-      git clone #{repoUrl repo}
+      git clone --single-branch #{repoUrl repo}
 
     $maybe gitAnnexRemote <- (repoGitAnnexRemote repo)
       <pre>
