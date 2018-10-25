@@ -170,7 +170,7 @@ getIndicatorGraphDataR indicatorId = do
   -- an auxilliary graph
   let (targetEntries, otherEntries) =
         partitionEntries (indicatorTargetCondition indicator) filteredEntries
-  let (scores, timePoints) = addNow theNow $ entriesToPoints (Entity testId test) targetEntries
+  let (scores', timePoints') = addNow theNow $ entriesToPoints (Entity testId test) targetEntries
   let (otherScores, otherTimePoints) = addNow theNow $ entriesToPoints (Entity testId test) otherEntries
   let otherLabel = label <> " (other filtered)"
 
@@ -178,8 +178,15 @@ getIndicatorGraphDataR indicatorId = do
   -- that's why we need to enforce y range manually if needed
   -- (x range are not modified this way)
   let targetValues = map (targetValue . entityVal) $ indicatorEntryTargets indicatorEntry
-  let maxRange = getBound compare scores targetValues
-  let minRange = getBound (flip compare) scores targetValues
+  let maxRange = getBound compare scores' targetValues
+  let minRange = getBound (flip compare) scores' targetValues
+
+  -- we need to make sure the deadline line is visible
+  let targetsInTheFuture =
+        filter (\target -> targetDeadline target > theNow)
+        $ map entityVal $ indicatorEntryTargets indicatorEntry
+  let scores = scores' ++ (map (const (last $ impureNonNull scores')) targetsInTheFuture)
+  let timePoints = timePoints' ++ (map (formatTimestamp . targetDeadline) targetsInTheFuture)
 
   -- we return a JSON object required by the C3 library
   return $ object [
