@@ -32,5 +32,8 @@ spec = do
       extractMetadataFromRepoDir "test/fake-git-repos/with-gonito-yaml/" def `shouldReturn` GonitoMetadata {
         gonitoMetadataDescription = "Test solution",
         gonitoMetadataTags = S.fromList ["zzz", "baz", "simple", "machine-learning"],
-        gonitoMetadataGeneralParams = H.empty
+        gonitoMetadataGeneralParams = H.fromList [("level", "4"),
+                                                  ("altitude", "8900.3"),
+                                                  ("q", "10.4"),
+                                                  ("style", "bold")]
         }

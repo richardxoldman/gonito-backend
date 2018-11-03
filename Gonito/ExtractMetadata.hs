@@ -1,3 +1,5 @@
+{-# LANGUAGE PackageImports #-}
+
 module Gonito.ExtractMetadata (
   extractMetadataFromRepoDir,
   GonitoMetadata(..),
@@ -11,6 +13,7 @@ import Import
 
 import Data.Attoparsec.Text
 import Data.Text
+import qualified Data.Text.Encoding as DTE
 
 import Data.Aeson
 import qualified Data.Yaml as Y
@@ -23,11 +26,14 @@ import qualified Data.HashMap.Strict as H
 
 import Handler.Shared (gitPath)
 
+import "Glob" System.FilePath.Glob as G
+
 data ExtractionOptions = ExtractionOptions {
   extractionOptionsDescription :: Maybe Text,
   extractionOptionsTags :: Maybe Text,
-  extractionOptionsGeneralParams :: Maybe Text,
-  extractionOptionsParamFiles :: Maybe Text,
+  extractionOptionsGeneralParams :: Maybe (H.HashMap Text Text),
+  extractionOptionsUnwantedParams :: Maybe [Text],
+  extractionOptionsParamFiles :: Maybe [String],
   extractionOptionsMLRunPath :: Maybe FilePath
   }
 
@@ -35,7 +41,8 @@ instance FromJSON ExtractionOptions where
     parseJSON = withObject "ExtractionOptions" $ \v -> ExtractionOptions
         <$> v .:? "description"
         <*> v .:? "tags"
-        <*> v .:? "params"
+        <*> fmap (fmap enforceTextHash) (v .:? "params")
+        <*> v .:? "unwanted-params"
         <*> v .:? "param-files"
         <*> v .:? "mlrun-path"
 
@@ -44,6 +51,7 @@ instance Default ExtractionOptions where
     extractionOptionsDescription = Nothing,
     extractionOptionsTags = Nothing,
     extractionOptionsGeneralParams = Nothing,
+    extractionOptionsUnwantedParams = Nothing,
     extractionOptionsParamFiles = Nothing,
     extractionOptionsMLRunPath = Nothing
     }
@@ -67,8 +75,15 @@ combineExtractionOptions Nothing options = options
 combineExtractionOptions (Just otherOptions) options = ExtractionOptions {
   extractionOptionsDescription = combineWithT extractionOptionsDescription,
   extractionOptionsTags = combineWithT extractionOptionsTags,
-  extractionOptionsGeneralParams = combineWithT extractionOptionsGeneralParams,
-  extractionOptionsParamFiles = combineWithT extractionOptionsParamFiles,
+  extractionOptionsGeneralParams = Just $ (fromMaybe H.empty $ extractionOptionsGeneralParams options)
+                                          `H.union`
+                                          (fromMaybe H.empty $ extractionOptionsGeneralParams otherOptions),
+  extractionOptionsUnwantedParams = Just $ (fromMaybe [] $ extractionOptionsUnwantedParams options)
+                                           ++
+                                           (fromMaybe [] $ extractionOptionsUnwantedParams otherOptions),
+  extractionOptionsParamFiles = case extractionOptionsParamFiles options of
+                                  Nothing -> extractionOptionsParamFiles otherOptions
+                                  Just pfs -> Just pfs,
   extractionOptionsMLRunPath = combineWithF extractionOptionsMLRunPath }
   where combineWithT fun = case fun options of
                             Nothing -> fun otherOptions
@@ -96,11 +111,38 @@ extractMetadataFromRepoDir repoDir formExtractionOptions = do
   let formTagsParsed = parseTags $ extractionOptionsTags extractionOptions
   let tagsParsed = union commitTagsParsed formTagsParsed
 
+  paramFiles <- case extractionOptionsParamFiles extractionOptions of
+    Just paramFilesGlobs -> G.globDir (Import.map G.compile $ traceShowId paramFilesGlobs) repoDir
+    Nothing -> pure []
+
+  params' <- H.unions <$> (mapM parseParamFile
+                         $ traceShowId
+                         $ Import.filter (/= (repoDir </> gonitoYamlFile))
+                         $ Import.concat paramFiles)
+  let params =
+        Import.foldl' (flip H.delete) params' (fromMaybe [] $ extractionOptionsUnwantedParams extractionOptions)
+        `H.union`
+        fromMaybe H.empty (extractionOptionsGeneralParams extractionOptions)
+
   pure $ GonitoMetadata {
     gonitoMetadataDescription = description,
     gonitoMetadataTags = tagsParsed,
-    gonitoMetadataGeneralParams = H.empty
+    gonitoMetadataGeneralParams = params
   }
+
+
+parseParamFile :: FilePath -> IO (H.HashMap Text Text)
+parseParamFile yamlFile = do
+  decoded <- Y.decodeFileEither yamlFile
+
+  return $ case decoded of
+    Left _ -> H.empty
+    Right h -> enforceTextHash h
+
+enforceTextHash :: H.HashMap Text Value -> H.HashMap Text Text
+enforceTextHash h = H.fromList
+                    $ Import.map (\(p, pv) -> (p, strip $ DTE.decodeUtf8 $ Y.encode pv))
+                    $ H.toList h
 
 getLastCommitMessage :: FilePath -> IO (Maybe Text)
 getLastCommitMessage repoDir = do

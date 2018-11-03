@@ -145,6 +145,7 @@ library
                  , random-strings
                  , wai
                  , megaparsec
+                 , Glob
 
 executable         gonito
     if flag(library-only)
