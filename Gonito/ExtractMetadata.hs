@@ -22,7 +22,7 @@ import System.Exit
 import System.Process
 
 import qualified Data.Set as S
-import qualified Data.HashMap.Strict as H
+import qualified Data.Map.Strict as M
 
 import Handler.Shared (gitPath)
 
@@ -31,7 +31,7 @@ import "Glob" System.FilePath.Glob as G
 data ExtractionOptions = ExtractionOptions {
   extractionOptionsDescription :: Maybe Text,
   extractionOptionsTags :: Maybe Text,
-  extractionOptionsGeneralParams :: Maybe (H.HashMap Text Text),
+  extractionOptionsGeneralParams :: Maybe (M.Map Text Text),
   extractionOptionsUnwantedParams :: Maybe [Text],
   extractionOptionsParamFiles :: Maybe [String],
   extractionOptionsMLRunPath :: Maybe FilePath
@@ -59,7 +59,7 @@ instance Default ExtractionOptions where
 data GonitoMetadata = GonitoMetadata {
   gonitoMetadataDescription :: Text,
   gonitoMetadataTags :: S.Set Text,
-  gonitoMetadataGeneralParams :: H.HashMap Text Text
+  gonitoMetadataGeneralParams :: M.Map Text Text
   }
   deriving (Eq, Show)
 
@@ -75,9 +75,9 @@ combineExtractionOptions Nothing options = options
 combineExtractionOptions (Just otherOptions) options = ExtractionOptions {
   extractionOptionsDescription = combineWithT extractionOptionsDescription,
   extractionOptionsTags = combineWithT extractionOptionsTags,
-  extractionOptionsGeneralParams = Just $ (fromMaybe H.empty $ extractionOptionsGeneralParams options)
-                                          `H.union`
-                                          (fromMaybe H.empty $ extractionOptionsGeneralParams otherOptions),
+  extractionOptionsGeneralParams = Just $ (fromMaybe M.empty $ extractionOptionsGeneralParams options)
+                                          `M.union`
+                                          (fromMaybe M.empty $ extractionOptionsGeneralParams otherOptions),
   extractionOptionsUnwantedParams = Just $ (fromMaybe [] $ extractionOptionsUnwantedParams options)
                                            ++
                                            (fromMaybe [] $ extractionOptionsUnwantedParams otherOptions),
@@ -112,17 +112,16 @@ extractMetadataFromRepoDir repoDir formExtractionOptions = do
   let tagsParsed = union commitTagsParsed formTagsParsed
 
   paramFiles <- case extractionOptionsParamFiles extractionOptions of
-    Just paramFilesGlobs -> G.globDir (Import.map G.compile $ traceShowId paramFilesGlobs) repoDir
+    Just paramFilesGlobs -> G.globDir (Import.map G.compile paramFilesGlobs) repoDir
     Nothing -> pure []
 
-  params' <- H.unions <$> (mapM parseParamFile
-                         $ traceShowId
+  params' <- M.unions <$> (mapM parseParamFile
                          $ Import.filter (/= (repoDir </> gonitoYamlFile))
                          $ Import.concat paramFiles)
   let params =
-        Import.foldl' (flip H.delete) params' (fromMaybe [] $ extractionOptionsUnwantedParams extractionOptions)
-        `H.union`
-        fromMaybe H.empty (extractionOptionsGeneralParams extractionOptions)
+        Import.foldl' (flip M.delete) params' (fromMaybe [] $ extractionOptionsUnwantedParams extractionOptions)
+        `M.union`
+        fromMaybe M.empty (extractionOptionsGeneralParams extractionOptions)
 
   pure $ GonitoMetadata {
     gonitoMetadataDescription = description,
@@ -131,18 +130,18 @@ extractMetadataFromRepoDir repoDir formExtractionOptions = do
   }
 
 
-parseParamFile :: FilePath -> IO (H.HashMap Text Text)
+parseParamFile :: FilePath -> IO (M.Map Text Text)
 parseParamFile yamlFile = do
   decoded <- Y.decodeFileEither yamlFile
 
   return $ case decoded of
-    Left _ -> H.empty
+    Left _ -> M.empty
     Right h -> enforceTextHash h
 
-enforceTextHash :: H.HashMap Text Value -> H.HashMap Text Text
-enforceTextHash h = H.fromList
+enforceTextHash :: M.Map Text Value -> M.Map Text Text
+enforceTextHash h = M.fromList
                     $ Import.map (\(p, pv) -> (p, strip $ DTE.decodeUtf8 $ Y.encode pv))
-                    $ H.toList h
+                    $ M.toList h
 
 getLastCommitMessage :: FilePath -> IO (Maybe Text)
 getLastCommitMessage repoDir = do

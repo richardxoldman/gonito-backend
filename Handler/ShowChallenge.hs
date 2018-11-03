@@ -333,7 +333,7 @@ outsForTest repoDir submissionId testEnt@(Entity _ test) = do
   outFiles <- liftIO $ outFilesForTest repoDir test
 
   forM outFiles $ \outFile -> do
-    theVariant <- getVariant submissionId outFile
+    theVariant <- getVariant submissionId M.empty outFile
     outForTest repoDir outFile theVariant testEnt
 
 -- returns the filename (not file path)
@@ -348,8 +348,8 @@ outFilesForTest repoDir test = do
           Just outF -> return [takeFileName outF]
           Nothing -> return []
 
-getVariant :: SubmissionId -> FilePath -> Handler VariantId
-getVariant submissionId outFilePath = runDB $ do
+getVariant :: SubmissionId -> M.Map Text Text -> FilePath -> Handler VariantId
+getVariant submissionId generalParams outFilePath = runDB $ do
   let outFile = takeFileName outFilePath
   let name = Data.Text.pack $ dropExtensions outFile
   maybeVariant <- getBy $ UniqueVariantSubmissionName submissionId name
@@ -358,9 +358,11 @@ getVariant submissionId outFilePath = runDB $ do
     Nothing -> do
       vid <- insert $ Variant submissionId name
       let (OutputFileParsed _ paramMap) = parseParamsFromFilePath outFile
-      forM_ (M.toList paramMap) $ \(param, val) -> do
+
+      forM_ (M.toList (paramMap `M.union` generalParams)) $ \(param, val) -> do
         _ <- insert $ Parameter vid param val
         return ()
+
       return vid
 
 checkOrInsertOut :: Out -> Handler ()
