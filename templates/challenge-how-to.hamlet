@@ -124,11 +124,43 @@ $maybe token <- mToken
 
 <h2>Submission metadata
 
-<p>Gonito can take the description, tags and parameters of a submission from a number of sources (in order of precedence):
+<p>Gonito can take the metadata (description, tags, parameters) of a submission from a number of sources (in order of precedence):
 
 <ol>
-  <li>submission form (when submitting manually),
-  <li>git commit message,
+  <li>the YAML files specified in the <tt>param-files</tt> field of the <tt>gonito.yaml</tt> file
+     <ul>
+       <li>only applicable for parameters,
+       <li><tt>gonito.yaml</tt> will be always skipped even if matches a mask given in the <tt>param-files</tt> field,
+       <li>parameters blacklisted in the <tt>unwanted-params</tt> field of the <tt>gonito.yaml</tt> file will be discarded;
+  <li><tt>gonito.yaml</tt> file committed to the repository
+     <ul>
+       <li>description given in the <tt>description</tt> field,
+       <li>tags given in <tt>tags</tt> field,
+       <li>parameters given in <tt>params</tt> field,
   <li>names of output files (only for parameters)
+     <ul>
+       <li>e.g. if the output file is <tt>out-epochs=10,learning-rate=0.01.tsv</tt>, then parameters <i>epochs</i>=10 and <i>learning-rare</i>=0.01 will be extracted;
+  <li>submission form (when submitting manually);
+  <li>git commit message
+     <ul>
+       <li>description taken from the first paragraph
+       <li>tags taken from a line starting with <tt>tags:</tt>
+
+<p>Here is an example of <tt>gonito.yaml</tt>, in which all metadata could be given:
+
+<pre>
+  description: This my brilliant solution
+  tags:
+  \  - neural-network
+  \  - left-to-right
+  params:
+  \  epochs: 10
+  \  learning-rate: 0.01
+  unwanted-params:
+  \  - model-file
+  \  - vocab-file
+  param-files:
+  \  - "*.yaml"
+  \  - config/*.yaml
 
 <p>It might seem a little bit complicated, but you could simply use the method which is the most convenient for you.
