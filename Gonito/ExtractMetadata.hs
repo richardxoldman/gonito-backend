@@ -30,7 +30,7 @@ import "Glob" System.FilePath.Glob as G
 
 data ExtractionOptions = ExtractionOptions {
   extractionOptionsDescription :: Maybe Text,
-  extractionOptionsTags :: Maybe Text,
+  extractionOptionsTags :: Maybe (S.Set Text),
   extractionOptionsGeneralParams :: Maybe (M.Map Text Text),
   extractionOptionsUnwantedParams :: Maybe [Text],
   extractionOptionsParamFiles :: Maybe [String],
@@ -74,7 +74,7 @@ combineExtractionOptions :: Maybe ExtractionOptions -> ExtractionOptions -> Extr
 combineExtractionOptions Nothing options = options
 combineExtractionOptions (Just otherOptions) options = ExtractionOptions {
   extractionOptionsDescription = combineWithT extractionOptionsDescription,
-  extractionOptionsTags = combineWithT extractionOptionsTags,
+  extractionOptionsTags = combineWithS extractionOptionsTags,
   extractionOptionsGeneralParams = Just $ (fromMaybe M.empty $ extractionOptionsGeneralParams options)
                                           `M.union`
                                           (fromMaybe M.empty $ extractionOptionsGeneralParams otherOptions),
@@ -86,11 +86,16 @@ combineExtractionOptions (Just otherOptions) options = ExtractionOptions {
                                   Just pfs -> Just pfs,
   extractionOptionsMLRunPath = combineWithF extractionOptionsMLRunPath }
   where combineWithT fun = case fun options of
-                            Nothing -> fun otherOptions
-                            Just v -> Just v
+                             Nothing -> fun otherOptions
+                             Just v -> Just v
         combineWithF fun = case fun options of
-                            Nothing -> fun otherOptions
-                            Just v -> Just v
+                             Nothing -> fun otherOptions
+                             Just v -> Just v
+        combineWithS fun = case fun options of
+                             Nothing -> fun otherOptions
+                             Just s1 -> case fun otherOptions of
+                               Nothing -> Just s1
+                               Just s2 -> Just (s1 `S.union` s2)
 
 extractMetadataFromRepoDir :: FilePath -> ExtractionOptions -> IO GonitoMetadata
 extractMetadataFromRepoDir repoDir formExtractionOptions = do
@@ -108,8 +113,8 @@ extractMetadataFromRepoDir repoDir formExtractionOptions = do
                         Nothing -> "???"
 
   let commitTagsParsed = parseTags mCommitTags
-  let formTagsParsed = parseTags $ extractionOptionsTags extractionOptions
-  let tagsParsed = union commitTagsParsed formTagsParsed
+  let formTagsParsed = extractionOptionsTags extractionOptions
+  let tagsParsed = union commitTagsParsed $ fromMaybe S.empty formTagsParsed
 
   paramFiles <- case extractionOptionsParamFiles extractionOptions of
     Just paramFilesGlobs -> G.globDir (Import.map G.compile paramFilesGlobs) repoDir

@@ -22,7 +22,7 @@ spec = do
     it "simple with some fields from the form" $ do
       extractMetadataFromRepoDir "test/fake-git-repos/simple/" def {
         extractionOptionsDescription = Just "Other solution",
-        extractionOptionsTags = Just "other-tag,baz"
+        extractionOptionsTags = Just $ S.fromList ["other-tag", "baz"]
         } `shouldReturn` GonitoMetadata {
         gonitoMetadataDescription = "Other solution",
         gonitoMetadataTags = S.fromList ["foo", "simple-solution", "baz", "other-tag"],

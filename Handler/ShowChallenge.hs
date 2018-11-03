@@ -20,7 +20,10 @@ import Handler.Tables
 import Handler.TagUtils
 import Handler.MakePublic
 
-import Gonito.ExtractMetadata (ExtractionOptions(..), extractMetadataFromRepoDir, GonitoMetadata(..))
+import Gonito.ExtractMetadata (ExtractionOptions(..),
+                               extractMetadataFromRepoDir,
+                               GonitoMetadata(..),
+                               parseTags)
 
 import qualified Text.Read as TR
 
@@ -242,7 +245,7 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
       gonitoMetadata <- liftIO
                        $ extractMetadataFromRepoDir repoDir (ExtractionOptions {
                                                                 extractionOptionsDescription = mDescription,
-                                                                extractionOptionsTags = mTags,
+                                                                extractionOptionsTags = Just $ parseTags mTags,
                                                                 extractionOptionsGeneralParams = Nothing,
                                                                 extractionOptionsUnwantedParams = Nothing,
                                                                 extractionOptionsParamFiles = Nothing,
