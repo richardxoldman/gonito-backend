@@ -244,6 +244,7 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                                                                 extractionOptionsDescription = mDescription,
                                                                 extractionOptionsTags = mTags,
                                                                 extractionOptionsGeneralParams = Nothing,
+                                                                extractionOptionsUnwantedParams = Nothing,
                                                                 extractionOptionsParamFiles = Nothing,
                                                                 extractionOptionsMLRunPath = Nothing })
 
@@ -253,7 +254,7 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                                    challengeId
                                    (gonitoMetadataDescription gonitoMetadata)
                                    chan
-      _ <- getOuts chan submissionId
+      _ <- getOuts chan submissionId (gonitoMetadataGeneralParams gonitoMetadata)
 
       currentTagIds <- runDB $ selectList [SubmissionTagSubmission ==. submissionId] []
 
@@ -289,14 +290,14 @@ getSubmission userId repoId commit challengeId description chan = do
         submissionIsPublic=False,
         submissionIsHidden=Just False }
 
-getOuts :: Channel -> Key Submission -> Handler ([Out])
-getOuts chan submissionId = do
+getOuts :: Channel -> Key Submission -> M.Map Text Text -> Handler ([Out])
+getOuts chan submissionId generalParams = do
   submission <- runDB $ get404 submissionId
   let challengeId = submissionChallenge submission
   repoDir <- getRepoDir $ submissionRepo submission
   activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
 
-  outs' <- mapM (outsForTest repoDir submissionId) activeTests
+  outs' <- mapM (outsForTest repoDir submissionId generalParams) activeTests
   let outs = concat outs'
 
   mapM_ checkOrInsertOut outs
@@ -328,12 +329,12 @@ outForTest repoDir outF variantId (Entity testId test) = do
     outTest=testId,
     outChecksum=SHA1 checksum }
 
-outsForTest :: FilePath -> SubmissionId -> Entity Test -> HandlerFor App [Out]
-outsForTest repoDir submissionId testEnt@(Entity _ test) = do
+outsForTest :: FilePath -> SubmissionId -> M.Map Text Text -> Entity Test -> HandlerFor App [Out]
+outsForTest repoDir submissionId generalParams testEnt@(Entity _ test) = do
   outFiles <- liftIO $ outFilesForTest repoDir test
 
   forM outFiles $ \outFile -> do
-    theVariant <- getVariant submissionId M.empty outFile
+    theVariant <- getVariant submissionId generalParams outFile
     outForTest repoDir outFile theVariant testEnt
 
 -- returns the filename (not file path)
