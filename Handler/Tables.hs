@@ -54,15 +54,16 @@ submissionsTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] 
 submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.text "submitter" (formatSubmitter . (\(TableEntry _  _ (Entity _ submitter) _ _ _) -> submitter))
   ++ timestampCell "when" (submissionStamp . (\(TableEntry (Entity _ s) _ _ _ _ _) -> s))
-  ++ descriptionCell
+  ++ descriptionCell mauthId
   ++ mconcat (map (\(Entity k t) -> resultCell t (extractScore k)) tests)
   ++ statusCell challengeName repoScheme challengeRepo (\(TableEntry (Entity submissionId submission) (Entity variantId variant) (Entity userId _) _ _ _) -> (submissionId, submission, variantId, variant, userId, mauthId))
 
-descriptionCell :: Table site TableEntry
-descriptionCell = Table.widget "description" (
-  \(TableEntry (Entity _ s) (Entity _ v) _ _ tagEnts paramEnts) -> fragmentWithSubmissionTags
-                                                                      (descriptionToBeShown s v (map entityVal paramEnts))
-                                                                      tagEnts)
+descriptionCell :: Maybe UserId -> Table App TableEntry
+descriptionCell mauthId = Table.widget "description" (
+  \(TableEntry (Entity _ s) (Entity _ v) (Entity u _) _ tagEnts paramEnts) -> fragmentWithSubmissionTags
+                                                                             (descriptionToBeShown s v (map entityVal paramEnts))
+                                                                             (getInfoLink s u mauthId)
+                                                                             tagEnts)
 
 
 descriptionToBeShown :: Submission -> Variant -> [Parameter] -> Text
@@ -83,7 +84,7 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.int "#" fst
   ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd)
   ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
-  ++ leaderboardDescriptionCell
+  ++ leaderboardDescriptionCell mauthId
   ++ mconcat (map (\(Entity k t) -> resultCell t (extractScoreFromLeaderboardEntry k . snd)) tests)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
   ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
@@ -96,11 +97,14 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
 extractScoreFromLeaderboardEntry :: Key Test -> LeaderboardEntry -> Maybe Evaluation
 extractScoreFromLeaderboardEntry k entry = lookup k (leaderboardEvaluationMap entry)
 
-leaderboardDescriptionCell :: Table site (a, LeaderboardEntry)
-leaderboardDescriptionCell = Table.widget "description" (
+leaderboardDescriptionCell :: Maybe UserId -> Table App (a, LeaderboardEntry)
+leaderboardDescriptionCell mauthId = Table.widget "description" (
   \(_,entry) -> fragmentWithSubmissionTags (descriptionToBeShown (leaderboardBestSubmission entry)
                                                                 (leaderboardBestVariant entry)
                                                                 (leaderboardParams entry))
+                                          (getInfoLink (leaderboardBestSubmission entry)
+                                                       (leaderboardUserId entry)
+                                                       mauthId)
                                           (leaderboardTags entry)
   )
 
@@ -120,18 +124,29 @@ statusCell challengeName repoScheme challengeRepo fun = Table.widget "" (statusC
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
 resultCell test fun = hoverTextCell (formatTestForHtml test) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
 
-statusCellWidget :: Eq a => Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, a, Maybe a) -> WidgetFor App ()
+statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, UserId, Maybe UserId) -> WidgetFor App ()
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, userId, mauthId) = $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
           isOwner = (mauthId == Just userId)
-          isVisible = isPublic || isOwner
+          isVisible = checkWhetherVisible submission userId mauthId
           publicSubmissionBranch = getPublicSubmissionBranch submissionId
           maybeBrowsableUrl = if isPublic
                                 then
                                   Just $ browsableGitRepoBranch repoScheme challengeRepo challengeName publicSubmissionBranch
                                 else
                                   Nothing
+
+getInfoLink :: Submission -> UserId -> Maybe UserId -> Maybe (Route App)
+getInfoLink submission userId mauthId = if checkWhetherVisible submission userId mauthId
+                                        then Just $ QueryResultsR commitHash
+                                        else Nothing
+   where commitHash = fromSHA1ToText $ submissionCommit submission
+
+checkWhetherVisible :: Submission -> UserId -> Maybe UserId -> Bool
+checkWhetherVisible submission userId mauthId = isPublic || isOwner
+  where isPublic = submissionIsPublic submission
+        isOwner = (mauthId == Just userId)
 
 getAuxSubmissionEnts :: Key Test -> [TableEntry] -> [(Key User, (User, [(Entity Submission, Entity Variant, Evaluation)]))]
 getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluationMaps

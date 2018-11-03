@@ -38,8 +38,11 @@ $forall (Entity _ v) <- tagEnts
   \ <span class="label label-primary">#{tagName v}</span>
 |]
 
-fragmentWithSubmissionTags t tagEnts = [whamlet|
-#{t}
+fragmentWithSubmissionTags t mLink tagEnts = [whamlet|
+$maybe link <- mLink
+  <a href="@{link}">#{t}</a>
+$nothing
+  #{t}
 
 $forall ((Entity _ v), (Entity sid s)) <- tagEnts
   \ <span class="label #{tagClass $ submissionTagAccepted s}" onclick="t=$(this); $.get('/toggle-submission-tag/#{toPathPiece sid}', function(data){ if (!(data == 'BLOCKED')) {t.removeClass('#{allTagClasses}'); t.addClass(data);} }); ">#{tagName v}</span>
