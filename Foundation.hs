@@ -173,6 +173,7 @@ instance Yesod App where
     isAuthorized (ApiTxtScoreR _) _ = return Authorized
 
     isAuthorized (ChallengeParamGraphDataR _ _ _) _ = return Authorized
+    isAuthorized (IndicatorGraphDataR _) _ = return Authorized
 
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
