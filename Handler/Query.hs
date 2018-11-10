@@ -4,6 +4,7 @@ import Import
 
 import Handler.SubmissionView
 import Handler.Shared
+import Handler.TagUtils
 
 import Database.Persist.Sql
 
@@ -71,6 +72,9 @@ postQueryFormR = do
 
 getQueryResultsR :: Text -> Handler Html
 getQueryResultsR = processQuery
+
+isFullQuery :: Text -> Bool
+isFullQuery query = length query == 40
 
 processQuery :: Text -> Handler Html
 processQuery query = do

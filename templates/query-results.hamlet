@@ -1,4 +1,5 @@
-<h2>Query results
+$if not (isFullQuery query) || null submissions
+   <h2>Query results
 
 $if null submissions
    <p>No results found.

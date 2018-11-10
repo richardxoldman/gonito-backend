@@ -3,6 +3,7 @@ module Handler.SubmissionView where
 import Import
 import Handler.Shared
 import PersistSHA1
+import Handler.TagUtils
 
 import Data.Text as T(pack)
 
@@ -13,7 +14,8 @@ data FullSubmissionInfo = FullSubmissionInfo {
   fsiRepo :: Repo,
   fsiChallenge :: Challenge,
   fsiChallengeRepo :: Repo,
-  fsiScheme :: RepoScheme}
+  fsiScheme :: RepoScheme,
+  fsiTags :: [(Entity Tag, Entity SubmissionTag)] }
 
 getFullInfo :: Entity Submission -> Handler FullSubmissionInfo
 getFullInfo (Entity submissionId submission) = do
@@ -21,6 +23,8 @@ getFullInfo (Entity submissionId submission) = do
   user <- runDB $ get404 $ submissionSubmitter submission
   challenge <- runDB $ get404 $ submissionChallenge submission
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
+
+  tags <- runDB $ getTags submissionId
 
   app <- getYesod
   let scheme = appRepoScheme $ appSettings app
@@ -32,7 +36,8 @@ getFullInfo (Entity submissionId submission) = do
     fsiRepo = repo,
     fsiChallenge = challenge,
     fsiChallengeRepo = challengeRepo,
-    fsiScheme = scheme}
+    fsiScheme = scheme,
+    fsiTags = tags }
 
 
 queryResult submission = do
