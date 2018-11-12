@@ -10,7 +10,7 @@
   $(document).ready(function() {
      $("table").DataTable({
        'pageLength': 50,
-       'order': [[1, 'desc']],
+       'order': [[2, 'desc'], [#{delta} + columnDefs.length-1, 'desc']],
        'columnDefs': columnDefs
        });
   } );

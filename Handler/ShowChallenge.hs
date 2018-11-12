@@ -546,7 +546,7 @@ challengeAllSubmissionsWidget :: Maybe UserId
                                 -> WidgetFor App ()
 challengeAllSubmissionsWidget muserId challenge scheme challengeRepo submissions tests params =
   $(widgetFile "challenge-all-submissions")
-  where delta = Number 3
+  where delta = Number 4
         higherTheBetterArray = getIsHigherTheBetterArray $ map entityVal tests
 
 paramGraphsWidget :: Challenge -> [Entity Test] -> [Text] -> WidgetFor App ()

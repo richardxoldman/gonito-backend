@@ -82,7 +82,7 @@ submissionsToJSON condition challengeName = do
 
   (entries, _) <- getLeaderboardEntriesByCriterion challengeId
                                                   condition
-                                                  (\(TableEntry (Entity submissionId _) _ _ _ _ _) -> [submissionId])
+                                                  (\entry -> [entityKey $ tableEntrySubmission entry])
 
 
   tests <- runDB $ selectList [TestChallenge ==. challengeId] []
