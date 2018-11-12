@@ -18,7 +18,8 @@ data FullSubmissionInfo = FullSubmissionInfo {
   fsiChallenge :: Challenge,
   fsiChallengeRepo :: Repo,
   fsiScheme :: RepoScheme,
-  fsiTags :: [(Entity Tag, Entity SubmissionTag)] }
+  fsiTags :: [(Entity Tag, Entity SubmissionTag)],
+  fsiExternalLinks :: [Entity ExternalLink] }
 
 getFullInfo :: Entity Submission -> Handler FullSubmissionInfo
 getFullInfo (Entity submissionId submission) = do
@@ -28,6 +29,8 @@ getFullInfo (Entity submissionId submission) = do
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
   tags <- runDB $ getTags submissionId
+
+  links <- runDB $ selectList [ExternalLinkSubmission ==. submissionId] [Asc ExternalLinkTitle]
 
   app <- getYesod
   let scheme = appRepoScheme $ appSettings app
@@ -40,7 +43,8 @@ getFullInfo (Entity submissionId submission) = do
     fsiChallenge = challenge,
     fsiChallengeRepo = challengeRepo,
     fsiScheme = scheme,
-    fsiTags = tags }
+    fsiTags = tags,
+    fsiExternalLinks = links }
 
 getTags submissionId = do
   sts <- selectList [SubmissionTagSubmission ==. submissionId] []

@@ -23,7 +23,8 @@ import Handler.MakePublic
 import Gonito.ExtractMetadata (ExtractionOptions(..),
                                extractMetadataFromRepoDir,
                                GonitoMetadata(..),
-                               parseTags)
+                               parseTags,
+                               Link(..))
 
 import qualified Text.Read as TR
 
@@ -257,6 +258,12 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                                    challengeId
                                    (gonitoMetadataDescription gonitoMetadata)
                                    chan
+
+      _ <- runDB $ mapM insert $ map (\l -> ExternalLink {
+                                        externalLinkSubmission = submissionId,
+                                        externalLinkTitle = linkTitle l,
+                                        externalLinkUrl = linkUrl l }) $ gonitoMetadataExternalLinks gonitoMetadata
+
       _ <- getOuts chan submissionId (gonitoMetadataGeneralParams gonitoMetadata)
 
       currentTagIds <- runDB $ selectList [SubmissionTagSubmission ==. submissionId] []

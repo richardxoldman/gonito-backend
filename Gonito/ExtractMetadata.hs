@@ -6,7 +6,8 @@ module Gonito.ExtractMetadata (
   ExtractionOptions(..),
   parseCommitMessage,
   getLastCommitMessage,
-  parseTags)
+  parseTags,
+  Link(..))
    where
 
 import Import
@@ -34,7 +35,8 @@ data ExtractionOptions = ExtractionOptions {
   extractionOptionsGeneralParams :: Maybe (M.Map Text Text),
   extractionOptionsUnwantedParams :: Maybe [Text],
   extractionOptionsParamFiles :: Maybe [String],
-  extractionOptionsMLRunPath :: Maybe FilePath
+  extractionOptionsMLRunPath :: Maybe FilePath,
+  extractionOptionsExternalLinks :: Maybe [Link]
   }
 
 instance FromJSON ExtractionOptions where
@@ -45,6 +47,7 @@ instance FromJSON ExtractionOptions where
         <*> v .:? "unwanted-params"
         <*> v .:? "param-files"
         <*> v .:? "mlrun-path"
+        <*> v .:? "links"
 
 instance Default ExtractionOptions where
   def = ExtractionOptions {
@@ -53,13 +56,25 @@ instance Default ExtractionOptions where
     extractionOptionsGeneralParams = Nothing,
     extractionOptionsUnwantedParams = Nothing,
     extractionOptionsParamFiles = Nothing,
-    extractionOptionsMLRunPath = Nothing
+    extractionOptionsMLRunPath = Nothing,
+    extractionOptionsExternalLinks = Nothing
     }
+
+data Link = Link {
+  linkTitle :: Maybe Text,
+  linkUrl :: Text }
+  deriving (Eq, Show)
+
+instance FromJSON Link where
+  parseJSON = withObject "Link" $ \v -> Link
+    <$> v .:? "title"
+    <*> v .: "url"
 
 data GonitoMetadata = GonitoMetadata {
   gonitoMetadataDescription :: Text,
   gonitoMetadataTags :: S.Set Text,
-  gonitoMetadataGeneralParams :: M.Map Text Text
+  gonitoMetadataGeneralParams :: M.Map Text Text,
+  gonitoMetadataExternalLinks :: [Link]
   }
   deriving (Eq, Show)
 
@@ -84,7 +99,10 @@ combineExtractionOptions (Just otherOptions) options = ExtractionOptions {
   extractionOptionsParamFiles = case extractionOptionsParamFiles options of
                                   Nothing -> extractionOptionsParamFiles otherOptions
                                   Just pfs -> Just pfs,
-  extractionOptionsMLRunPath = combineWithF extractionOptionsMLRunPath }
+  extractionOptionsMLRunPath = combineWithF extractionOptionsMLRunPath,
+  extractionOptionsExternalLinks = case extractionOptionsExternalLinks options of
+                                     Nothing -> extractionOptionsExternalLinks otherOptions
+                                     Just links -> Just (links ++ (fromMaybe [] $ extractionOptionsExternalLinks otherOptions)) }
   where combineWithT fun = case fun options of
                              Nothing -> fun otherOptions
                              Just v -> Just v
@@ -131,7 +149,8 @@ extractMetadataFromRepoDir repoDir formExtractionOptions = do
   pure $ GonitoMetadata {
     gonitoMetadataDescription = description,
     gonitoMetadataTags = tagsParsed,
-    gonitoMetadataGeneralParams = params
+    gonitoMetadataGeneralParams = params,
+    gonitoMetadataExternalLinks = fromMaybe [] (extractionOptionsExternalLinks extractionOptions)
   }
 
 

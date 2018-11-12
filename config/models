@@ -68,6 +68,10 @@ Parameter
     name Text
     value Text
     UniqueParameterName variant name
+ExternalLink
+    submission SubmissionId
+    title Text Maybe
+    url Text
 Fork
     source SubmissionId
     target SubmissionId

@@ -17,7 +17,13 @@
     <dd><a href="#{browsableUrl}">#{browsableUrl}</a>
     <dt>clone by
     <dd><code>git clone --single-branch #{publicSubmissionRepo} -b #{publicSubmissionBranch}</code>
-
+  $if not (null (fsiExternalLinks submission))
+    <dt>see also
+    <dd>
+      $forall (Entity _ externalLink) <- fsiExternalLinks submission
+        <a href="#{externalLinkUrl externalLink}">
+           #{fromMaybe (externalLinkUrl externalLink) (externalLinkTitle externalLink)}
+        <br>
 ^{resultTable (Entity (fsiSubmissionId submission) (fsiSubmission submission))}
 
 <hr>

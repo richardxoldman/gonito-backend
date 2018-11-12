@@ -8,7 +8,7 @@ import qualified Data.Set as S
 import qualified Data.Map.Strict as M
 
 import Test.Hspec
-import Gonito.ExtractMetadata (extractMetadataFromRepoDir, GonitoMetadata(..), ExtractionOptions(..))
+import Gonito.ExtractMetadata (extractMetadataFromRepoDir, GonitoMetadata(..), ExtractionOptions(..), Link(..))
 
 spec :: Spec
 spec = do
@@ -17,7 +17,8 @@ spec = do
       extractMetadataFromRepoDir "test/fake-git-repos/simple/" def `shouldReturn` GonitoMetadata {
         gonitoMetadataDescription = "Simple solution",
         gonitoMetadataTags = S.fromList ["foo", "simple-solution", "baz"],
-        gonitoMetadataGeneralParams = M.empty
+        gonitoMetadataGeneralParams = M.empty,
+        gonitoMetadataExternalLinks = []
         }
     it "simple with some fields from the form" $ do
       extractMetadataFromRepoDir "test/fake-git-repos/simple/" def {
@@ -26,7 +27,8 @@ spec = do
         } `shouldReturn` GonitoMetadata {
         gonitoMetadataDescription = "Other solution",
         gonitoMetadataTags = S.fromList ["foo", "simple-solution", "baz", "other-tag"],
-        gonitoMetadataGeneralParams = M.empty
+        gonitoMetadataGeneralParams = M.empty,
+        gonitoMetadataExternalLinks = []
         }
     it "with gonito.yaml" $ do
       extractMetadataFromRepoDir "test/fake-git-repos/with-gonito-yaml/" def `shouldReturn` GonitoMetadata {
@@ -35,5 +37,9 @@ spec = do
         gonitoMetadataGeneralParams = M.fromList [("level", "4"),
                                                   ("altitude", "8900.3"),
                                                   ("q", "10.4"),
-                                                  ("style", "bold")]
+                                                  ("style", "bold")],
+        gonitoMetadataExternalLinks = [
+            Link (Just "gitlab") "https://about.gitlab.com/",
+            Link (Just "Polish Wikipedia") "https://pl.wikipedia.org/wiki/Wikipedia:Strona_g%C5%82%C3%B3wna",
+            Link Nothing "https://tvtropes.org/" ]
         }
