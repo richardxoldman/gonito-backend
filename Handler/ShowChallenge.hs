@@ -3,8 +3,6 @@ module Handler.ShowChallenge where
 import Import
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
-
-
 import qualified Data.Text.Lazy as TL
 import           Text.Markdown
 
@@ -239,6 +237,20 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
   maybeRepoKey <- getSubmissionRepo userId challengeId repoSpec chan
   case maybeRepoKey of
     Just repoId -> do
+
+      activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
+      let (Entity mainTestId mainTest) = getMainTest activeTests
+      bestResultSoFar <- runDB $ selectFirst [EvaluationTest ==. mainTestId,
+                                            EvaluationScore !=. Nothing]
+                                           [ (case getMetricOrdering (testMetric mainTest) of
+                                                TheHigherTheBetter -> Desc
+                                                TheLowerTheBetter -> Asc) EvaluationScore ]
+      let bestScoreSoFar = join (evaluationScore <$> entityVal <$> bestResultSoFar)
+
+      case bestScoreSoFar of
+        Just s -> msg chan ("best score so far is: " ++ (Data.Text.pack $ show s))
+        Nothing -> msg chan "first submission so far"
+
       repo <- runDB $ get404 repoId
 
       repoDir <- getRepoDir repoId
@@ -264,7 +276,23 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                                         externalLinkTitle = linkTitle l,
                                         externalLinkUrl = linkUrl l }) $ gonitoMetadataExternalLinks gonitoMetadata
 
-      _ <- getOuts chan submissionId (gonitoMetadataGeneralParams gonitoMetadata)
+      outs <- getOuts chan submissionId (gonitoMetadataGeneralParams gonitoMetadata)
+
+      newScores <- mapM (getScoreForOut mainTestId) outs
+      let newScores' = catMaybes newScores
+      let newScores'' = case getMetricOrdering (testMetric mainTest) of
+            TheHigherTheBetter -> reverse $ sort newScores'
+            TheLowerTheBetter -> sort newScores'
+      let compOp = case getMetricOrdering (testMetric mainTest) of
+            TheLowerTheBetter -> (<)
+            TheHigherTheBetter -> (>)
+      case bestScoreSoFar of
+        Just b ->  case newScores'' of
+                    (s:_) -> if compOp s b
+                             then msg chan "New record!"
+                             else return ()
+                    [] -> return ()
+        Nothing -> return ()
 
       currentTagIds <- runDB $ selectList [SubmissionTagSubmission ==. submissionId] []
 
@@ -279,6 +307,14 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
         else
           return ()
     Nothing -> return ()
+
+getScoreForOut mainTestId out = do
+  mEvaluation <- runDB $ selectFirst [EvaluationChecksum ==. (outChecksum out),
+                                     EvaluationTest ==. mainTestId]
+                                    []
+  return $ case mEvaluation of
+             Just evaluation -> evaluationScore $ entityVal evaluation
+             Nothing -> Nothing
 
 getSubmission :: UserId -> Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
 getSubmission userId repoId commit challengeId description chan = do
