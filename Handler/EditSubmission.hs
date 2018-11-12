@@ -9,6 +9,7 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
 import Handler.TagUtils
 import Handler.MakePublic
+import Handler.Query
 
 import Gonito.ExtractMetadata (parseTags)
 

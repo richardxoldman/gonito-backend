@@ -64,6 +64,21 @@ submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
                                                                        entityKey $ tableEntrySubmitter tableEntry,
                                                                        mauthId))
 
+paramTable :: [Text] -> [Entity Test] -> Table App TableEntry
+paramTable paramNames tests = mempty
+  ++ Table.int "#" tableEntryRank
+  ++ mconcat (map paramExtractor paramNames)
+  ++ mconcat (map (\(Entity k t) -> resultCell t (extractScore k)) tests)
+
+paramExtractor :: Text -> Table App TableEntry
+paramExtractor paramName = Table.text paramName (\entry ->
+                                                   fromMaybe ""
+                                                   $ listToMaybe
+                                                   $ map parameterValue
+                                                   $ filter (\p -> parameterName p == paramName)
+                                                   $ map entityVal
+                                                   $ tableEntryParams entry)
+
 descriptionCell :: Maybe UserId -> Table App TableEntry
 descriptionCell mauthId = Table.widget "description" (
   \(TableEntry (Entity _ s) (Entity _ v) (Entity u _) _ tagEnts paramEnts _) -> fragmentWithSubmissionTags
@@ -166,7 +181,7 @@ getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge
                                              -> (TableEntry -> [a])
                                              -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntriesByCriterion challengeId condition selector = do
-  (evaluationMaps, tests) <- getChallengeSubmissionInfos condition challengeId
+  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos condition challengeId
   let mainTests = getMainTests tests
   let mainTestEnt = getMainTest tests
   let (Entity mainTestId mainTest) = mainTestEnt
@@ -233,20 +248,17 @@ compareResult _ (Just _) Nothing = GT
 compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ
 
-getChallengeSubmissionInfos :: ((Entity Submission) -> Bool)
-                              -> Key Challenge
-                              -> Handler ([TableEntry], [Entity Test])
 getChallengeSubmissionInfos condition challengeId = do
-  tests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
+  tests <- selectList [TestChallenge ==. challengeId, TestActive ==. True] []
   let mainTest = getMainTest tests
 
-  allSubmissionsVariants <- runDB $ E.select $ E.from $ \(submission, variant) -> do
+  allSubmissionsVariants <- E.select $ E.from $ \(submission, variant) -> do
      E.where_ (submission ^. SubmissionChallenge E.==. E.val challengeId
                E.&&. submission ^. SubmissionIsHidden E.!=. E.val (Just True)
                E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId)
      return (submission, variant)
 
-  scores <- runDB $ mapM (getScore (entityKey mainTest)) $ map (entityKey . snd) allSubmissionsVariants
+  scores <- mapM (getScore (entityKey mainTest)) $ map (entityKey . snd) allSubmissionsVariants
 
   let allSubmissionsVariantsWithRanks =
         sortBy (\(r1, (s1, _)) (r2, (s2, _)) -> (submissionStamp (entityVal s2) `compare` submissionStamp (entityVal s1))
@@ -272,15 +284,15 @@ getScore testId variantId = do
              (e:_) -> evaluationScore $ entityVal e
              [] -> Nothing
 
-getEvaluationMap :: (Int, (Entity Submission, Entity Variant)) -> Handler TableEntry
+
 getEvaluationMap (rank, (s@(Entity submissionId submission), v@(Entity variantId _))) = do
-  outs <- runDB $ selectList [OutVariant ==. variantId] []
-  user <- runDB $ get404 $ submissionSubmitter submission
-  maybeEvaluations <- runDB $ mapM (\(Entity _ o) -> getBy $ UniqueEvaluationTestChecksum (outTest o) (outChecksum o)) outs
+  outs <- selectList [OutVariant ==. variantId] []
+  user <- get404 $ submissionSubmitter submission
+  maybeEvaluations <- mapM (\(Entity _ o) -> getBy $ UniqueEvaluationTestChecksum (outTest o) (outChecksum o)) outs
   let evaluations = catMaybes maybeEvaluations
   let m = Map.fromList $ map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
-  tagEnts <- runDB $ getTags submissionId
+  tagEnts <- getTags submissionId
 
-  parameters <- runDB $ selectList [ParameterVariant ==. variantId] [Asc ParameterName]
+  parameters <- selectList [ParameterVariant ==. variantId] [Asc ParameterName]
 
   return $ TableEntry s v (Entity (submissionSubmitter submission) user) m tagEnts parameters rank

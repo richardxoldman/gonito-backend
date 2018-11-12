@@ -1,0 +1,5 @@
+<div id="t#{resultId}">
+  $if null tableEntries
+     <p>No results available. The submission is probably broken.
+  $else
+     ^{Table.buildBootstrap (paramTable paramNames tests) tableEntries}

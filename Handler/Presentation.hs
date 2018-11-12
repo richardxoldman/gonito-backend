@@ -33,7 +33,7 @@ getPresentation4RealR = do
 
   (Just (Entity sampleUserId _)) <- runDB $ getBy $ UniqueUser sampleUserIdent
   let condition = (\(Entity _ submission) -> (submissionSubmitter submission == sampleUserId))
-  (evaluationMaps', tests) <- getChallengeSubmissionInfos condition challengeId
+  (evaluationMaps', tests) <- runDB $ getChallengeSubmissionInfos condition challengeId
   let evaluationMaps = take 10 evaluationMaps'
 
   sampleLeaderboard <- getSampleLeaderboard sampleChallengeName

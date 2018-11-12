@@ -30,7 +30,7 @@ getChallengeParamGraphDataR challengeName testId paramName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
   test <- runDB $ get404 testId
 
-  (entries, _) <- getChallengeSubmissionInfos (const True) challengeId
+  (entries, _) <- runDB $ getChallengeSubmissionInfos (const True) challengeId
 
   let values = map (findParamValue paramName) entries
 
@@ -154,7 +154,7 @@ getIndicatorGraphDataR indicatorId = do
   test <- runDB $ get404 testId
   let mPrecision = testPrecision test
 
-  (entries, _) <- getChallengeSubmissionInfos (const True) (testChallenge test)
+  (entries, _) <- runDB $ getChallengeSubmissionInfos (const True) (testChallenge test)
 
   theNow <- liftIO $ getCurrentTime -- needed to draw the "now" vertical line
 

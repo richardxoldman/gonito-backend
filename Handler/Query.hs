@@ -5,11 +5,21 @@ import Import
 import Handler.SubmissionView
 import Handler.Shared
 import Handler.TagUtils
+import PersistSHA1
+
+import Handler.Tables
+
+import qualified Yesod.Table as Table
+import Yesod.Table (Table)
 
 import Database.Persist.Sql
 
 import qualified Database.Esqueleto      as E
 import           Database.Esqueleto      ((^.))
+
+import qualified Data.Text as T
+
+import Data.List (nub)
 
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 
@@ -82,6 +92,33 @@ processQuery query = do
   defaultLayout $ do
     setTitle "query results"
     $(widgetFile "query-results")
+
+resultTable :: Entity Submission -> WidgetFor App ()
+resultTable (Entity submissionId submission) = do
+  (tableEntries, tests) <- handlerToWidget $ runDB $ getChallengeSubmissionInfos (\s -> entityKey s == submissionId)
+                                                                                (submissionChallenge submission)
+  let paramNames =
+        nub
+        $ map (parameterName . entityVal)
+        $ concat
+        $ map tableEntryParams tableEntries
+
+  let resultId = show $ fromSqlKey submissionId
+  let jsSelector = String $ T.pack ("#t" ++ resultId ++ " > table")
+
+  let delta = Number $ fromIntegral ((length paramNames) + 1)
+  let higherTheBetterArray = getIsHigherTheBetterArray $ map entityVal tests
+
+  $(widgetFile "result-table")
+
+queryResult submission = do
+  $(widgetFile "query-result")
+    where commitSha1AsText = fromSHA1ToText $ submissionCommit $ fsiSubmission submission
+          submitter = formatSubmitter $ fsiUser submission
+          publicSubmissionBranch = getPublicSubmissionBranch $ fsiSubmissionId submission
+          publicSubmissionRepo = getReadOnlySubmissionUrl (fsiScheme submission) (fsiChallengeRepo submission) $ challengeName $ fsiChallenge submission
+          browsableUrl = browsableGitRepoBranch (fsiScheme submission) (fsiChallengeRepo submission) (challengeName $ fsiChallenge submission) publicSubmissionBranch
+          stamp = T.pack $ show $ submissionStamp $ fsiSubmission submission
 
 queryForm :: Form Text
 queryForm = renderBootstrap3 BootstrapBasicForm $ areq textField (fieldSettingsLabel MsgGitCommitSha1) Nothing

@@ -494,7 +494,7 @@ getChallengeAllSubmissionsR name = getChallengeSubmissions (\_ -> True) name
 getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
 getChallengeSubmissions condition name = do
   Entity challengeId challenge <- runDB $ getBy404 $ UniqueName name
-  (evaluationMaps, tests') <- getChallengeSubmissionInfos condition challengeId
+  (evaluationMaps, tests') <- runDB $ getChallengeSubmissionInfos condition challengeId
   let tests = sortBy testComparator tests'
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth

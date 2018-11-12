@@ -7,6 +7,9 @@ import Handler.TagUtils
 
 import Data.Text as T(pack)
 
+import qualified Yesod.Table as Table
+import Yesod.Table (Table)
+
 data FullSubmissionInfo = FullSubmissionInfo {
   fsiSubmissionId :: SubmissionId,
   fsiSubmission :: Submission,
@@ -38,16 +41,6 @@ getFullInfo (Entity submissionId submission) = do
     fsiChallengeRepo = challengeRepo,
     fsiScheme = scheme,
     fsiTags = tags }
-
-
-queryResult submission = do
-  $(widgetFile "query-result")
-    where commitSha1AsText = fromSHA1ToText $ submissionCommit $ fsiSubmission submission
-          submitter = formatSubmitter $ fsiUser submission
-          publicSubmissionBranch = getPublicSubmissionBranch $ fsiSubmissionId submission
-          publicSubmissionRepo = getReadOnlySubmissionUrl (fsiScheme submission) (fsiChallengeRepo submission) $ challengeName $ fsiChallenge submission
-          browsableUrl = browsableGitRepoBranch (fsiScheme submission) (fsiChallengeRepo submission) (challengeName $ fsiChallenge submission) publicSubmissionBranch
-          stamp = T.pack $ show $ submissionStamp $ fsiSubmission submission
 
 getTags submissionId = do
   sts <- selectList [SubmissionTagSubmission ==. submissionId] []
