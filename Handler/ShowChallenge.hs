@@ -44,6 +44,9 @@ import Data.Conduit.SmartSource
 
 import Data.List (nub)
 
+import qualified Database.Esqueleto      as E
+import           Database.Esqueleto      ((^.))
+
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   app <- getYesod
@@ -240,12 +243,23 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
 
       activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
       let (Entity mainTestId mainTest) = getMainTest activeTests
-      bestResultSoFar <- runDB $ selectFirst [EvaluationTest ==. mainTestId,
-                                            EvaluationScore !=. Nothing]
-                                           [ (case getMetricOrdering (testMetric mainTest) of
-                                                TheHigherTheBetter -> Desc
-                                                TheLowerTheBetter -> Asc) EvaluationScore ]
-      let bestScoreSoFar = join (evaluationScore <$> entityVal <$> bestResultSoFar)
+
+      let orderDirection = case getMetricOrdering (testMetric mainTest) of
+            TheHigherTheBetter -> E.desc
+            TheLowerTheBetter -> E.asc
+
+      bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out) -> do
+              E.where_ (submission ^. SubmissionChallenge E.==. E.val challengeId
+                        E.&&. submission ^. SubmissionIsHidden E.!=. E.val (Just True)
+                        E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId
+                        E.&&. evaluation ^. EvaluationChecksum E.==. out ^. OutChecksum
+                        E.&&. evaluation ^. EvaluationScore E.!=. E.val Nothing
+                        E.&&. out ^. OutVariant E.==. variant ^. VariantId
+                        E.&&. evaluation ^. EvaluationTest E.==. E.val mainTestId)
+              E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
+              E.limit 1
+              return evaluation
+      let bestScoreSoFar = join (evaluationScore <$> entityVal <$> (listToMaybe bestResultSoFar))
 
       case bestScoreSoFar of
         Just s -> msg chan ("best score so far is: " ++ (Data.Text.pack $ show s))
