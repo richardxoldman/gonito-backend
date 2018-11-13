@@ -262,7 +262,8 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                                                                 extractionOptionsGeneralParams = Nothing,
                                                                 extractionOptionsUnwantedParams = Nothing,
                                                                 extractionOptionsParamFiles = Nothing,
-                                                                extractionOptionsMLRunPath = Nothing })
+                                                                extractionOptionsMLRunPath = Nothing,
+                                                                extractionOptionsExternalLinks = Nothing })
 
       submissionId <- getSubmission userId
                                    repoId
