@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
 
 module Handler.Shared where
 
@@ -10,6 +11,7 @@ import Handler.Runner
 import System.Exit
 
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as DTE
 
 import Database.Persist.Sql (fromSqlKey)
 
@@ -37,10 +39,11 @@ import System.IO.Unsafe (unsafePerformIO)
 
 import Text.Regex.TDFA
 
-import Data.Aeson.Types
 import GEval.Core
 
 import qualified Data.Vector as DV
+
+import Network.HTTP.Req as R
 
 arena :: Handler FilePath
 arena = do
@@ -399,3 +402,16 @@ getIsHigherTheBetterArray = Array
 compareFun :: MetricOrdering -> Double -> Double -> Ordering
 compareFun TheLowerTheBetter = flip compare
 compareFun TheHigherTheBetter = compare
+
+runSlackHook :: Text -> Text -> IO ()
+runSlackHook hook message = do
+  let (Just (hookUrl, _)) = parseUrlHttps $ DTE.encodeUtf8 hook
+
+  R.runReq def $ do
+    let payload = object [ "text" .= message ]
+    (_ :: JsonResponse Value) <- R.req R.POST
+                                hookUrl
+                                (R.ReqBodyJson payload)
+                                R.jsonResponse
+                                mempty
+    return ()

@@ -88,6 +88,7 @@ data AppSettings = AppSettings
     , appTagPermissions         :: TagPermissions
     , appAutoOpening            :: Bool
     , appLeaderboardStyle       :: LeaderboardStyle
+    , appNewBestResultSlackHook :: Maybe Text
     }
 
 instance FromJSON AppSettings where
@@ -126,6 +127,8 @@ instance FromJSON AppSettings where
         appTagPermissions         <- toTagPermissions <$> o .: "tag-permissions"
         appAutoOpening            <- o .:? "auto-opening" .!= False
         appLeaderboardStyle       <- toLeaderboardStyle <$> o .: "leaderboard-style"
+
+        appNewBestResultSlackHook <- o .:? "new-best-result-slack-hook"
 
         return AppSettings {..}
 

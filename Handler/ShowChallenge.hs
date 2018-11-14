@@ -241,6 +241,8 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
   case maybeRepoKey of
     Just repoId -> do
 
+      challenge <- runDB $ get404 challengeId
+
       activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
       let (Entity mainTestId mainTest) = getMainTest activeTests
 
@@ -253,7 +255,7 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                         E.&&. submission ^. SubmissionIsHidden E.!=. E.val (Just True)
                         E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId
                         E.&&. evaluation ^. EvaluationChecksum E.==. out ^. OutChecksum
-                        E.&&. evaluation ^. EvaluationScore E.!=. E.val Nothing
+                        E.&&. (E.not_ (E.isNothing (evaluation ^. EvaluationScore)))
                         E.&&. out ^. OutVariant E.==. variant ^. VariantId
                         E.&&. evaluation ^. EvaluationTest E.==. E.val mainTestId)
               E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
@@ -304,7 +306,26 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
       case bestScoreSoFar of
         Just b ->  case newScores'' of
                     (s:_) -> if compOp s b
-                             then msg chan "New record!"
+                             then
+                              do
+                                app <- getYesod
+                                let submissionLink = (appRoot $ appSettings app) ++ "/q/" ++ (fromSHA1ToText (repoCurrentCommit repo))
+                                let message = ("Whoa! New best result for '"
+                                               ++ (challengeName challenge)
+                                               ++ "' challenge, "
+                                               ++ (T.pack $ show $ testMetric mainTest)
+                                               ++ " ("
+                                               ++ (if s > b
+                                                   then "+"
+                                                   else "")
+                                               ++ (T.pack $ show $ s-b)
+                                               ++ ")"
+                                               ++ " See <" ++ submissionLink ++ "|Submission>")
+                                msg chan message
+                                case appNewBestResultSlackHook $ appSettings app of
+                                  Just hook -> liftIO $ runSlackHook hook message
+
+                                  Nothing -> return ()
                              else return ()
                     [] -> return ()
         Nothing -> return ()

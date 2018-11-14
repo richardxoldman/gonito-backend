@@ -13,6 +13,7 @@ repo-scheme:     "_env:REPO_SCHEME:selfhosted"
 tag-permissions: "_env:TAG_PERMISSIONS:only-admin-can-add-new-tags"
 auto-opening:    "_env:AUTO_OPENING:false"
 leaderboard-style: "_env:LEADERBOARD_STYLE:by-submitter"
+new-best-result-slack-hook: "_env:NEW_BEST_RESULT_SLACK_HOOK:"
 
 # Optional values with the following production defaults.
 # In development, they default to the inverse.

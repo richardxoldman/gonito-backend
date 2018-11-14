@@ -146,6 +146,7 @@ library
                  , wai
                  , megaparsec
                  , Glob
+                 , req
 
 executable         gonito
     if flag(library-only)
