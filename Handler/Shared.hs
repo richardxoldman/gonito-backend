@@ -409,9 +409,12 @@ runSlackHook hook message = do
 
   R.runReq def $ do
     let payload = object [ "text" .= message ]
-    (_ :: JsonResponse Value) <- R.req R.POST
-                                hookUrl
-                                (R.ReqBodyJson payload)
-                                R.jsonResponse
-                                mempty
+    (_ :: IgnoreResponse) <- R.req R.POST
+                                 hookUrl
+                                 (R.ReqBodyJson payload)
+                                 R.ignoreResponse
+                                 mempty
     return ()
+
+slackLink app title addr = "<" ++ link ++ "|" ++ title ++ ">"
+  where link = (appRoot $ appSettings app) ++ "/" ++ addr

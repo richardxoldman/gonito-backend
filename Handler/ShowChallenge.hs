@@ -242,6 +242,7 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
     Just repoId -> do
 
       challenge <- runDB $ get404 challengeId
+      user <- runDB $ get404 userId
 
       activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
       let (Entity mainTestId mainTest) = getMainTest activeTests
@@ -295,6 +296,14 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
 
       outs <- getOuts chan submissionId (gonitoMetadataGeneralParams gonitoMetadata)
 
+      currentTagIds <- runDB $ selectList [SubmissionTagSubmission ==. submissionId] []
+
+      runDB $ addTags submissionId (gonitoMetadataTags gonitoMetadata)  (
+        map (submissionTagTag . entityVal) currentTagIds)
+      msg chan "SUBMISSION CREATED"
+
+      app <- getYesod
+
       newScores <- mapM (getScoreForOut mainTestId) outs
       let newScores' = catMaybes newScores
       let newScores'' = case getMetricOrdering (testMetric mainTest) of
@@ -308,19 +317,25 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                     (s:_) -> if compOp s b
                              then
                               do
-                                app <- getYesod
-                                let submissionLink = (appRoot $ appSettings app) ++ "/q/" ++ (fromSHA1ToText (repoCurrentCommit repo))
-                                let message = ("Whoa! New best result for '"
-                                               ++ (challengeName challenge)
-                                               ++ "' challenge, "
+                                let submissionLink = slackLink app "submission" ("q/" ++ (fromSHA1ToText (repoCurrentCommit repo)))
+                                let challengeLink = slackLink app (challengeTitle challenge) ("challenge/"
+                                                                                              ++ (challengeName challenge))
+                                let message = ("Whoa! New best result for "
+                                               ++ challengeLink
+                                               ++ " challenge by "
+                                               ++ (fromMaybe "???" $ userName user)
+                                               ++ ", "
                                                ++ (T.pack $ show $ testMetric mainTest)
+                                               ++ ": "
+                                               ++ (formatScore (testPrecision mainTest) s)
                                                ++ " ("
                                                ++ (if s > b
                                                    then "+"
                                                    else "")
-                                               ++ (T.pack $ show $ s-b)
-                                               ++ ")"
-                                               ++ " See <" ++ submissionLink ++ "|Submission>")
+                                               ++ (formatScore (testPrecision mainTest) (s-b))
+                                               ++ ")."
+                                               ++ " See " ++ submissionLink ++ "."
+                                               ++ " :clap:")
                                 msg chan message
                                 case appNewBestResultSlackHook $ appSettings app of
                                   Just hook -> liftIO $ runSlackHook hook message
@@ -330,13 +345,6 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                     [] -> return ()
         Nothing -> return ()
 
-      currentTagIds <- runDB $ selectList [SubmissionTagSubmission ==. submissionId] []
-
-      runDB $ addTags submissionId (gonitoMetadataTags gonitoMetadata)  (
-        map (submissionTagTag . entityVal) currentTagIds)
-      msg chan "SUBMISSION CREATED"
-
-      app <- getYesod
       if appAutoOpening $ appSettings app
         then
           doMakePublic userId submissionId chan
