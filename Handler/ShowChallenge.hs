@@ -280,7 +280,8 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                                                                 extractionOptionsUnwantedParams = Nothing,
                                                                 extractionOptionsParamFiles = Nothing,
                                                                 extractionOptionsMLRunPath = Nothing,
-                                                                extractionOptionsExternalLinks = Nothing })
+                                                                extractionOptionsExternalLinks = Nothing,
+                                                                extractionOptionsDependencies = Nothing })
 
       submissionId <- getSubmission userId
                                    repoId
@@ -293,6 +294,10 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                                         externalLinkSubmission = submissionId,
                                         externalLinkTitle = linkTitle l,
                                         externalLinkUrl = linkUrl l }) $ gonitoMetadataExternalLinks gonitoMetadata
+
+      _ <- runDB $ mapM insert $ map (\s -> Dependency {
+                                        dependencySubRepoCommit = s,
+                                        dependencySuperRepoCommit = (repoCurrentCommit repo) }) $ gonitoMetadataDependencies gonitoMetadata
 
       outs <- getOuts chan submissionId (gonitoMetadataGeneralParams gonitoMetadata)
 

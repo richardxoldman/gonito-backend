@@ -9,7 +9,7 @@ import qualified Data.Text as T
 import Numeric (showHex)
 
 data SHA1 = SHA1 ByteString
-            deriving Show
+            deriving (Eq, Show)
 
 toHex :: ByteString -> ByteString
 toHex = BC.pack . concat . (map ("\\x"++)) . (map (flip showHex "")) . B.unpack

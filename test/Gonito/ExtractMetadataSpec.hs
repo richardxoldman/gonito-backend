@@ -4,6 +4,8 @@ module Gonito.ExtractMetadataSpec (spec) where
 
 import Import
 
+import PersistSHA1
+
 import qualified Data.Set as S
 import qualified Data.Map.Strict as M
 
@@ -18,7 +20,8 @@ spec = do
         gonitoMetadataDescription = "Simple solution",
         gonitoMetadataTags = S.fromList ["foo", "simple-solution", "baz"],
         gonitoMetadataGeneralParams = M.empty,
-        gonitoMetadataExternalLinks = []
+        gonitoMetadataExternalLinks = [],
+        gonitoMetadataDependencies = []
         }
     it "simple with some fields from the form" $ do
       extractMetadataFromRepoDir "test/fake-git-repos/simple/" def {
@@ -28,7 +31,8 @@ spec = do
         gonitoMetadataDescription = "Other solution",
         gonitoMetadataTags = S.fromList ["foo", "simple-solution", "baz", "other-tag"],
         gonitoMetadataGeneralParams = M.empty,
-        gonitoMetadataExternalLinks = []
+        gonitoMetadataExternalLinks = [],
+        gonitoMetadataDependencies = []
         }
     it "with gonito.yaml" $ do
       extractMetadataFromRepoDir "test/fake-git-repos/with-gonito-yaml/" def `shouldReturn` GonitoMetadata {
@@ -41,5 +45,9 @@ spec = do
         gonitoMetadataExternalLinks = [
             Link (Just "gitlab") "https://about.gitlab.com/",
             Link (Just "Polish Wikipedia") "https://pl.wikipedia.org/wiki/Wikipedia:Strona_g%C5%82%C3%B3wna",
-            Link Nothing "https://tvtropes.org/" ]
+            Link Nothing "https://tvtropes.org/" ],
+        gonitoMetadataDependencies = [
+            fromTextToSHA1 "39ae80911874c8f6bac1cdc57771bc2929cf0177",
+            fromTextToSHA1 "11b33fd677825228412019b289c470260389bea5"
+            ]
         }

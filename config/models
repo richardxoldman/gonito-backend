@@ -72,10 +72,23 @@ ExternalLink
     submission SubmissionId
     title Text Maybe
     url Text
+-- this represents forks, i.e. when a submission for a given challenge
+-- was based (in terms of git history) on another submission for the same challenge
+-- NOTE: not implemented yet
 Fork
     source SubmissionId
     target SubmissionId
     UniqueSourceTarget source target
+-- for representing dependencies across challenges;
+-- e.g. when a model generated in a submission is used
+-- by another submission in another challenge;
+-- dependencies are expressed as a relation between
+-- commit hashes rather than submissions/repos
+-- (can be easily linked to submission via SubmissionCommit link)
+Dependency
+    subRepoCommit SHA1
+    superRepoCommit SHA1
+    UniqueSubSuperSubmission subRepoCommit superRepoCommit
 Evaluation
     test TestId
     checksum SHA1

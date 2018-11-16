@@ -29,6 +29,8 @@ import Handler.Shared (gitPath)
 
 import "Glob" System.FilePath.Glob as G
 
+import PersistSHA1
+
 data ExtractionOptions = ExtractionOptions {
   extractionOptionsDescription :: Maybe Text,
   extractionOptionsTags :: Maybe (S.Set Text),
@@ -36,8 +38,9 @@ data ExtractionOptions = ExtractionOptions {
   extractionOptionsUnwantedParams :: Maybe [Text],
   extractionOptionsParamFiles :: Maybe [String],
   extractionOptionsMLRunPath :: Maybe FilePath,
-  extractionOptionsExternalLinks :: Maybe [Link]
-  }
+  extractionOptionsExternalLinks :: Maybe [Link],
+  extractionOptionsDependencies :: Maybe [SHA1]
+   }
 
 instance FromJSON ExtractionOptions where
     parseJSON = withObject "ExtractionOptions" $ \v -> ExtractionOptions
@@ -48,6 +51,7 @@ instance FromJSON ExtractionOptions where
         <*> v .:? "param-files"
         <*> v .:? "mlrun-path"
         <*> v .:? "links"
+        <*> fmap (fmap (Import.map fromTextToSHA1)) (v .:? "dependencies")
 
 instance Default ExtractionOptions where
   def = ExtractionOptions {
@@ -57,7 +61,8 @@ instance Default ExtractionOptions where
     extractionOptionsUnwantedParams = Nothing,
     extractionOptionsParamFiles = Nothing,
     extractionOptionsMLRunPath = Nothing,
-    extractionOptionsExternalLinks = Nothing
+    extractionOptionsExternalLinks = Nothing,
+    extractionOptionsDependencies = Nothing
     }
 
 data Link = Link {
@@ -74,7 +79,8 @@ data GonitoMetadata = GonitoMetadata {
   gonitoMetadataDescription :: Text,
   gonitoMetadataTags :: S.Set Text,
   gonitoMetadataGeneralParams :: M.Map Text Text,
-  gonitoMetadataExternalLinks :: [Link]
+  gonitoMetadataExternalLinks :: [Link],
+  gonitoMetadataDependencies :: [SHA1]
   }
   deriving (Eq, Show)
 
@@ -102,7 +108,11 @@ combineExtractionOptions (Just otherOptions) options = ExtractionOptions {
   extractionOptionsMLRunPath = combineWithF extractionOptionsMLRunPath,
   extractionOptionsExternalLinks = case extractionOptionsExternalLinks options of
                                      Nothing -> extractionOptionsExternalLinks otherOptions
-                                     Just links -> Just (links ++ (fromMaybe [] $ extractionOptionsExternalLinks otherOptions)) }
+                                     Just links -> Just (links ++ (fromMaybe [] $ extractionOptionsExternalLinks otherOptions)),
+  extractionOptionsDependencies = case extractionOptionsDependencies options of
+                                     Nothing -> extractionOptionsDependencies otherOptions
+                                     Just links -> Just (links ++ (fromMaybe [] $ extractionOptionsDependencies otherOptions)) }
+
   where combineWithT fun = case fun options of
                              Nothing -> fun otherOptions
                              Just v -> Just v
@@ -146,12 +156,27 @@ extractMetadataFromRepoDir repoDir formExtractionOptions = do
         `M.union`
         fromMaybe M.empty (extractionOptionsGeneralParams extractionOptions)
 
+  let dependenciesFromYaml = fromMaybe [] $ extractionOptionsDependencies extractionOptions
+  dependenciesFromGitSubmodules <- extractDependenciesFromGitSubmodules repoDir
+
   pure $ GonitoMetadata {
     gonitoMetadataDescription = description,
     gonitoMetadataTags = tagsParsed,
     gonitoMetadataGeneralParams = params,
-    gonitoMetadataExternalLinks = fromMaybe [] (extractionOptionsExternalLinks extractionOptions)
+    gonitoMetadataExternalLinks = fromMaybe [] (extractionOptionsExternalLinks extractionOptions),
+    gonitoMetadataDependencies = dependenciesFromYaml ++ dependenciesFromGitSubmodules
   }
+
+extractDependenciesFromGitSubmodules :: FilePath -> IO [SHA1]
+extractDependenciesFromGitSubmodules repoDir = do
+  (exitCode, out) <- runProgram repoDir gitPath ["submodule"]
+  return $ case exitCode of
+             ExitSuccess -> Import.map (fromTextToSHA1
+                                       . Data.Text.take sha1Lenght
+                                       . Data.Text.drop 1)
+                           $ Data.Text.lines out
+             ExitFailure _ -> []
+  where sha1Lenght = 40
 
 
 parseParamFile :: FilePath -> IO (M.Map Text Text)
