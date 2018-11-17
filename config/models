@@ -57,7 +57,7 @@ Submission
     stamp UTCTime default=now()
     submitter UserId
     isPublic Bool default=False
-    isHidden Bool Maybe
+    isHidden Bool default=False
     UniqueSubmissionRepoCommitChallenge repo commit challenge
 Variant
     submission SubmissionId

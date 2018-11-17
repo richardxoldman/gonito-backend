@@ -25,7 +25,7 @@ $maybe variantId <- mVariantId
       _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
   <hr>
 
-$if submissionIsHidden submission == Just True
+$if submissionIsHidden submission == True
   <p>Submission is hidden!
   <p>
     <a href=@{RestoreSubmissionR submissionId}>_{MsgRestoreSubmission}

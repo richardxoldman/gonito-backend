@@ -253,7 +253,7 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
 
       bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out) -> do
               E.where_ (submission ^. SubmissionChallenge E.==. E.val challengeId
-                        E.&&. submission ^. SubmissionIsHidden E.!=. E.val (Just True)
+                        E.&&. submission ^. SubmissionIsHidden E.==. E.val False
                         E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId
                         E.&&. evaluation ^. EvaluationChecksum E.==. out ^. OutChecksum
                         E.&&. (E.not_ (E.isNothing (evaluation ^. EvaluationScore)))
@@ -383,7 +383,7 @@ getSubmission userId repoId commit challengeId description chan = do
         submissionStamp=time,
         submissionSubmitter=userId,
         submissionIsPublic=False,
-        submissionIsHidden=Just False }
+        submissionIsHidden=False }
 
 getOuts :: Channel -> Key Submission -> M.Map Text Text -> Handler ([Out])
 getOuts chan submissionId generalParams = do

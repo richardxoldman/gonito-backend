@@ -254,7 +254,7 @@ getChallengeSubmissionInfos condition challengeId = do
 
   allSubmissionsVariants <- E.select $ E.from $ \(submission, variant) -> do
      E.where_ (submission ^. SubmissionChallenge E.==. E.val challengeId
-               E.&&. submission ^. SubmissionIsHidden E.!=. E.val (Just True)
+               E.&&. submission ^. SubmissionIsHidden E.==. E.val False
                E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId)
      return (submission, variant)
 

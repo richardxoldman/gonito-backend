@@ -127,7 +127,7 @@ changeSubmissionVisibility status submissionId =
   if isOwner
     then
      do
-      runDB $ update submissionId [SubmissionIsHidden =. Just (not status)]
+      runDB $ update submissionId [SubmissionIsHidden =. (not status)]
       setMessage $ toHtml (("Submission " :: Text) ++ (verb status))
     else
       setMessage $ toHtml ("Only owner can edit a submission!!!" :: Text)
