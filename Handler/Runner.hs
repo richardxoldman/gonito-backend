@@ -4,6 +4,7 @@ module Handler.Runner where
 import Import
 import System.Process
 import System.Exit
+import System.Environment
 import Control.Concurrent.STM
 import Control.Concurrent.Lifted (threadDelay)
 import qualified Data.ByteString as BS
@@ -83,10 +84,14 @@ runProg workingDir programPath args = Runner {
 
 runProgram :: Maybe FilePath -> FilePath -> [String] -> Channel -> Handler (ExitCode, Text)
 runProgram workingDir programPath args chan = do
+  env <- liftIO $ getEnvironment
   (_, Just hout, Just herr, pid) <-
-       liftIO $ createProcess (proc programPath args){ std_out = CreatePipe,
-                                                       std_err = CreatePipe,
-                                                       cwd = workingDir}
+       liftIO $ createProcess (proc programPath args){
+      std_out = CreatePipe,
+      std_err = CreatePipe,
+      -- https://serverfault.com/questions/544156/git-clone-fail-instead-of-prompting-for-credentials
+      env = Just (("GIT_TERMINAL_PROMPT", "0") : env),
+      cwd = workingDir}
   (code, out) <- gatherOutput pid hout herr chan
   _ <- liftIO $ waitForProcess pid
   return (code, out)
