@@ -10,7 +10,6 @@ import PersistSHA1
 import Handler.Tables
 
 import qualified Yesod.Table as Table
-import Yesod.Table (Table)
 
 import Database.Persist.Sql
 
@@ -24,7 +23,8 @@ import Data.List (nub)
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 
 rawCommitQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
-rawCommitQuery sha1Prefix = rawSql "SELECT ?? FROM submission WHERE is_public AND cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
+rawCommitQuery sha1Prefix =
+  rawSql "SELECT ?? FROM submission WHERE is_public AND cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
 
 findSubmissions :: Text -> Handler [FullSubmissionInfo]
 findSubmissions sha1Prefix = do
@@ -111,6 +111,7 @@ resultTable (Entity submissionId submission) = do
 
   $(widgetFile "result-table")
 
+queryResult :: FullSubmissionInfo -> WidgetFor App ()
 queryResult submission = do
   $(widgetFile "query-result")
     where commitSha1AsText = fromSHA1ToText $ submissionCommit $ fsiSubmission submission

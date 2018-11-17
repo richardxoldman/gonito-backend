@@ -6,3 +6,4 @@ $if null submissions
 $else
    $forall submission <- submissions
       ^{queryResult submission}
+      <hr>

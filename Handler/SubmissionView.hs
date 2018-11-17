@@ -1,14 +1,9 @@
 module Handler.SubmissionView where
 
 import Import
-import Handler.Shared
-import PersistSHA1
-import Handler.TagUtils
 
-import Data.Text as T(pack)
-
-import qualified Yesod.Table as Table
-import Yesod.Table (Table)
+import qualified Database.Esqueleto      as E
+import           Database.Esqueleto      ((^.))
 
 data FullSubmissionInfo = FullSubmissionInfo {
   fsiSubmissionId :: SubmissionId,
@@ -19,7 +14,8 @@ data FullSubmissionInfo = FullSubmissionInfo {
   fsiChallengeRepo :: Repo,
   fsiScheme :: RepoScheme,
   fsiTags :: [(Entity Tag, Entity SubmissionTag)],
-  fsiExternalLinks :: [Entity ExternalLink] }
+  fsiExternalLinks :: [Entity ExternalLink],
+  fsiSuperSubmissions :: [FullSubmissionInfo] }
 
 getFullInfo :: Entity Submission -> Handler FullSubmissionInfo
 getFullInfo (Entity submissionId submission) = do
@@ -35,6 +31,13 @@ getFullInfo (Entity submissionId submission) = do
   app <- getYesod
   let scheme = appRepoScheme $ appSettings app
 
+  superSubmissions <- runDB $ E.select $ E.from $ \(submission', dependency) -> do
+                              E.where_ (submission' ^. SubmissionCommit E.==. dependency ^. DependencySuperRepoCommit
+                                        E.&&. dependency ^. DependencySubRepoCommit E.==. (E.val (submissionCommit submission)))
+                              return submission'
+
+  superSubmissionFsis <- mapM getFullInfo superSubmissions
+
   return $ FullSubmissionInfo {
     fsiSubmissionId = submissionId,
     fsiSubmission = submission,
@@ -44,8 +47,10 @@ getFullInfo (Entity submissionId submission) = do
     fsiChallengeRepo = challengeRepo,
     fsiScheme = scheme,
     fsiTags = tags,
-    fsiExternalLinks = links }
+    fsiExternalLinks = links,
+    fsiSuperSubmissions = superSubmissionFsis }
 
+getTags :: (BaseBackend backend ~ SqlBackend, MonadIO m, PersistQueryRead backend) => Key Submission -> ReaderT backend m [(Entity Tag, Entity SubmissionTag)]
 getTags submissionId = do
   sts <- selectList [SubmissionTagSubmission ==. submissionId] []
   let tagIds = Import.map (submissionTagTag . entityVal) sts

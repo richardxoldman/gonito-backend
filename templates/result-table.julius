@@ -2,6 +2,7 @@
   $(document).ready(function() {
      $(#{jsSelector}).DataTable({
        'pageLength': 50,
+       'lengthChange': false,
        'order': [[0, 'asc'], [#{delta} + ($.fn.dataTable.getColumnDefs(#{delta}, #{higherTheBetterArray})).length-1, 'desc']],
        'columnDefs': $.fn.dataTable.getColumnDefs(#{delta}, #{higherTheBetterArray})
        });
