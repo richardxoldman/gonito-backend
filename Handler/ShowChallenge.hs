@@ -295,9 +295,9 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                                         externalLinkTitle = linkTitle l,
                                         externalLinkUrl = linkUrl l }) $ gonitoMetadataExternalLinks gonitoMetadata
 
-      _ <- runDB $ mapM insert $ map (\s -> Dependency {
-                                        dependencySubRepoCommit = s,
-                                        dependencySuperRepoCommit = (repoCurrentCommit repo) }) $ gonitoMetadataDependencies gonitoMetadata
+      _ <- runDB $ mapM insertUnique $ map (\s -> Dependency {
+                                                  dependencySubRepoCommit = s,
+                                                  dependencySuperRepoCommit = (repoCurrentCommit repo) }) $ gonitoMetadataDependencies gonitoMetadata
 
       outs <- getOuts chan submissionId (gonitoMetadataGeneralParams gonitoMetadata)
 
