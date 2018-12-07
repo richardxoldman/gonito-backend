@@ -210,9 +210,10 @@ postTriggerLocallyR = do
   (Just challengeName) <- lookupPostParam "challenge"
   (Just localId) <- lookupPostParam "user"
   mBranch <- lookupPostParam "branch"
+  mGitAnnexRemote <- lookupPostParam "git-annex-remote"
   [Entity userId _] <- runDB $ selectList [UserLocalId ==. Just localId] []
   let localRepo = gitServer ++ localId ++ "/" ++ challengeName
-  trigger userId challengeName localRepo mBranch
+  trigger userId challengeName localRepo mBranch mGitAnnexRemote
 
 postTriggerRemotelyR :: Handler TypedContent
 postTriggerRemotelyR = do
@@ -220,11 +221,12 @@ postTriggerRemotelyR = do
   (Just url) <- lookupPostParam "url"
   (Just token) <- lookupPostParam "token"
   mBranch <- lookupPostParam "branch"
+  mGitAnnexRemote <- lookupPostParam "git-annex-remote"
   [Entity userId _] <- runDB $ selectList [UserTriggerToken ==. Just token] []
-  trigger userId challengeName url mBranch
+  trigger userId challengeName url mBranch mGitAnnexRemote
 
-trigger :: UserId -> Text -> Text -> Maybe Text -> Handler TypedContent
-trigger userId challengeName url mBranch = do
+trigger :: UserId -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
+trigger userId challengeName url mBranch mGitAnnexRemote = do
   let branch = fromMaybe "master" mBranch
   mChallengeEnt <- runDB $ getBy $ UniqueName challengeName
   case mChallengeEnt of
@@ -232,7 +234,7 @@ trigger userId challengeName url mBranch = do
                                                                            Nothing Nothing
                                                                            RepoSpec {repoSpecUrl=url,
                                                                                      repoSpecBranch=branch,
-                                                                                     repoSpecGitAnnexRemote=Nothing}
+                                                                                     repoSpecGitAnnexRemote=mGitAnnexRemote}
     Nothing -> return $ toTypedContent (("Unknown challenge `" ++ (Data.Text.unpack challengeName) ++ "`. Cannot be triggered, must be submitted manually at Gonito.net!\n") :: String)
 
 doCreateSubmission :: UserId -> Key Challenge -> Maybe Text -> Maybe Text -> RepoSpec -> Channel -> Handler ()
