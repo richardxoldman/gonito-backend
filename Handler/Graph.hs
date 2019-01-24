@@ -8,7 +8,8 @@ import Handler.Shared (formatParameter, formatScore, getMainTest, compareFun)
 import Data.Maybe
 import Data.List ((!!))
 import Database.Persist.Sql
-import GEval.Core (MetricValue, getMetricOrdering)
+import GEval.Core (getMetricOrdering)
+import GEval.Common (MetricValue)
 import qualified Data.Map as M
 import qualified Data.Text as T
 

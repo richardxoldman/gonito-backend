@@ -27,6 +27,7 @@ import Gonito.ExtractMetadata (ExtractionOptions(..),
 import qualified Text.Read as TR
 
 import GEval.Core
+import GEval.Common (MetricValue)
 import GEval.OptionsParser
 import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
 
