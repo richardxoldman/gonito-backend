@@ -37,7 +37,7 @@ import Options.Applicative
 
 import System.IO (readFile)
 
-import System.FilePath (takeFileName, dropExtensions)
+import System.FilePath (takeFileName, dropExtensions, (-<.>))
 
 import Data.Text (pack, unpack)
 
@@ -411,7 +411,8 @@ getOutFilePath repoDir test = repoDir </> (T.unpack $ testName test) </> outFile
 findOutFile :: FilePath -> Test -> IO (Maybe FilePath)
 findOutFile repoDir test = do
   let baseOut = getOutFilePath repoDir test
-  findFilePossiblyCompressed baseOut
+  ofs <- mapM (\ext -> findFilePossiblyCompressed (baseOut -<.> ext)) extensionsHandled
+  return $ listToMaybe $ catMaybes ofs
 
 doesOutExist :: FilePath -> Entity Test -> IO Bool
 doesOutExist repoDir (Entity _ test) = do

@@ -141,8 +141,8 @@ expectedFileName = "expected.tsv"
 
 doesExpectedExist :: FilePath -> IO Bool
 doesExpectedExist fp = do
-  ef <- findFilePossiblyCompressed (fp </> expectedFileName)
-  return $ isJust ef
+  efs <- mapM (\ext -> findFilePossiblyCompressed (fp </> expectedFileName -<.> ext)) extensionsHandled
+  return $ not $ null $ catMaybes efs
 
 checkTestDir :: Channel -> (Key Challenge) -> Challenge -> SHA1 -> FilePath -> Handler ()
 checkTestDir chan challengeId challenge commit testDir = do
