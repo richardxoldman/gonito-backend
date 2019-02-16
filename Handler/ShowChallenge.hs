@@ -346,6 +346,7 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
                                                ++ " :clap:")
                                 msg chan message
                                 case appNewBestResultSlackHook $ appSettings app of
+                                  Just "" -> return ()
                                   Just hook -> liftIO $ runSlackHook hook message
 
                                   Nothing -> return ()
