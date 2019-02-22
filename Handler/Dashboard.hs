@@ -34,9 +34,9 @@ postDashboardR = do
   mUser <- maybeAuth
   when (checkIfAdmin mUser) $ do
      case result of
-      FormSuccess (testId, filterCondition, targetCondition, deadlineDay, deadlineTime, value) -> do
+      FormSuccess (testId, mName, filterCondition, targetCondition, deadlineDay, deadlineTime, value) -> do
         targetId <- runDB $ insert $ Indicator testId filterCondition targetCondition
-        _ <- runDB $ insert $ Target targetId (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) value
+        _ <- runDB $ insert $ Target targetId (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) value mName
         return ()
       _ -> do
            return ()
@@ -81,6 +81,7 @@ doEditIndicator mUser indicatorId formWidget formEnctype = do
 
   indicator <- runDB $ get404 indicatorId
   indicatorEntry <- indicatorToEntry (Entity indicatorId indicator)
+  let mPrecision = testPrecision $ entityVal $ indicatorEntryTest indicatorEntry
   defaultLayout $ do
     setTitle "Dashboard"
     $(widgetFile "edit-indicator")
@@ -91,8 +92,8 @@ postAddTargetR indicatorId = do
   mUser <- maybeAuth
   when (checkIfAdmin mUser) $ runDB $ do
      case result of
-      FormSuccess (deadlineDay, deadlineTime, value) -> do
-        _ <- insert $ Target indicatorId (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) value
+      FormSuccess (mName, deadlineDay, deadlineTime, value) -> do
+        _ <- insert $ Target indicatorId (UTCTime { utctDay = deadlineDay, utctDayTime = timeOfDayToTime deadlineTime }) value mName
         return ()
       _ -> do
            return ()
@@ -149,9 +150,10 @@ indicatorToEntry indicatorEnt@(Entity indicatorId indicator) = runDB $ do
     indicatorEntryTargets = targets
     }
 
-targetForm :: Form (TestId, Maybe Text, Maybe Text, Day, TimeOfDay, Double)
-targetForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,)
+targetForm :: Form (TestId, Maybe Text, Maybe Text, Maybe Text, Day, TimeOfDay, Double)
+targetForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
     <$> testSelectFieldList Nothing
+    <*> aopt textField (bfs MsgTargetName) Nothing
     <*> aopt textField (fieldWithTooltip MsgFilterCondition MsgFilterConditionTooltip) Nothing
     <*> aopt textField (fieldWithTooltip MsgTargetCondition MsgTargetConditionTooltip) Nothing
     <*> areq dayField (bfs MsgTargetDeadlineDay) Nothing
@@ -164,9 +166,10 @@ indicatorForm indicator = renderBootstrap3 BootstrapBasicForm $ Indicator
     <*> aopt textField (fieldWithTooltip MsgFilterCondition MsgFilterConditionTooltip) (Just $ indicatorFilterCondition indicator)
     <*> aopt textField (fieldWithTooltip MsgTargetCondition MsgTargetConditionTooltip) (Just $ indicatorTargetCondition indicator)
 
-addTargetForm :: Form (Day, TimeOfDay, Double)
-addTargetForm = renderBootstrap3 BootstrapBasicForm $ (,,)
-    <$> areq dayField (bfs MsgTargetDeadlineDay) Nothing
+addTargetForm :: Form (Maybe Text, Day, TimeOfDay, Double)
+addTargetForm = renderBootstrap3 BootstrapBasicForm $ (,,,)
+    <$> aopt textField (bfs MsgTargetName) Nothing
+    <*> areq dayField (bfs MsgTargetDeadlineDay) Nothing
     <*> areq timeFieldTypeTime (bfs MsgTargetDeadlineTime) Nothing
     <*> areq doubleField (bfs MsgTargetValue) Nothing
 
@@ -178,11 +181,12 @@ indicatorTable mUser = mempty
   ++ Table.text "targets" formatTargets
   ++ indicatorStatusCell mUser
 
-targetTable :: Maybe (Entity User) -> Table.Table App (Entity Target)
-targetTable mUser = mempty
-  ++ Table.text "target value" (T.pack . show . targetValue . entityVal)
+targetTable :: Maybe (Entity User) -> Maybe Int -> Table.Table App (Entity Target)
+targetTable mUser mPrecision = mempty
+  ++ Table.text "target name" ((fromMaybe T.empty) . targetName . entityVal)
+  ++ Table.text "target value" (formatScore mPrecision . targetValue . entityVal)
   ++ timestampCell "deadline" (targetDeadline . entityVal)
-  ++ targetStatusCell mUser
+  ++ targetStatusCell mUser mPrecision
 
 prettyIndicatorEntry :: IndicatorEntry -> Text
 prettyIndicatorEntry entry = prettyTestTitle (entityVal $ indicatorEntryTest entry)
@@ -192,7 +196,14 @@ formatTargets :: IndicatorEntry -> Text
 formatTargets entry = T.intercalate ", " $ (map (formatTarget (testPrecision $ entityVal $ indicatorEntryTest entry))) $ indicatorEntryTargets entry
 
 formatTarget :: Maybe Int -> Entity Target -> Text
-formatTarget mPrecision (Entity _ target) = (formatScore mPrecision (targetValue target)) <> " (" <> (T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M" $ targetDeadline target) ++ ")"
+formatTarget mPrecision (Entity _ target) =
+  (case targetName target of
+     Just name -> name <> " "
+     Nothing -> T.empty)
+  <> (formatScore mPrecision (targetValue target))
+  <> " ("
+  <> (T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M" $ targetDeadline target)
+  <> ")"
 
 indicatorStatusCell :: Maybe (Entity User) -> Table.Table App IndicatorEntry
 indicatorStatusCell mUser = Table.widget "" (indicatorStatusCellWidget mUser)
@@ -201,11 +212,11 @@ indicatorStatusCellWidget :: Maybe (Entity User) -> IndicatorEntry -> WidgetFor 
 indicatorStatusCellWidget mUser indicatorEntry = $(widgetFile "indicator-status")
   where indicatorId = entityKey $ indicatorEntryIndicator indicatorEntry
 
-targetStatusCell :: Maybe (Entity User) -> Table.Table App (Entity Target)
-targetStatusCell mUser = Table.widget "" (targetStatusCellWidget mUser)
+targetStatusCell :: Maybe (Entity User) -> Maybe Int -> Table.Table App (Entity Target)
+targetStatusCell mUser mPrecision = Table.widget "" (targetStatusCellWidget mUser mPrecision)
 
-targetStatusCellWidget :: Maybe (Entity User) -> Entity Target -> WidgetFor App ()
-targetStatusCellWidget mUser targetEnt = $(widgetFile "target-status")
+targetStatusCellWidget :: Maybe (Entity User) -> Maybe Int -> Entity Target -> WidgetFor App ()
+targetStatusCellWidget mUser mPrecision targetEnt = $(widgetFile "target-status")
   where targetId = entityKey $ targetEnt
 
 testSelectFieldList :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, RenderMessage site AppMessage, RenderMessage site FormMessage, PersistQueryRead (YesodPersistBackend site), YesodPersist site) => Maybe TestId -> AForm (HandlerFor site) (Key Test)

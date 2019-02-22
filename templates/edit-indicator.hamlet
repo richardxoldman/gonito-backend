@@ -7,7 +7,7 @@
 
 <h4>Targets
 
-^{Table.buildBootstrap (targetTable mUser) (indicatorEntryTargets indicatorEntry)}
+^{Table.buildBootstrap (targetTable mUser mPrecision) (indicatorEntryTargets indicatorEntry)}
 
 $if (checkIfAdmin mUser)
    <h4>Add a new target

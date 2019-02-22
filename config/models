@@ -160,4 +160,5 @@ Target
     indicator IndicatorId
     deadline UTCTime
     value Double
+    name Text Maybe
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)
