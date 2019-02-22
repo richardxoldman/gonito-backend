@@ -5,13 +5,18 @@ import Import
 import Data.Time.LocalTime
 import Handler.Shared
 import Handler.Common (checkIfAdmin)
+import Handler.Tables
+
+import Data.SubmissionConditions (parseCondition, checkCondition, VariantEntry(..))
 
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 import qualified Yesod.Table as Table
 
 import qualified Data.Text as T
+import qualified Data.Map as M
 
 import Handler.Tables (timestampCell)
+import GEval.Core (isBetter)
 
 data IndicatorEntry = IndicatorEntry {
   indicatorEntryIndicator :: Entity Indicator,
@@ -21,6 +26,9 @@ data IndicatorEntry = IndicatorEntry {
   indicatorEntryTargetCondition :: Maybe Text,
   indicatorEntryTargets :: [Entity Target]
 }
+
+data TargetStatus = TargetPassed | TargetFailed | TargetOngoing
+                    deriving (Eq, Show)
 
 getDashboardR :: Handler Html
 getDashboardR = do
@@ -191,6 +199,36 @@ targetTable mUser mPrecision = mempty
 prettyIndicatorEntry :: IndicatorEntry -> Text
 prettyIndicatorEntry entry = prettyTestTitle (entityVal $ indicatorEntryTest entry)
                                              (entityVal $ indicatorEntryChallenge entry)
+
+filterEntries :: Maybe Text -> [TableEntry] -> [TableEntry]
+filterEntries Nothing = id
+filterEntries (Just condition) = filter (\entry -> checkCondition conditionParsed (toVariantEntry entry))
+  where conditionParsed = parseCondition condition
+        toVariantEntry :: TableEntry -> VariantEntry
+        toVariantEntry entry = VariantEntry {
+          variantEntryTags = map (entityVal . fst) $ tableEntryTagsInfo entry,
+          variantEntryParams = map entityVal $ tableEntryParams entry
+          }
+
+getTargetStatus :: UTCTime -> [TableEntry] -> IndicatorEntry -> Entity Target -> TargetStatus
+getTargetStatus theNow entries indicator target =
+  if null entries'
+  then
+    if theNow > (targetDeadline $ entityVal target)
+      then TargetFailed
+      else TargetOngoing
+  else TargetPassed
+  where entries' =
+          filter (\v -> isBetter (testMetric $ entityVal $ indicatorEntryTest indicator)
+                                v
+                                (targetValue $ entityVal target))
+          $ catMaybes
+          $ map evaluationScore
+          $ catMaybes
+          $ map (\e -> (tableEntryMapping e) M.!? testId)
+          $ filter (\e -> (submissionStamp $ entityVal $ tableEntrySubmission e) < theNow)
+          $ filterEntries (indicatorEntryTargetCondition indicator) entries
+        testId = entityKey $ indicatorEntryTest indicator
 
 formatTargets :: IndicatorEntry -> Text
 formatTargets entry = T.intercalate ", " $ (map (formatTarget (testPrecision $ entityVal $ indicatorEntryTest entry))) $ indicatorEntryTargets entry

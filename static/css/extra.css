@@ -11,3 +11,23 @@ body {
     top: 50%;
     transform: translateY(-50%);
 }
+
+.target-failed-line line {
+    stroke: red;
+    fill: red;
+}
+
+.target-failed-line {
+    stroke: red;
+    fill: red;
+}
+
+.target-passed-line line {
+    stroke: green;
+    fill: green;
+}
+
+.target-passed-line {
+    stroke: green;
+    fill: green;
+}

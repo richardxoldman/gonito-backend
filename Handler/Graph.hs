@@ -3,7 +3,7 @@ module Handler.Graph where
 import Import
 
 import Handler.Tables
-import Handler.Dashboard (indicatorToEntry, prettyIndicatorEntry, formatTarget, IndicatorEntry(..))
+import Handler.Dashboard (indicatorToEntry, prettyIndicatorEntry, formatTarget, IndicatorEntry(..), TargetStatus(..), filterEntries, getTargetStatus)
 import Handler.Shared (formatParameter, formatScore, getMainTest, compareFun)
 import Data.Maybe
 import Data.List ((!!))
@@ -145,6 +145,11 @@ monotonicBy extractor comparator (theFirst:theRest) = (theFirst : (monotonicBy' 
                                      else
                                        monotonicBy' theBest t
 
+targetStatusToClass :: TargetStatus -> String
+targetStatusToClass TargetFailed = "target-failed-line"
+targetStatusToClass TargetPassed = "target-passed-line"
+targetStatusToClass TargetOngoing = "target-ongoing-line"
+
 getIndicatorGraphDataR :: IndicatorId -> Handler Value
 getIndicatorGraphDataR indicatorId = do
   indicator <- runDB $ get404 indicatorId
@@ -158,6 +163,8 @@ getIndicatorGraphDataR indicatorId = do
   (entries, _) <- runDB $ getChallengeSubmissionInfos (const True) (testChallenge test)
 
   theNow <- liftIO $ getCurrentTime -- needed to draw the "now" vertical line
+
+  let targetStatuses = map (getTargetStatus theNow entries indicatorEntry) (indicatorEntryTargets indicatorEntry)
 
   -- first we apply the "filter condition"
   let filteredEntries =
@@ -221,7 +228,7 @@ getIndicatorGraphDataR indicatorId = do
             "type" .= ("step-after" :: String)
             ]
         ],
-    "grid" .= targetsToLines theNow indicatorEntry
+    "grid" .= targetsToLines theNow indicatorEntry targetStatuses
     ]
 
 formatTimestamp :: UTCTime -> Text
@@ -242,19 +249,21 @@ entriesToPoints (Entity testId test) entries = (scores, timePoints)
                              && isJust (evaluationScore ((tableEntryMapping entry) M.! testId))) entries
         comparator = compareFun $ getMetricOrdering $ testMetric test
 
-targetsToLines :: UTCTime -> IndicatorEntry -> Value
-targetsToLines theNow indicator = object [
+targetsToLines :: UTCTime -> IndicatorEntry -> [TargetStatus] -> Value
+targetsToLines theNow indicator statuses = object [
   "y" .= object [
-      "lines" .= map (\target -> object [
+      "lines" .= map (\(target, status) -> object [
                          "value" .= (targetValue $ entityVal target),
-                          "text" .= formatTarget mPrecision target
-                         ]) targets
+                          "text" .= formatTarget mPrecision target,
+                          "class" .= targetStatusToClass status
+                         ]) (zip targets statuses)
       ],
   "x" .= object [
-      "lines" .= ((map (\target -> object [
+      "lines" .= ((map (\(target, status) -> object [
                          "value" .= (formatTimestamp $ targetDeadline $ entityVal target),
-                         "text" .= formatTarget mPrecision target
-                         ]) targets)
+                         "text" .= formatTarget mPrecision target,
+                         "class" .= targetStatusToClass status
+                         ]) $ zip targets statuses)
         ++ [object [
                "value" .= formatTimestamp theNow,
                "text" .= ("now" :: String)
@@ -283,16 +292,6 @@ getBoundAttr label (Just s) = [
 listIf :: Bool -> [a] -> [a]
 listIf True l = l
 listIf False _ = []
-
-filterEntries :: Maybe Text -> [TableEntry] -> [TableEntry]
-filterEntries Nothing = id
-filterEntries (Just condition) = filter (\entry -> checkCondition conditionParsed (toVariantEntry entry))
-  where conditionParsed = parseCondition condition
-        toVariantEntry :: TableEntry -> VariantEntry
-        toVariantEntry entry = VariantEntry {
-          variantEntryTags = map (entityVal . fst) $ tableEntryTagsInfo entry,
-          variantEntryParams = map entityVal $ tableEntryParams entry
-          }
 
 partitionEntries :: Maybe Text -> [TableEntry] -> ([TableEntry], [TableEntry])
 partitionEntries Nothing entries = (entries, [])
