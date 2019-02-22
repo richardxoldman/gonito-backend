@@ -194,7 +194,7 @@ targetTable mUser mPrecision = mempty
   ++ Table.text "target name" ((fromMaybe T.empty) . targetName . entityVal)
   ++ Table.text "target value" (formatScore mPrecision . targetValue . entityVal)
   ++ timestampCell "deadline" (targetDeadline . entityVal)
-  ++ targetStatusCell mUser mPrecision
+  ++ targetStatusCell mUser
 
 prettyIndicatorEntry :: IndicatorEntry -> Text
 prettyIndicatorEntry entry = prettyTestTitle (entityVal $ indicatorEntryTest entry)
@@ -250,11 +250,11 @@ indicatorStatusCellWidget :: Maybe (Entity User) -> IndicatorEntry -> WidgetFor 
 indicatorStatusCellWidget mUser indicatorEntry = $(widgetFile "indicator-status")
   where indicatorId = entityKey $ indicatorEntryIndicator indicatorEntry
 
-targetStatusCell :: Maybe (Entity User) -> Maybe Int -> Table.Table App (Entity Target)
-targetStatusCell mUser mPrecision = Table.widget "" (targetStatusCellWidget mUser mPrecision)
+targetStatusCell :: Maybe (Entity User) -> Table.Table App (Entity Target)
+targetStatusCell mUser = Table.widget "" (targetStatusCellWidget mUser)
 
-targetStatusCellWidget :: Maybe (Entity User) -> Maybe Int -> Entity Target -> WidgetFor App ()
-targetStatusCellWidget mUser mPrecision targetEnt = $(widgetFile "target-status")
+targetStatusCellWidget :: Maybe (Entity User) -> Entity Target -> WidgetFor App ()
+targetStatusCellWidget mUser targetEnt = $(widgetFile "target-status")
   where targetId = entityKey $ targetEnt
 
 testSelectFieldList :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, RenderMessage site AppMessage, RenderMessage site FormMessage, PersistQueryRead (YesodPersistBackend site), YesodPersist site) => Maybe TestId -> AForm (HandlerFor site) (Key Test)
