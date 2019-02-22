@@ -17,6 +17,7 @@ import Handler.Runner
 import Handler.Tables
 import Handler.TagUtils
 import Handler.MakePublic
+import Handler.Dashboard
 
 import Gonito.ExtractMetadata (ExtractionOptions(..),
                                extractMetadataFromRepoDir,
@@ -247,6 +248,8 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
       challenge <- runDB $ get404 challengeId
       user <- runDB $ get404 userId
 
+      relevantIndicators <- getOngoingTargets challengeId
+
       activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
       let (Entity mainTestId mainTest) = getMainTest activeTests
 
@@ -320,12 +323,14 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
       let compOp = case getMetricOrdering (testMetric mainTest) of
             TheLowerTheBetter -> (<)
             TheHigherTheBetter -> (>)
+
+      let submissionLink = slackLink app "submission" ("q/" ++ (fromSHA1ToText (repoCurrentCommit repo)))
+
       case bestScoreSoFar of
         Just b ->  case newScores'' of
                     (s:_) -> if compOp s b
                              then
                               do
-                                let submissionLink = slackLink app "submission" ("q/" ++ (fromSHA1ToText (repoCurrentCommit repo)))
                                 let challengeLink = slackLink app (challengeTitle challenge) ("challenge/"
                                                                                               ++ (challengeName challenge))
                                 let message = ("Whoa! New best result for "
@@ -359,7 +364,47 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
           doMakePublic userId submissionId chan
         else
           return ()
+
+      if not (null relevantIndicators)
+        then
+          checkIndicators user challengeId submissionId submissionLink relevantIndicators chan
+        else
+          return ()
+
     Nothing -> return ()
+
+checkIndicators :: User -> ChallengeId -> SubmissionId -> Text -> [IndicatorEntry] -> Channel -> Handler ()
+checkIndicators user challengeId submissionId submissionLink relevantIndicators chan = do
+  msg chan "Checking indicators..."
+  theNow <- liftIO $ getCurrentTime
+  mapM_ (\indicator -> checkIndicator theNow user challengeId submissionId submissionLink indicator chan) relevantIndicators
+
+checkIndicator :: UTCTime -> User -> ChallengeId -> SubmissionId -> Text -> IndicatorEntry -> Channel -> Handler ()
+checkIndicator theNow user challengeId submissionId submissionLink indicator chan = do
+  (entries, _) <- runDB $ getChallengeSubmissionInfos (\(Entity sid _) -> sid == submissionId) challengeId
+  mapM_ (\t -> checkTarget theNow user submissionLink entries indicator t chan) (indicatorEntryTargets indicator)
+
+checkTarget :: UTCTime -> User -> Text -> [TableEntry] -> IndicatorEntry -> Entity Target -> Channel -> Handler ()
+checkTarget theNow user submissionLink entries indicator target chan = do
+  app <- getYesod
+  let status = getTargetStatus theNow entries indicator target
+  if status == TargetPassed
+    then
+     do
+      let message = "Congratulations!!! The target " ++ indicatorText
+                     ++ " was beaten by "
+                     ++ (fromMaybe "???" $ userName user)
+                     ++ ", "
+                     ++ " See " ++ submissionLink ++ "."
+                     ++ (T.replicate 10 " :champagne: ") ++ " :mleczko: "
+      msg chan message
+      case appNewBestResultSlackHook $ appSettings app of
+          Just "" -> return ()
+          Just hook -> liftIO $ runSlackHook hook message
+          Nothing -> return ()
+    else
+       return ()
+  where indicatorText = prettyIndicatorEntry indicator
 
 getScoreForOut mainTestId out = do
   mEvaluation <- runDB $ selectFirst [EvaluationChecksum ==. (outChecksum out),

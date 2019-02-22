@@ -18,6 +18,9 @@ import qualified Data.Map as M
 import Handler.Tables (timestampCell)
 import GEval.Core (isBetter)
 
+import qualified Database.Esqueleto      as E
+import           Database.Esqueleto      ((^.))
+
 data IndicatorEntry = IndicatorEntry {
   indicatorEntryIndicator :: Entity Indicator,
   indicatorEntryTest :: Entity Test,
@@ -29,6 +32,11 @@ data IndicatorEntry = IndicatorEntry {
 
 data TargetStatus = TargetPassed | TargetFailed | TargetOngoing
                     deriving (Eq, Show)
+
+isOngoingStatus :: TargetStatus -> Bool
+isOngoingStatus TargetPassed = False
+isOngoingStatus TargetFailed = False
+isOngoingStatus TargetOngoing = True
 
 getDashboardR :: Handler Html
 getDashboardR = do
@@ -229,6 +237,23 @@ getTargetStatus theNow entries indicator target =
           $ filter (\e -> (submissionStamp $ entityVal $ tableEntrySubmission e) < theNow)
           $ filterEntries (indicatorEntryTargetCondition indicator) entries
         testId = entityKey $ indicatorEntryTest indicator
+
+getOngoingTargets :: ChallengeId -> Handler [IndicatorEntry]
+getOngoingTargets challengeId = do
+  indicators <- runDB $ E.select $ E.from $ \(test, indicator) -> do
+                        E.where_ (test ^. TestChallenge E.==. E.val challengeId
+                                  E.&&. indicator ^. IndicatorTest E.==. test ^. TestId)
+                        return indicator
+  indicatorEntries <- mapM indicatorToEntry indicators
+  theNow <- liftIO $ getCurrentTime
+  (entries, _) <- runDB $ getChallengeSubmissionInfos (const True) challengeId
+  let indicatorEntries' = map (onlyWithOngoingTargets theNow entries) indicatorEntries
+  return indicatorEntries'
+
+
+onlyWithOngoingTargets :: UTCTime -> [TableEntry] -> IndicatorEntry -> IndicatorEntry
+onlyWithOngoingTargets theNow entries indicatorEntry =
+  indicatorEntry { indicatorEntryTargets = filter (\t -> isOngoingStatus (getTargetStatus theNow entries indicatorEntry t)) (indicatorEntryTargets indicatorEntry) }
 
 formatTargets :: IndicatorEntry -> Text
 formatTargets entry = T.intercalate ", " $ (map (formatTarget (testPrecision $ entityVal $ indicatorEntryTest entry))) $ indicatorEntryTargets entry
