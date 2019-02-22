@@ -247,13 +247,13 @@ targetsToLines theNow indicator = object [
   "y" .= object [
       "lines" .= map (\target -> object [
                          "value" .= (targetValue $ entityVal target),
-                          "text" .= formatTarget target
+                          "text" .= formatTarget mPrecision target
                          ]) targets
       ],
   "x" .= object [
       "lines" .= ((map (\target -> object [
                          "value" .= (formatTimestamp $ targetDeadline $ entityVal target),
-                         "text" .= formatTarget target
+                         "text" .= formatTarget mPrecision target
                          ]) targets)
         ++ [object [
                "value" .= formatTimestamp theNow,
@@ -262,6 +262,7 @@ targetsToLines theNow indicator = object [
       ]
   ]
   where targets = indicatorEntryTargets indicator
+        mPrecision = testPrecision $ entityVal $ indicatorEntryTest indicator
 
 getBound :: (a -> a -> Ordering) -> [a] -> [a] -> Maybe a
 getBound _ [] _ = Nothing

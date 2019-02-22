@@ -189,10 +189,10 @@ prettyIndicatorEntry entry = prettyTestTitle (entityVal $ indicatorEntryTest ent
                                              (entityVal $ indicatorEntryChallenge entry)
 
 formatTargets :: IndicatorEntry -> Text
-formatTargets = T.intercalate ", " . (map formatTarget) . indicatorEntryTargets
+formatTargets entry = T.intercalate ", " $ (map (formatTarget (testPrecision $ entityVal $ indicatorEntryTest entry))) $ indicatorEntryTargets entry
 
-formatTarget :: Entity Target -> Text
-formatTarget (Entity _ target) = (T.pack $ show $ targetValue target) <> " (" <> (T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M" $ targetDeadline target) ++ ")"
+formatTarget :: Maybe Int -> Entity Target -> Text
+formatTarget mPrecision (Entity _ target) = (formatScore mPrecision (targetValue target)) <> " (" <> (T.pack $ formatTime defaultTimeLocale "%Y-%m-%d %H:%M" $ targetDeadline target) ++ ")"
 
 indicatorStatusCell :: Maybe (Entity User) -> Table.Table App IndicatorEntry
 indicatorStatusCell mUser = Table.widget "" (indicatorStatusCellWidget mUser)
