@@ -76,3 +76,4 @@ TargetValue: target value to be reached before the target date
 Test: test
 Dashboard: dashboard
 TargetName: target name
+ShowArchivedChallenges: show archived challenges

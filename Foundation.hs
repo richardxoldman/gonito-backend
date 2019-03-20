@@ -163,6 +163,10 @@ instance Yesod App where
     isAuthorized CreateResetLinkR _ = isAdmin
     isAuthorized (ScoreR _) _ = isAdmin
 
+    isAuthorized ListArchivedChallengesR _ = isAdmin
+    isAuthorized (ArchiveR _) _ = isAdmin
+    isAuthorized (UnarchiveR _) _ = isAdmin
+
     isAuthorized MyScoreR _ = return Authorized
 
     isAuthorized (ResetPasswordR _) _ = return Authorized

@@ -3,9 +3,20 @@ $maybe repoLink  <- maybeRepoLink
   (Browse at <tt><a href="#{repoLink}">#{repoLink}</a></tt>)
 $nothing
 
+$if (challengeArchived challenge == Just True)
+  <p><b>This challenge is archived!
+
+$if (checkIfAdmin mUserEnt)
+  $if (challengeArchived challenge /= Just True)
+    <form method=post action=@{ArchiveR challengeId}#form enctype="text/plain">
+      <button>Archive
+  $if (challengeArchived challenge == Just True)
+    <form method=post action=@{UnarchiveR challengeId}#form enctype="text/plain">
+      <button>Unarchive
+
 <h2>Leaderboard
 
-^{Table.buildBootstrap (leaderboardTable muserId (challengeName challenge) scheme challengeRepo tests) leaderboardWithRanks}
+^{Table.buildBootstrap (leaderboardTable mUserId (challengeName challenge) scheme challengeRepo tests) leaderboardWithRanks}
 
 <div id="graph-container">
 

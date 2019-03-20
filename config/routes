@@ -10,6 +10,7 @@
 /view-progress/#Int ViewProgressR GET
 /open-view-progress/#Int OpenViewProgressR GET
 /list-challenges ListChallengesR GET
+/list-archived-challenges ListArchivedChallengesR GET
 /challenge-image/#ChallengeId ChallengeImageR GET
 
 /challenge/#Text ShowChallengeR GET
@@ -35,6 +36,9 @@
 /make-public/#SubmissionId MakePublicR GET
 /hide-submission/#SubmissionId HideSubmissionR GET
 /restore-submission/#SubmissionId RestoreSubmissionR GET
+
+/challenge-archive/#ChallengeId ArchiveR POST
+/challenge-unarchive/#ChallengeId UnarchiveR POST
 
 /account YourAccountR GET POST
 /avatar/#UserId AvatarR GET

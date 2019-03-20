@@ -3,8 +3,13 @@ module Handler.ListChallenges where
 import Import
 
 getListChallengesR :: Handler Html
-getListChallengesR = do
-  challenges <- runDB $ selectList [] [Desc ChallengeStarred, Desc ChallengeStamp]
+getListChallengesR = generalListChallenges [ChallengeArchived !=. Just True]
+
+getListArchivedChallengesR :: Handler Html
+getListArchivedChallengesR = generalListChallenges [ChallengeArchived ==. Just True]
+
+generalListChallenges filterExpr = do
+  challenges <- runDB $ selectList filterExpr [Desc ChallengeStarred, Desc ChallengeStamp]
   defaultLayout $ do
     setTitle "List challenges"
     $(widgetFile "list-challenges")

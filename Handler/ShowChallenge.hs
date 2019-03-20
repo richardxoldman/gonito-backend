@@ -18,6 +18,7 @@ import Handler.Tables
 import Handler.TagUtils
 import Handler.MakePublic
 import Handler.Dashboard
+import Handler.Common
 
 import Gonito.ExtractMetadata (ExtractionOptions(..),
                                extractMetadataFromRepoDir,
@@ -54,11 +55,10 @@ getShowChallengeR name = do
   app <- getYesod
   let leaderboardStyle = appLeaderboardStyle $ appSettings app
 
-  (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
+  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   Just repo <- runDB $ get $ challengePublicRepo challenge
   (leaderboard, (entries, tests)) <- getLeaderboardEntries leaderboardStyle challengeId
   mauth <- maybeAuth
-  let muserId = (\(Entity uid _) -> uid) <$> mauth
 
   let params = getNumericalParams entries
 
@@ -66,8 +66,9 @@ getShowChallengeR name = do
 
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
-  challengeLayout True challenge (showChallengeWidget muserId
-                                                      challenge scheme
+  challengeLayout True challenge (showChallengeWidget mauth
+                                                      challengeEnt
+                                                      scheme
                                                       challengeRepo
                                                       repo
                                                       leaderboard
@@ -89,8 +90,8 @@ challengeReadme name = do
   contents <- liftIO $ System.IO.readFile readmeFilePath
   return $ markdown def $ TL.pack contents
 
-showChallengeWidget :: Maybe UserId
-                      -> Challenge
+showChallengeWidget :: Maybe (Entity User)
+                      -> Entity Challenge
                       -> RepoScheme
                       -> Repo
                       -> Repo
@@ -98,8 +99,8 @@ showChallengeWidget :: Maybe UserId
                       -> [Text]
                       -> [Entity Test]
                       -> WidgetFor App ()
-showChallengeWidget muserId
-                    challenge
+showChallengeWidget mUserEnt
+                    (Entity challengeId challenge)
                     scheme
                     challengeRepo
                     repo
@@ -111,6 +112,7 @@ showChallengeWidget muserId
         maybeRepoLink = getRepoLink repo
         delta = Number 4
         higherTheBetterArray = getIsHigherTheBetterArray $ map entityVal tests
+        mUserId = entityKey <$> mUserEnt
 
 getRepoLink :: Repo -> Maybe Text
 getRepoLink repo
@@ -180,6 +182,22 @@ challengeHowTo challenge settings repo shownId isIDSet isSSHUploaded mToken = $(
           SelfHosted -> "master" :: Text
           _ -> "my-brilliant-branch"
 
+postArchiveR :: ChallengeId -> Handler Html
+postArchiveR challengeId = doSetArchive True challengeId
+
+postUnarchiveR :: ChallengeId -> Handler Html
+postUnarchiveR challengeId = doSetArchive False challengeId
+
+doSetArchive :: Bool -> ChallengeId -> Handler Html
+doSetArchive status challengeId = do
+  runDB $ update challengeId [ChallengeArchived =. Just status]
+  challenge <- runDB $ get404 challengeId
+  getShowChallengeR $ challengeName challenge
+
+
+archiveForm :: ChallengeId -> Form ChallengeId
+archiveForm challengeId = renderBootstrap3 BootstrapBasicForm $ areq hiddenField "" (Just challengeId)
+
 getChallengeSubmissionR :: Text -> Handler Html
 getChallengeSubmissionR name = do
    (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
@@ -235,14 +253,20 @@ trigger userId challengeName url mBranch mGitAnnexRemote = do
     Just (Entity challengeId _) -> runOpenViewProgress $ doCreateSubmission userId challengeId
                                                                            Nothing Nothing
                                                                            RepoSpec {repoSpecUrl=url,
-                                                                                     repoSpecBranch=branch,
-                                                                                     repoSpecGitAnnexRemote=mGitAnnexRemote}
+                                                                           repoSpecBranch=branch,
+                                                                           repoSpecGitAnnexRemote=mGitAnnexRemote}
     Nothing -> return $ toTypedContent (("Unknown challenge `" ++ (Data.Text.unpack challengeName) ++ "`. Cannot be triggered, must be submitted manually at Gonito.net!\n") :: String)
 
 doCreateSubmission :: UserId -> Key Challenge -> Maybe Text -> Maybe Text -> RepoSpec -> Channel -> Handler ()
 doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
-  maybeRepoKey <- getSubmissionRepo userId challengeId repoSpec chan
-  case maybeRepoKey of
+  challenge <- runDB $ get404 challengeId
+  doCreateSubmission' (challengeArchived challenge) userId challengeId mDescription mTags repoSpec chan
+
+doCreateSubmission' :: Maybe Bool -> UserId -> Key Challenge -> Maybe Text -> Maybe Text -> RepoSpec -> Channel -> Handler ()
+doCreateSubmission' (Just True) _ _ _ _ _ chan = msg chan "This challenge is archived, you cannot submit to it. Ask the site admin to unarchive it."
+doCreateSubmission' _ userId challengeId mDescription mTags repoSpec chan = do
+   maybeRepoKey <- getSubmissionRepo userId challengeId repoSpec chan
+   case maybeRepoKey of
     Just repoId -> do
 
       challenge <- runDB $ get404 challengeId
