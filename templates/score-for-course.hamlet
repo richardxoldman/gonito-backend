@@ -1,0 +1,8 @@
+^{Table.buildBootstrap scoreTable entries}
+
+$if not $ Import.null extras
+  <h4>Extra points
+  ^{Table.buildBootstrap extrasTable extras}
+
+<p class="well">Total <span class="badge">#{points}</span>
+<hr>

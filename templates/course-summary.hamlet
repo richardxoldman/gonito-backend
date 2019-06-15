@@ -1,0 +1,6 @@
+<h2>#{courseName course}
+
+$forall (student, score) <- Import.zip students scores
+   <h3>#{userIdent $ entityVal student} / #{fromMaybe "" (userName $ entityVal student)} / #{fromMaybe "" (userLocalId $ entityVal student)}
+
+   ^{scoreForCourse score}

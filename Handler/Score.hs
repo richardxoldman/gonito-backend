@@ -61,6 +61,7 @@ doScore userEnt@(Entity userId user) = do
     setTitle "Score"
     $(widgetFile "score")
 
+scoreForCourse (points, entries, extras) = $(widgetFile "score-for-course")
 
 userScoreForCourse :: Entity User -> Entity Course -> Handler (Int, [(AchievementInfo, (Entity Submission, Bool))], [ExtraPoints])
 userScoreForCourse userEnt@(Entity userId user) courseEnt@(Entity courseId course) = do
@@ -111,3 +112,30 @@ checkSubmissionTag (Entity submissionId _) (Entity tagId _) = do
       Just b -> b
       Nothing -> False
     Nothing -> False
+
+courseSummary :: Entity Course -> Widget
+courseSummary entCourse@(Entity courseId course) = do
+  students <- handlerToWidget $
+               runDB $ E.select
+                     $ E.from $ \(participant, user) -> do
+                       E.where_ (participant ^. ParticipantCourse E.==. E.val courseId
+                                 E.&&. participant ^. ParticipantUser E.==. user ^. UserId)
+                       E.orderBy [E.asc (user ^. UserIdent)]
+                       return user
+
+  scores <- mapM (handlerToWidget . ((flip userScoreForCourse) entCourse)) students
+  $(widgetFile "course-summary")
+
+getCoursesITeachR :: Handler Html
+getCoursesITeachR = do
+  (Entity userId _) <- requireAuth
+  teacherCourses <- runDB $ selectList [TeacherUser ==. userId] []
+  let coursesIds = Import.map (teacherCourse . entityVal) teacherCourses
+  courses <- runDB $ mapM get404 coursesIds
+  let entCourses' = Import.map (\(k, v) -> Entity k v) $ Import.zip coursesIds courses
+
+  let entCourses = sortBy (\e1 e2 -> (courseName $ entityVal e1) `compare`  (courseName $ entityVal e2)) entCourses'
+
+  defaultLayout $ do
+    setTitle "Courses I teach"
+    $(widgetFile "courses-i-teach")

@@ -77,3 +77,4 @@ Test: test
 Dashboard: dashboard
 TargetName: target name
 ShowArchivedChallenges: show archived challenges
+CoursesITeach: courses I teach

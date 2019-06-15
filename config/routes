@@ -57,6 +57,7 @@
 
 /score/#UserId ScoreR GET
 /my-score MyScoreR GET
+/courses-i-teach CoursesITeachR GET
 
 /dashboard DashboardR GET POST
 /edit-indicator/#IndicatorId EditIndicatorR GET POST

@@ -152,6 +152,10 @@ Participant
     user UserId
     course CourseId
     UniqueUserCourse user course
+Teacher
+    user UserId
+    course CourseId
+    UniqueTeacherCourse user course
 -- for "KPI" dashboard
 Indicator
     test TestId

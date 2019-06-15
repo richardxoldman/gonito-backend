@@ -27,6 +27,7 @@
                             <li><a href="@{CreateChallengeR}">_{MsgCreateChallenge}</a>
                             <li><a href="@{CreateResetLinkR}">_{MsgCreateResetLink}</a>
                             <li><a href="@{ExtraPointsR}">_{MsgAddExtraPoints}</a>
+                            <li><a href="@{CoursesITeachR}">_{MsgCoursesITeach}</a>
                             <li><a href="@{ListArchivedChallengesR}">_{MsgShowArchivedChallenges}</a>
 
           <ul class="nav navbar-nav navbar-collapse collapse navbar-right">
