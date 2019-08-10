@@ -9,7 +9,7 @@ packages:
     commit: b81e0d951e510ebffca03c5a58658ad884cc6fbd
   extra-dep: true
 extra-deps: [../geval,wai-handler-fastcgi-3.0.0.2,murmur3-1.0.3,random-strings-0.1.1.0,naturalcomp-0.0.3,Munkres-0.1]
-resolver: lts-11.9
+resolver: lts-11.22
 image:
   container:
     name: filipg/gonito
