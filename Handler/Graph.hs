@@ -9,6 +9,7 @@ import Data.Maybe
 import Data.List ((!!))
 import Database.Persist.Sql
 import GEval.Core (getMetricOrdering)
+import GEval.EvaluationScheme
 import GEval.Common (MetricValue)
 import qualified Data.Map as M
 import qualified Data.Text as T
@@ -247,7 +248,7 @@ entriesToPoints (Entity testId test) entries = (scores, timePoints)
           monotonicBy (\entry -> fromJust $ evaluationScore $ (tableEntryMapping entry) M.! testId) comparator
           $ filter (\entry -> testId `M.member` (tableEntryMapping entry)
                              && isJust (evaluationScore ((tableEntryMapping entry) M.! testId))) entries
-        comparator = compareFun $ getMetricOrdering $ testMetric test
+        comparator = compareFun $ getMetricOrdering $ evaluationSchemeMetric $ testMetric test
 
 targetsToLines :: UTCTime -> IndicatorEntry -> [TargetStatus] -> Value
 targetsToLines theNow indicator statuses = object [

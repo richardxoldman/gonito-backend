@@ -40,6 +40,7 @@ import System.IO.Unsafe (unsafePerformIO)
 import Text.Regex.TDFA
 
 import GEval.Core
+import GEval.EvaluationScheme
 
 import qualified Data.Vector as DV
 
@@ -395,6 +396,7 @@ getIsHigherTheBetterArray = Array
                             . DV.fromList
                             . map (convertIsHigherTheBetter
                                    . getMetricOrdering
+                                   . evaluationSchemeMetric
                                    . testMetric)
    where convertIsHigherTheBetter TheHigherTheBetter = Bool True
          convertIsHigherTheBetter _ = Bool False
@@ -416,5 +418,6 @@ runSlackHook hook message = do
                                  mempty
     return ()
 
-slackLink app title addr = "<" ++ link ++ "|" ++ title ++ ">"
-  where link = (appRoot $ appSettings app) ++ "/" ++ addr
+slackLink :: App -> Text -> Text -> Text
+slackLink app title addr = "<" ++ slink ++ "|" ++ title ++ ">"
+  where slink = (appRoot $ appSettings app) ++ "/" ++ addr

@@ -24,6 +24,7 @@ library
                      Import
                      Import.NoFoundation
                      Model
+                     PersistEvaluationScheme
                      PersistMetric
                      PersistSHA1
                      Settings
@@ -126,7 +127,7 @@ library
                  , filemanip
                  , cryptohash
                  , markdown
-                 , geval >= 1.16.2.0 && < 1.19
+                 , geval >= 1.19.0.0 && < 1.20
                  , filepath
                  , yesod-table
                  , regex-tdfa

@@ -42,7 +42,7 @@ Challenge
     archived Bool Maybe
 Test
     challenge ChallengeId
-    metric Metric
+    metric EvaluationScheme
     name Text
     checksum SHA1
     commit SHA1

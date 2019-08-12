@@ -17,6 +17,7 @@ import qualified Data.Map as M
 
 import Handler.Tables (timestampCell)
 import GEval.Core (isBetter)
+import GEval.EvaluationScheme
 
 import qualified Database.Esqueleto      as E
 import           Database.Esqueleto      ((^.))
@@ -227,7 +228,7 @@ getTargetStatus theNow entries indicator target =
       else TargetOngoing
   else TargetPassed
   where entries' =
-          filter (\v -> isBetter (testMetric $ entityVal $ indicatorEntryTest indicator)
+          filter (\v -> isBetter (evaluationSchemeMetric $ testMetric $ entityVal $ indicatorEntryTest indicator)
                                 v
                                 (targetValue $ entityVal target))
           $ catMaybes
