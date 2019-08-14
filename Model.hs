@@ -6,7 +6,9 @@ import Database.Persist.Quasi
 import PersistSHA1
 
 import GEval.Core
+import GEval.EvaluationScheme
 import PersistMetric
+import PersistEvaluationScheme
 
 -- You can define all of your database entities in the entities file.
 -- You can find more information on persistent and how to declare entities

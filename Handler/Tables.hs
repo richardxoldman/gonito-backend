@@ -22,6 +22,7 @@ import PersistSHA1
 import qualified Data.List as DL
 
 import GEval.Core
+import GEval.EvaluationScheme
 
 import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
 
@@ -243,7 +244,7 @@ getLeaderboardEntries ByTag challengeId =
         noEmptyList l = map Just l
 
 compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
-compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ testMetric test) x y
+compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ evaluationSchemeMetric $ testMetric test) x y
 compareResult _ (Just _) Nothing = GT
 compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ

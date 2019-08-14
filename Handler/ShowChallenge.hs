@@ -29,6 +29,7 @@ import Gonito.ExtractMetadata (ExtractionOptions(..),
 import qualified Text.Read as TR
 
 import GEval.Core
+import GEval.EvaluationScheme
 import GEval.Common (MetricValue)
 import GEval.OptionsParser
 import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
@@ -277,7 +278,7 @@ doCreateSubmission' _ userId challengeId mDescription mTags repoSpec chan = do
       activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
       let (Entity mainTestId mainTest) = getMainTest activeTests
 
-      let orderDirection = case getMetricOrdering (testMetric mainTest) of
+      let orderDirection = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
             TheHigherTheBetter -> E.desc
             TheLowerTheBetter -> E.asc
 
@@ -341,10 +342,10 @@ doCreateSubmission' _ userId challengeId mDescription mTags repoSpec chan = do
 
       newScores <- mapM (getScoreForOut mainTestId) outs
       let newScores' = catMaybes newScores
-      let newScores'' = case getMetricOrdering (testMetric mainTest) of
+      let newScores'' = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
             TheHigherTheBetter -> reverse $ sort newScores'
             TheLowerTheBetter -> sort newScores'
-      let compOp = case getMetricOrdering (testMetric mainTest) of
+      let compOp = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
             TheLowerTheBetter -> (<)
             TheHigherTheBetter -> (>)
 
@@ -554,7 +555,7 @@ checkOrInsertEvaluation repoDir chan out = do
       msg chan $ "Start evaluation..."
       challengeDir <- getRepoDir $ challengePrivateRepo challenge
       variant <- runDB $ get404 $ outVariant out
-      resultOrException <- liftIO $ rawEval challengeDir (testMetric test) repoDir (testName test) ((T.unpack $ variantName variant) <.> "tsv")
+      resultOrException <- liftIO $ rawEval challengeDir (evaluationSchemeMetric $ testMetric test) repoDir (testName test) ((T.unpack $ variantName variant) <.> "tsv")
       case resultOrException of
         Right (Left _) -> do
           err chan "Cannot parse options, check the challenge repo"
