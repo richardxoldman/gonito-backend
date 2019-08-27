@@ -441,6 +441,7 @@ getScoreForOut mainTestId out = do
 
 getSubmission :: UserId -> Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
 getSubmission userId repoId commit challengeId description chan = do
+  challenge <- runDB $ get404 challengeId
   maybeSubmission <- runDB $ getBy $ UniqueSubmissionRepoCommitChallenge repoId commit challengeId
   case maybeSubmission of
     Just (Entity submissionId _) -> do
@@ -457,7 +458,8 @@ getSubmission userId repoId commit challengeId description chan = do
         submissionStamp=time,
         submissionSubmitter=userId,
         submissionIsPublic=False,
-        submissionIsHidden=False }
+        submissionIsHidden=False,
+        submissionVersion=challengeVersion challenge}
 
 getOuts :: Channel -> Key Submission -> M.Map Text Text -> Handler ([Out])
 getOuts chan submissionId generalParams = do

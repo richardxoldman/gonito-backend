@@ -89,6 +89,18 @@ doCreateChallenge name publicUrl publicBranch publicGitAnnexRemote privateUrl pr
         Nothing -> return ()
     Nothing -> return ()
 
+defaultMajorVersion :: Int
+defaultMajorVersion = 1
+
+defaultMinorVersion :: Int
+defaultMinorVersion = 0
+
+defaultPatchVersion :: Int
+defaultPatchVersion = 0
+
+defaultInitialDescription :: Text
+defaultInitialDescription = "initial version"
+
 addChallenge :: Text -> (Key Repo) -> (Key Repo) -> Channel -> Handler ()
 addChallenge name publicRepoId privateRepoId chan = do
   msg chan "adding challenge..."
@@ -111,7 +123,19 @@ addChallenge name publicRepoId privateRepoId chan = do
              else do
                return Nothing
 
+  privateRepo <- runDB $ get404 privateRepoId
   time <- liftIO getCurrentTime
+
+  let commit=repoCurrentCommit $ privateRepo
+
+  _ <- runDB $ insert $ Version {
+    versionCommit=commit,
+    versionMajor=defaultMajorVersion,
+    versionMinor=defaultMinorVersion,
+    versionPatch=defaultPatchVersion,
+    versionDescription=defaultInitialDescription,
+    versionStamp=time}
+
   challengeId <- runDB $ insert $ Challenge {
     challengePublicRepo=publicRepoId,
     challengePrivateRepo=privateRepoId,
@@ -121,8 +145,11 @@ addChallenge name publicRepoId privateRepoId chan = do
     challengeStamp=time,
     challengeImage=mImage,
     challengeStarred=False,
-    challengeArchived=Just False}
+    challengeArchived=Just False,
+    challengeVersion=Just commit}
+
   updateTests challengeId chan
+
   return ()
 
 updateTests :: (Key Challenge) -> Channel -> Handler ()

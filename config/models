@@ -40,6 +40,16 @@ Challenge
     image ByteString Maybe
     starred Bool
     archived Bool Maybe
+    version SHA1 Maybe
+-- challenge version
+Version
+    commit SHA1
+    major Int
+    minor Int
+    patch Int
+    UniqueVersion commit major minor patch
+    description Text
+    stamp UTCTime default=now()
 Test
     challenge ChallengeId
     metric EvaluationScheme
@@ -59,6 +69,8 @@ Submission
     submitter UserId
     isPublic Bool default=False
     isHidden Bool default=False
+    -- challenge version present when the submission was done
+    version SHA1 Maybe
     UniqueSubmissionRepoCommitChallenge repo commit challenge
 Variant
     submission SubmissionId
