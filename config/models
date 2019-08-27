@@ -40,7 +40,7 @@ Challenge
     image ByteString Maybe
     starred Bool
     archived Bool Maybe
-    version SHA1 Maybe
+    version SHA1
 -- challenge version
 Version
     commit SHA1
@@ -70,7 +70,7 @@ Submission
     isPublic Bool default=False
     isHidden Bool default=False
     -- challenge version present when the submission was done
-    version SHA1 Maybe
+    version SHA1
     UniqueSubmissionRepoCommitChallenge repo commit challenge
 Variant
     submission SubmissionId

@@ -146,7 +146,7 @@ addChallenge name publicRepoId privateRepoId chan = do
     challengeImage=mImage,
     challengeStarred=False,
     challengeArchived=Just False,
-    challengeVersion=Just commit}
+    challengeVersion=commit}
 
   updateTests challengeId chan
 
