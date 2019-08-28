@@ -89,6 +89,40 @@ doCreateChallenge name publicUrl publicBranch publicGitAnnexRemote privateUrl pr
         Nothing -> return ()
     Nothing -> return ()
 
+data ChallengeUpdateType = MajorChange | MinorChange | ChallengePatch
+                           deriving (Eq, Enum, Bounded)
+
+instance Show ChallengeUpdateType where
+  show MajorChange = "major change"
+  show MinorChange = "minor change"
+  show ChallengePatch = "patch"
+
+getChallengeUpdateR :: ChallengeId -> Handler Html
+getChallengeUpdateR challengeId = do
+    (formWidget, formEnctype) <- generateFormPost updateChallengeForm
+    defaultLayout $ do
+        setTitle "Welcome To Yesod!"
+        $(widgetFile "update-challenge")
+
+postChallengeUpdateR :: ChallengeId -> Handler TypedContent
+postChallengeUpdateR _ = do
+    ((result, _), _) <- runFormPost updateChallengeForm
+    let challengeData = case result of
+            FormSuccess res -> Just res
+            _ -> Nothing
+        Just (updateType, publicUrl, publicBranch, publicGitAnnexRemote,
+                          privateUrl, privateBranch, privateGitAnnexRemote) = challengeData
+
+    userId <- requireAuthId
+    user <- runDB $ get404 userId
+    if userIsAdmin user
+      then
+       do
+         runViewProgress $ (flip err) "TO BE IMPLEMENTED"
+      else
+        runViewProgress $ (flip err) "MUST BE AN ADMIN TO CREATE A CHALLENGE"
+
+
 defaultMajorVersion :: Int
 defaultMajorVersion = 1
 
@@ -224,6 +258,16 @@ testDirFilter = (fileType ==? Directory) &&? (SFF.fileName ~~? "dev-*" ||? SFF.f
 createChallengeForm :: Form (Text, Text, Text, Maybe Text, Text, Text, Maybe Text)
 createChallengeForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
     <$> areq textField (fieldWithTooltip MsgChallengeName MsgChallengeNameTooltip) Nothing
+    <*> areq textField (bfs MsgPublicUrl) Nothing
+    <*> areq textField (bfs MsgBranch) (Just "master")
+    <*> aopt textField (bfs MsgGitAnnexRemote) Nothing
+    <*> areq textField (bfs MsgPrivateUrl) Nothing
+    <*> areq textField (bfs MsgBranch) (Just "dont-peek")
+    <*> aopt textField (bfs MsgGitAnnexRemote) Nothing
+
+updateChallengeForm :: Form (ChallengeUpdateType, Text, Text, Maybe Text, Text, Text, Maybe Text)
+updateChallengeForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
+    <$> areq (radioField optionsEnum) (bfs MsgChangeType) Nothing
     <*> areq textField (bfs MsgPublicUrl) Nothing
     <*> areq textField (bfs MsgBranch) (Just "master")
     <*> aopt textField (bfs MsgGitAnnexRemote) Nothing

@@ -78,3 +78,7 @@ Dashboard: dashboard
 TargetName: target name
 ShowArchivedChallenges: show archived challenges
 CoursesITeach: courses I teach
+MajorChange: major change
+MinorChange: minor change
+Patch: patch
+ChangeType: change type
