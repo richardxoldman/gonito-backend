@@ -47,6 +47,7 @@ Version
     major Int
     minor Int
     patch Int
+    UniqueVersionByCommit commit
     UniqueVersion commit major minor patch
     description Text
     stamp UTCTime default=now()

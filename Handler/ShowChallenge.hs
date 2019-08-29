@@ -587,43 +587,7 @@ rawEval challengeDir metric repoDir name outF = Import.try (runGEvalGetOptions [
                                                           "--test-name", (T.unpack name)])
 
 getSubmissionRepo :: UserId -> Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
-getSubmissionRepo userId challengeId repoSpec chan = do
-  let url = repoSpecUrl repoSpec
-  let branch = repoSpecBranch repoSpec
-  let gitAnnexRemote = repoSpecGitAnnexRemote repoSpec
-  maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
-  case maybeRepo of
-    Just (Entity repoId _) -> do
-      msg chan "Repo already there"
-      available <- checkRepoAvailibility challengeId repoId chan
-      if available
-         then
-          do
-           -- this is not completely right... some other thread
-           -- might update this to a different value
-           runDB $ update repoId [RepoGitAnnexRemote =. gitAnnexRemote]
-           updateStatus <- updateRepo repoId chan
-           if updateStatus
-             then
-               return $ Just repoId
-             else
-               return Nothing
-         else
-           return Nothing
-    Nothing -> do
-      challenge <- runDB $ get404 challengeId
-      let repoId = challengePublicRepo challenge
-      repo <- runDB $ get404 repoId
-      repoDir <- getRepoDir repoId
-      let repoCloningSpec = RepoCloningSpec {
-        cloningSpecRepo = repoSpec,
-        cloningSpecReferenceRepo = RepoSpec {
-                repoSpecUrl = (T.pack repoDir),
-                repoSpecBranch = (repoBranch repo),
-                repoSpecGitAnnexRemote = Nothing
-                }
-        }
-      cloneRepo' userId repoCloningSpec chan
+getSubmissionRepo userId challengeId repoSpec chan = getPossiblyExistingRepo checkRepoAvailibility userId challengeId repoSpec chan
 
 checkRepoAvailibility :: Key Challenge -> Key Repo -> Channel -> Handler Bool
 checkRepoAvailibility challengeId repoId chan = do

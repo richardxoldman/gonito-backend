@@ -82,3 +82,4 @@ MajorChange: major change
 MinorChange: minor change
 Patch: patch
 ChangeType: change type
+Update: Update

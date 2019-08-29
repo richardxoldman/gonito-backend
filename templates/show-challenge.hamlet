@@ -10,7 +10,7 @@ $if (checkIfAdmin mUserEnt)
   $if (challengeArchived challenge /= Just True)
     <form method=post action=@{ArchiveR challengeId}#form enctype="text/plain">
       <button>Archive
-    <form method=post action=@{ChallengeUpdateR challengeId}#form enctype="text/plain">
+    <form method=get action=@{ChallengeUpdateR challengeId}#form enctype="text/plain">
       <button>Update
 
  $if (challengeArchived challenge == Just True)

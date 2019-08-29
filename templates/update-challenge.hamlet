@@ -4,4 +4,4 @@
   <form method=post action=@{ChallengeUpdateR challengeId}#form enctype=#{formEnctype}>
     ^{formWidget}
     <button .btn .btn-primary type="submit">
-       _{MsgAdd} <span class="glyphicon glyphicon-upload"></span>
+       _{MsgUpdate} <span class="glyphicon glyphicon-upload"></span>

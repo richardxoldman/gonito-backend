@@ -11,6 +11,8 @@ import Handler.Extract
 import GEval.Core
 import GEval.OptionsParser
 
+import Gonito.ExtractMetadata (getLastCommitMessage)
+
 import System.Directory (doesFileExist)
 import System.FilePath.Find as SFF
 import System.FilePath
@@ -105,7 +107,7 @@ getChallengeUpdateR challengeId = do
         $(widgetFile "update-challenge")
 
 postChallengeUpdateR :: ChallengeId -> Handler TypedContent
-postChallengeUpdateR _ = do
+postChallengeUpdateR challengeId = do
     ((result, _), _) <- runFormPost updateChallengeForm
     let challengeData = case result of
             FormSuccess res -> Just res
@@ -118,9 +120,81 @@ postChallengeUpdateR _ = do
     if userIsAdmin user
       then
        do
-         runViewProgress $ (flip err) "TO BE IMPLEMENTED"
+         runViewProgress $ doChallengeUpdate challengeId updateType publicUrl publicBranch publicGitAnnexRemote privateUrl privateBranch privateGitAnnexRemote
       else
-        runViewProgress $ (flip err) "MUST BE AN ADMIN TO CREATE A CHALLENGE"
+        runViewProgress $ (flip err) "MUST BE AN ADMIN TO UPDATE A CHALLENGE"
+
+doChallengeUpdate :: ChallengeId -> ChallengeUpdateType -> Text -> Text -> Maybe Text -> Text -> Text -> Maybe Text -> Channel -> Handler ()
+doChallengeUpdate challengeId updateType publicUrl publicBranch publicGitAnnexRemote privateUrl privateBranch privateGitAnnexRemote chan = do
+  challenge <- runDB $ get404 challengeId
+  (Entity _ version) <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+  let (newMajor, newMinor, newPatch) = incrementVersion updateType (versionMajor version,
+                                                                    versionMinor version,
+                                                                    versionPatch version)
+
+  msg chan ("UPDATING TO VERSION: " ++ (pack $ show newMajor) ++ "." ++ (pack $ show newMinor) ++ "." ++ (pack $ show newPatch))
+
+  userId <- requireAuthId
+  (Just publicRepoId) <- getPossiblyExistingRepo (\_ _ _ -> return True)
+                                                userId
+                                                challengeId
+                                                RepoSpec {
+                                                  repoSpecUrl = publicUrl,
+                                                  repoSpecBranch = publicBranch,
+                                                  repoSpecGitAnnexRemote = publicGitAnnexRemote}
+                                                chan
+
+  (Just privateRepoId) <- getPossiblyExistingRepo (\_ _ _ -> return True)
+                                                 userId
+                                                 challengeId
+                                                 RepoSpec {
+                                                   repoSpecUrl = privateUrl,
+                                                   repoSpecBranch = privateBranch,
+                                                   repoSpecGitAnnexRemote = privateGitAnnexRemote}
+                                                 chan
+
+  privateRepo <- runDB $ get404 $ privateRepoId
+  repoDir <- getRepoDir privateRepoId
+  (Just versionDescription) <- liftIO $ getLastCommitMessage repoDir
+  theNow <- liftIO getCurrentTime
+  let commit = (repoCurrentCommit privateRepo)
+
+  mAlreadyExistingVersion <- runDB $ getBy $ UniqueVersionByCommit commit
+  case mAlreadyExistingVersion of
+    Just (Entity versionId _) -> do
+                                 runDB $ update versionId [VersionMajor =. newMajor,
+                                                           VersionMinor =. newMinor,
+                                                           VersionPatch =. newPatch,
+                                                           VersionDescription =. versionDescription,
+                                                           VersionStamp =. theNow]
+
+    Nothing -> do
+               _ <- runDB $ insert $ Version commit
+                           newMajor
+                           newMinor
+                           newPatch
+                           versionDescription
+                           theNow
+               return ()
+
+  (title, description, mImage) <- extractChallengeMetadata publicRepoId chan
+
+  runDB $ update challengeId [ChallengePublicRepo =. publicRepoId,
+                              ChallengePrivateRepo =. privateRepoId,
+                              ChallengeVersion =. commit,
+                              ChallengeTitle =. title,
+                              ChallengeDescription =. description,
+                              ChallengeImage =. mImage]
+
+  updateTests challengeId chan
+
+  return ()
+
+
+incrementVersion :: ChallengeUpdateType -> (Int, Int, Int) -> (Int, Int, Int)
+incrementVersion MajorChange (major, minor, patch) = (major + 1, minor, patch)
+incrementVersion MinorChange (major, minor, patch) = (major, minor + 1, patch)
+incrementVersion ChallengePatch (major, minor, patch) = (major, minor, patch + 1)
 
 
 defaultMajorVersion :: Int
@@ -135,9 +209,8 @@ defaultPatchVersion = 0
 defaultInitialDescription :: Text
 defaultInitialDescription = "initial version"
 
-addChallenge :: Text -> (Key Repo) -> (Key Repo) -> Channel -> Handler ()
-addChallenge name publicRepoId privateRepoId chan = do
-  msg chan "adding challenge..."
+extractChallengeMetadata :: Key Repo -> Channel -> Handler (Text, Text, Maybe ByteString)
+extractChallengeMetadata publicRepoId chan = do
   publicRepoDir <- getRepoDir publicRepoId
   let readmeFilePath = publicRepoDir </> readmeFile
   doesReadmeExist <- liftIO $ doesFileExist readmeFilePath
@@ -157,6 +230,14 @@ addChallenge name publicRepoId privateRepoId chan = do
              else do
                return Nothing
 
+  return (T.pack $ title, T.pack $ description, mImage)
+
+addChallenge :: Text -> (Key Repo) -> (Key Repo) -> Channel -> Handler ()
+addChallenge name publicRepoId privateRepoId chan = do
+  msg chan "adding challenge..."
+
+  (title, description, mImage) <- extractChallengeMetadata publicRepoId chan
+
   privateRepo <- runDB $ get404 privateRepoId
   time <- liftIO getCurrentTime
 
@@ -174,8 +255,8 @@ addChallenge name publicRepoId privateRepoId chan = do
     challengePublicRepo=publicRepoId,
     challengePrivateRepo=privateRepoId,
     challengeName=name,
-    challengeTitle=(T.pack $ title),
-    challengeDescription=(T.pack $ description),
+    challengeTitle=title,
+    challengeDescription=description,
     challengeStamp=time,
     challengeImage=mImage,
     challengeStarred=False,
@@ -222,20 +303,30 @@ checkTestDir chan challengeId challenge commit testDir = do
          err chan "Cannot read metric"
          return ()
        Right opts -> do
-         _ <- runDB $ mapM (\(priority, metric) -> insert $ Test {
-           testChallenge=challengeId,
-           testMetric=metric,
-           testName=T.pack $ takeFileName testDir,
-           testChecksum=(SHA1 checksum),
-           testCommit=commit,
-           testActive=True,
-           testPrecision=gesPrecision $ geoSpec opts,
-           testPriority=Just priority}) $ zip [1..] (gesMetrics $ geoSpec opts)
+         _ <- runDB $ mapM (insertOrUpdateTest testDir challengeId (SHA1 checksum) commit opts)  $ zip [1..] (gesMetrics $ geoSpec opts)
          return ()
     else
       msg chan $ concat ["Test dir ", (T.pack testDir), " does not have expected results."]
   return ()
 
+insertOrUpdateTest testDir challengeId checksum commit opts (priority, metric) = do
+  let name=T.pack $ takeFileName testDir
+  mAlreadyExistingTest <- getBy $ UniqueChallengeNameMetricChecksum challengeId name metric checksum
+  case mAlreadyExistingTest of
+    Just (Entity testId _) -> update testId [TestCommit=.commit,
+                                            TestPrecision=.(gesPrecision $ geoSpec opts),
+                                            TestPriority=.Just priority]
+    Nothing -> do
+                _ <- insert $ Test {
+                  testChallenge=challengeId,
+                  testMetric=metric,
+                  testName=name,
+                  testChecksum=checksum,
+                  testCommit=commit,
+                  testActive=True,
+                  testPrecision=gesPrecision $ geoSpec opts,
+                  testPriority=Just priority}
+                return ()
 
 gatherSHA1 :: FilePath -> IO ByteString
 gatherSHA1 testDir = do
@@ -267,7 +358,7 @@ createChallengeForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
 
 updateChallengeForm :: Form (ChallengeUpdateType, Text, Text, Maybe Text, Text, Text, Maybe Text)
 updateChallengeForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
-    <$> areq (radioField optionsEnum) (bfs MsgChangeType) Nothing
+    <$> areq (radioField optionsEnum) "change type" (Just ChallengePatch)
     <*> areq textField (bfs MsgPublicUrl) Nothing
     <*> areq textField (bfs MsgBranch) (Just "master")
     <*> aopt textField (bfs MsgGitAnnexRemote) Nothing
