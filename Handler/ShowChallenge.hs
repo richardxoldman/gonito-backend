@@ -20,6 +20,8 @@ import Handler.MakePublic
 import Handler.Dashboard
 import Handler.Common
 
+import Text.Blaze
+
 import Gonito.ExtractMetadata (ExtractionOptions(..),
                                extractMetadataFromRepoDir,
                                GonitoMetadata(..),
@@ -88,8 +90,8 @@ challengeReadme name = do
   let repoId = challengePublicRepo challenge
   repoDir <- getRepoDir repoId
   let readmeFilePath = repoDir </> readmeFile
-  contents <- liftIO $ System.IO.readFile readmeFilePath
-  return $ markdown def $ TL.pack contents
+  theContents <- liftIO $ System.IO.readFile readmeFilePath
+  return $ markdown def $ TL.pack theContents
 
 showChallengeWidget :: Maybe (Entity User)
                       -> Entity Challenge
@@ -178,6 +180,7 @@ defaultBranch :: IsString a => RepoScheme -> Maybe a
 defaultBranch SelfHosted = Just "master"
 defaultBranch Branches = Nothing
 
+challengeHowTo :: (Text.Blaze.ToMarkup a1, Text.Blaze.ToMarkup a2) => Challenge -> AppSettings -> Repo -> a1 -> Bool -> Bool -> Maybe a2 -> WidgetFor App ()
 challengeHowTo challenge settings repo shownId isIDSet isSSHUploaded mToken = $(widgetFile "challenge-how-to")
   where myBranch = case appRepoScheme settings of
           SelfHosted -> "master" :: Text
@@ -431,6 +434,7 @@ checkTarget theNow user submissionLink entries indicator target chan = do
        return ()
   where indicatorText = prettyIndicatorEntry indicator
 
+getScoreForOut :: (PersistQueryRead (YesodPersistBackend site), YesodPersist site, BaseBackend (YesodPersistBackend site) ~ SqlBackend) => Key Test -> Out -> HandlerFor site (Maybe Double)
 getScoreForOut mainTestId out = do
   mEvaluation <- runDB $ selectFirst [EvaluationChecksum ==. (outChecksum out),
                                      EvaluationTest ==. mainTestId]
@@ -466,7 +470,9 @@ getOuts chan submissionId generalParams = do
   submission <- runDB $ get404 submissionId
   let challengeId = submissionChallenge submission
   repoDir <- getRepoDir $ submissionRepo submission
-  activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
+  activeTests <- runDB $ selectList [TestChallenge ==. challengeId,
+                                    TestActive ==. True,
+                                    TestCommit ==. submissionVersion submission] []
 
   outs' <- mapM (outsForTest repoDir submissionId generalParams) activeTests
   let outs = concat outs'
@@ -606,6 +612,7 @@ checkRepoAvailibility challengeId repoId chan = do
           return False
         Nothing -> return True
 
+challengeSubmissionWidget :: (ToMarkup a1, ToWidget App a2) => a2 -> a1 -> Challenge -> WidgetFor App ()
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
 submissionForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Text, Text, Maybe Text)

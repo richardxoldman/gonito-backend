@@ -42,7 +42,8 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardEvaluationMap :: Map TestReference Evaluation,
   leaderboardNumberOfSubmissions :: Int,
   leaderboardTags :: [(Entity Tag, Entity SubmissionTag)],
-  leaderboardParams :: [Parameter]
+  leaderboardParams :: [Parameter],
+  leaderboardVersion :: (Int, Int, Int)
 }
 
 data TableEntry = TableEntry {
@@ -117,6 +118,7 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.int "#" fst
   ++ Table.text "submitter" (formatSubmitter . leaderboardUser . snd)
   ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
+  ++ Table.text "ver." (formatVersion . leaderboardVersion . snd)
   ++ leaderboardDescriptionCell mauthId
   ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScoreFromLeaderboardEntry (getTestReference e) . snd)) tests)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
@@ -188,6 +190,14 @@ getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluation
                                                                                      Nothing -> []))
 
 
+compareMajorVersions ::  (Int, Int, Int) -> (Int, Int, Int) -> Ordering
+compareMajorVersions (aM, _, _) (bM, _, _) = aM `compare` bM
+
+compareVersions :: (Int, Int, Int) -> (Int, Int, Int) -> Ordering
+compareVersions (aM, aN, aP) (bM, bN, bP) = (aM `compare` bM)
+                                            <> (aN `compare` bN)
+                                            <> (aP `compare` bP)
+
 getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge
                                              -> ((Entity Submission) -> Bool)
                                              -> (TableEntry -> [a])
@@ -203,8 +213,13 @@ getLeaderboardEntriesByCriterion challengeId condition selector = do
                  $ filter (\entry -> member mainTestRef $ tableEntryMapping entry)
                  $ evaluationMaps
   let auxItemsMap = Map.fromListWith (++) auxItems
-  let entryComparator a b = (compareResult mainTest) (evaluationScore $ leaderboardEvaluationMap a Map.! mainTestRef)
-                                                     (evaluationScore $ leaderboardEvaluationMap b Map.! mainTestRef)
+  let entryComparator a b =
+        (compareMajorVersions (leaderboardVersion a) (leaderboardVersion b))
+        <>
+        ((compareResult mainTest) (evaluationScore $ leaderboardEvaluationMap a Map.! mainTestRef)
+         (evaluationScore $ leaderboardEvaluationMap b Map.! mainTestRef))
+        <>
+        (compareVersions (leaderboardVersion a) (leaderboardVersion b))
   entries' <- mapM (toLeaderboardEntry challengeId mainTests)
              $ filter (\ll -> not (null ll))
              $ map snd
@@ -213,7 +228,8 @@ getLeaderboardEntriesByCriterion challengeId condition selector = do
                 $ sortBy (flip entryComparator) entries'
   return (entries, (evaluationMaps, mainTests))
 
-toLeaderboardEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> [Entity Test] -> t TableEntry -> HandlerFor site LeaderboardEntry
+
+toLeaderboardEntry :: (Foldable t, YesodPersist site, PersistQueryRead (YesodPersistBackend site), PersistUniqueRead (YesodPersistBackend site), BaseBackend (YesodPersistBackend site) ~ SqlBackend) => Key Challenge -> [Entity Test] -> t TableEntry -> HandlerFor site LeaderboardEntry
 toLeaderboardEntry challengeId tests ss = do
   let bestOne = DL.maximumBy submissionComparator ss
   let (TableEntry bestSubmission bestVariant user evals _ _ _ _) = bestOne
@@ -221,6 +237,13 @@ toLeaderboardEntry challengeId tests ss = do
   tagEnts <- runDB $ getTags submissionId
 
   parameters <- runDB $ selectList [ParameterVariant ==. (entityKey bestVariant)] [Asc ParameterName]
+
+  submission <- runDB $ get404 submissionId
+  (Just (Entity _ version)) <- runDB $ getBy $ UniqueVersionByCommit $ submissionVersion submission
+
+  let theVersion = (versionMajor version,
+                    versionMinor version,
+                    versionPatch version)
 
   -- get all user submissions, including hidden ones
   allUserSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId,
@@ -236,13 +259,18 @@ toLeaderboardEntry challengeId tests ss = do
               leaderboardEvaluationMap = evals,
               leaderboardNumberOfSubmissions = length allUserSubmissions,
               leaderboardTags = tagEnts,
-              leaderboardParams = map entityVal parameters
+              leaderboardParams = map entityVal parameters,
+              leaderboardVersion = theVersion
               }
      where mainTestEnt@(Entity _ mainTest) = getMainTest tests
            mainTestRef = getTestReference mainTestEnt
-           submissionComparator (TableEntry _  _  _ em1 _ _ _ _) (TableEntry _  _ _ em2 _ _ _ _) =
+           submissionComparator (TableEntry _  _  _ em1 _ _ _ v1) (TableEntry _  _ _ em2 _ _ _ v2) =
+             (compareMajorVersions v1 v2)
+             <>
              (compareResult mainTest) (evaluationScore (em1 Map.! mainTestRef))
                                       (evaluationScore (em2 Map.! mainTestRef))
+             <>
+             (compareVersions v1 v2)
 
 getLeaderboardEntries :: LeaderboardStyle -> Key Challenge -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntries BySubmitter challengeId =
@@ -262,6 +290,7 @@ compareResult _ (Just _) Nothing = GT
 compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ
 
+getChallengeSubmissionInfos :: (MonadIO m, PersistQueryRead backend, BackendCompatible SqlBackend backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend) => (Entity Submission -> Bool) -> Key Challenge -> ReaderT backend m ([TableEntry], [Entity Test])
 getChallengeSubmissionInfos condition challengeId = do
 
   challenge <- get404 challengeId
@@ -291,6 +320,7 @@ getChallengeSubmissionInfos condition challengeId = do
   evaluationMaps <- mapM getEvaluationMap allSubmissionsVariantsWithRanks
   return (evaluationMaps, tests)
 
+getScore :: (MonadIO m, BackendCompatible SqlBackend backend, PersistQueryRead backend, PersistUniqueRead backend) => Key Test -> Key Variant -> ReaderT backend m (Maybe Double)
 getScore testId variantId = do
   evaluations <- E.select $ E.from $ \(out, evaluation) -> do
                   E.where_ (out ^. OutVariant E.==. E.val variantId
@@ -303,6 +333,7 @@ getScore testId variantId = do
              [] -> Nothing
 
 
+getEvaluationMap :: (MonadIO m, PersistQueryRead backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend) => (Int, (Entity Submission, Entity Variant)) -> ReaderT backend m TableEntry
 getEvaluationMap (rank, (s@(Entity submissionId submission), v@(Entity variantId _))) = do
   outs <- selectList [OutVariant ==. variantId] []
   user <- get404 $ submissionSubmitter submission
