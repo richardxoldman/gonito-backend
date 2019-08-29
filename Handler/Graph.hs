@@ -31,12 +31,13 @@ getChallengeParamGraphDataR :: Text -> (Key Test) -> Text -> Handler Value
 getChallengeParamGraphDataR challengeName testId paramName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
   test <- runDB $ get404 testId
+  let testRef = getTestReference (Entity testId test)
 
   (entries, _) <- runDB $ getChallengeSubmissionInfos (const True) challengeId
 
   let values = map (findParamValue paramName) entries
 
-  let items = Data.Maybe.catMaybes $ map (toParamGraphItem testId paramName) $ zip entries values
+  let items = Data.Maybe.catMaybes $ map (toParamGraphItem testRef paramName) $ zip entries values
 
   let series = map (\(label, rs) -> ParamGraphSeries label rs)
                $ organizeBy
@@ -61,9 +62,9 @@ xSeriesName = (++ "_x")
 organizeBy :: (Eq a, Ord a) => [(a, b)] -> [(a, [b])]
 organizeBy pList = M.toList $ M.fromListWith (++) $ map (\(x, y) -> (x, [y])) pList
 
-toParamGraphItem :: TestId -> Text -> (TableEntry, Maybe Text) -> Maybe ParamGraphItem
+toParamGraphItem :: TestReference -> Text -> (TableEntry, Maybe Text) -> Maybe ParamGraphItem
 toParamGraphItem _ _ (_, Nothing) = Nothing
-toParamGraphItem tid paramName (entry, Just val) = (ParamGraphItem entry label val) <$> join y
+toParamGraphItem testRef paramName (entry, Just val) = (ParamGraphItem entry label val) <$> join y
   where label = unwords (tagsFormatted ++ paramsFormatted)
         tagsFormatted =
                 map (tagName . entityVal . fst)
@@ -72,7 +73,7 @@ toParamGraphItem tid paramName (entry, Just val) = (ParamGraphItem entry label v
                 map formatParameter
                 $ filter (\pe -> parameterName pe /= paramName)
                 $ map entityVal $ tableEntryParams entry
-        y = evaluationScore <$> lookup tid (tableEntryMapping entry)
+        y = evaluationScore <$> lookup testRef (tableEntryMapping entry)
 
 findParamValue :: Text -> TableEntry -> Maybe Text
 findParamValue paramName entry =
@@ -88,25 +89,25 @@ submissionsToJSON condition challengeName = do
 
 
   tests <- runDB $ selectList [TestChallenge ==. challengeId] []
-  let mainTestId = entityKey $ getMainTest tests
+  let mainTestRef = getTestReference $ getMainTest tests
 
-  let naturalRange = getNaturalRange mainTestId entries
+  let naturalRange = getNaturalRange mainTestRef entries
   let submissionIds = map leaderboardBestSubmissionId entries
 
   forks <- runDB $ selectList [ForkSource <-. submissionIds, ForkTarget <-. submissionIds] []
 
   return $ object [ "nodes" .= (Data.Maybe.catMaybes
-                                $ map (auxSubmissionToNode mainTestId naturalRange)
+                                $ map (auxSubmissionToNode mainTestRef naturalRange)
                                 $ entries),
                     "edges" .= map forkToEdge forks ]
 
-getNaturalRange :: TestId -> [LeaderboardEntry] -> Double
-getNaturalRange testId entries = 2.0 * (interQuantile
+getNaturalRange :: TestReference -> [LeaderboardEntry] -> Double
+getNaturalRange testRef entries = 2.0 * (interQuantile
                                         $ Data.Maybe.catMaybes
-                                        $ map (\entry -> evaluationScore $ ((leaderboardEvaluationMap entry) M.! testId)) entries)
+                                        $ map (\entry -> evaluationScore $ ((leaderboardEvaluationMap entry) M.! testRef)) entries)
 
-auxSubmissionToNode :: TestId -> Double -> LeaderboardEntry -> Maybe Value
-auxSubmissionToNode testId naturalRange entry = case evaluationScore $ ((leaderboardEvaluationMap entry) M.! testId) of
+auxSubmissionToNode :: TestReference -> Double -> LeaderboardEntry -> Maybe Value
+auxSubmissionToNode testRef naturalRange entry = case evaluationScore $ ((leaderboardEvaluationMap entry) M.! testRef) of
   Just score ->  Just $ object [
     "id" .= (nodeId $ leaderboardBestSubmissionId entry),
     "x"  .= (stampToX $ submissionStamp $ leaderboardBestSubmission entry),
@@ -241,14 +242,15 @@ addNow _ ([], []) = ([], [])
 addNow theNow (scores, timepoints) = (scores ++ [last $ impureNonNull scores], timepoints ++ [formatTimestamp theNow])
 
 entriesToPoints :: Entity Test -> [TableEntry] -> ([Double], [Text])
-entriesToPoints (Entity testId test) entries = (scores, timePoints)
+entriesToPoints testEnt@(Entity _ test) entries = (scores, timePoints)
   where timePoints = map (formatTimestamp . tableEntryStamp) relevantEntries
-        scores = map (\entry -> fromJust $ evaluationScore $ (tableEntryMapping entry) M.! testId) relevantEntries
+        scores = map (\entry -> fromJust $ evaluationScore $ (tableEntryMapping entry) M.! testRef) relevantEntries
         relevantEntries =
-          monotonicBy (\entry -> fromJust $ evaluationScore $ (tableEntryMapping entry) M.! testId) comparator
-          $ filter (\entry -> testId `M.member` (tableEntryMapping entry)
-                             && isJust (evaluationScore ((tableEntryMapping entry) M.! testId))) entries
+          monotonicBy (\entry -> fromJust $ evaluationScore $ (tableEntryMapping entry) M.! testRef) comparator
+          $ filter (\entry -> testRef `M.member` (tableEntryMapping entry)
+                             && isJust (evaluationScore ((tableEntryMapping entry) M.! testRef))) entries
         comparator = compareFun $ getMetricOrdering $ evaluationSchemeMetric $ testMetric test
+        testRef = getTestReference testEnt
 
 targetsToLines :: UTCTime -> IndicatorEntry -> [TargetStatus] -> Value
 targetsToLines theNow indicator statuses = object [

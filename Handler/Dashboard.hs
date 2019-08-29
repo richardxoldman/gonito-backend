@@ -237,7 +237,7 @@ getTargetStatus theNow entries indicator target =
           $ map (\e -> (tableEntryMapping e) M.!? testId)
           $ filter (\e -> (submissionStamp $ entityVal $ tableEntrySubmission e) < theNow)
           $ filterEntries (indicatorEntryTargetCondition indicator) entries
-        testId = entityKey $ indicatorEntryTest indicator
+        testId = getTestReference $ indicatorEntryTest indicator
 
 getOngoingTargets :: ChallengeId -> Handler [IndicatorEntry]
 getOngoingTargets challengeId = do
