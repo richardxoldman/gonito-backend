@@ -52,16 +52,21 @@ data TableEntry = TableEntry {
   tableEntryMapping :: Map TestReference Evaluation,
   tableEntryTagsInfo :: [(Entity Tag, Entity SubmissionTag)],
   tableEntryParams :: [Entity Parameter],
-  tableEntryRank :: Int }
+  tableEntryRank :: Int,
+  tableEntryVersion :: (Int, Int, Int) }
 
 tableEntryStamp :: TableEntry -> UTCTime
 tableEntryStamp = submissionStamp . entityVal . tableEntrySubmission
+
+formatVersion :: (Int, Int, Int) -> Text
+formatVersion (major, minor, patch) = (Data.Text.pack $ show major) <> "." <> (Data.Text.pack $ show minor) <> "." <> (Data.Text.pack $ show patch)
 
 submissionsTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App TableEntry
 submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.int "#" tableEntryRank
   ++ Table.text "submitter" (formatSubmitter . entityVal . tableEntrySubmitter)
   ++ timestampCell "when" tableEntryStamp
+  ++ Table.text "ver." (formatVersion . tableEntryVersion)
   ++ descriptionCell mauthId
   ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScore $ getTestReference e)) tests)
   ++ statusCell challengeName repoScheme challengeRepo (\tableEntry -> (entityKey $ tableEntrySubmission tableEntry,
@@ -88,10 +93,10 @@ paramExtractor paramName = Table.text paramName (\entry ->
 
 descriptionCell :: Maybe UserId -> Table App TableEntry
 descriptionCell mauthId = Table.widget "description" (
-  \(TableEntry (Entity _ s) (Entity _ v) (Entity u _) _ tagEnts paramEnts _) -> fragmentWithSubmissionTags
-                                                                               (descriptionToBeShown s v (map entityVal paramEnts))
-                                                                               (getInfoLink s u mauthId)
-                                                                               tagEnts)
+  \(TableEntry (Entity _ s) (Entity _ v) (Entity u _) _ tagEnts paramEnts _ _) -> fragmentWithSubmissionTags
+                                                                                 (descriptionToBeShown s v (map entityVal paramEnts))
+                                                                                 (getInfoLink s u mauthId)
+                                                                                 tagEnts)
 
 
 descriptionToBeShown :: Submission -> Variant -> [Parameter] -> Text
@@ -178,9 +183,9 @@ checkWhetherVisible submission userId mauthId = isPublic || isOwner
 
 getAuxSubmissionEnts :: TestReference -> [TableEntry] -> [(Key User, (User, [(Entity Submission, Entity Variant, Evaluation)]))]
 getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluationMaps
-   where processEvaluationMap (TableEntry s v (Entity ui u) m _ _ _) = (ui, (u, case Map.lookup testId m of
-                                                                                       Just e -> [(s, v, e)]
-                                                                                       Nothing -> []))
+   where processEvaluationMap (TableEntry s v (Entity ui u) m _ _ _ _) = (ui, (u, case Map.lookup testId m of
+                                                                                     Just e -> [(s, v, e)]
+                                                                                     Nothing -> []))
 
 
 getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge
@@ -211,7 +216,7 @@ getLeaderboardEntriesByCriterion challengeId condition selector = do
 toLeaderboardEntry :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistQueryRead (YesodPersistBackend site), YesodPersist site, Foldable t) => Key Challenge -> [Entity Test] -> t TableEntry -> HandlerFor site LeaderboardEntry
 toLeaderboardEntry challengeId tests ss = do
   let bestOne = DL.maximumBy submissionComparator ss
-  let (TableEntry bestSubmission bestVariant user evals _ _ _) = bestOne
+  let (TableEntry bestSubmission bestVariant user evals _ _ _ _) = bestOne
   let submissionId = entityKey bestSubmission
   tagEnts <- runDB $ getTags submissionId
 
@@ -235,7 +240,7 @@ toLeaderboardEntry challengeId tests ss = do
               }
      where mainTestEnt@(Entity _ mainTest) = getMainTest tests
            mainTestRef = getTestReference mainTestEnt
-           submissionComparator (TableEntry _  _  _ em1 _ _ _) (TableEntry _  _ _ em2 _ _ _) =
+           submissionComparator (TableEntry _  _  _ em1 _ _ _ _) (TableEntry _  _ _ em2 _ _ _ _) =
              (compareResult mainTest) (evaluationScore (em1 Map.! mainTestRef))
                                       (evaluationScore (em2 Map.! mainTestRef))
 
@@ -313,4 +318,9 @@ getEvaluationMap (rank, (s@(Entity submissionId submission), v@(Entity variantId
 
   parameters <- selectList [ParameterVariant ==. variantId] [Asc ParameterName]
 
-  return $ TableEntry s v (Entity (submissionSubmitter submission) user) m tagEnts parameters rank
+  (Entity _ version) <- getBy404 $ UniqueVersionByCommit $ submissionVersion submission
+  let major = versionMajor version
+  let minor = versionMinor version
+  let patch = versionPatch version
+
+  return $ TableEntry s v (Entity (submissionSubmitter submission) user) m tagEnts parameters rank (major, minor, patch)
