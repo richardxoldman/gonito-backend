@@ -45,8 +45,7 @@ getApiTxtScoreR sha1Prefix = do
 doGetScore :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistUniqueRead (YesodPersistBackend site), BackendCompatible SqlBackend (YesodPersistBackend site), YesodPersist site, PersistQueryRead (YesodPersistBackend site)) => Entity Submission -> HandlerFor site Text
 doGetScore submission = do
   let challengeId = submissionChallenge $ entityVal submission
-  tests <- runDB $ selectList [TestChallenge ==. challengeId] []
-  let mainTest = getMainTest tests
+  mainTest <- runDB $ fetchMainTest challengeId
   let mainTestId = entityKey mainTest
   let submissionId = entityKey submission
 

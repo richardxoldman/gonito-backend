@@ -362,6 +362,16 @@ thenCmp :: Ordering -> Ordering -> Ordering
 thenCmp EQ o2 = o2
 thenCmp o1 _  = o1
 
+fetchMainTest :: (MonadIO m, PersistQueryRead backend, BaseBackend backend ~ SqlBackend) => Key Challenge -> ReaderT backend m (Entity Test)
+fetchMainTest challengeId = do
+  challenge <- get404 challengeId
+
+  activeTests <- selectList [TestChallenge ==. challengeId,
+                                    TestActive ==. True,
+                                    TestCommit ==. challengeVersion challenge] []
+
+  return $ getMainTest activeTests
+
 -- get the test with the highest priority
 getMainTest :: [Entity Test] -> Entity Test
 getMainTest tests = DL.maximumBy testComparator tests

@@ -278,21 +278,29 @@ doCreateSubmission' _ userId challengeId mDescription mTags repoSpec chan = do
 
       relevantIndicators <- getOngoingTargets challengeId
 
-      activeTests <- runDB $ selectList [TestChallenge ==. challengeId, TestActive ==. True] []
-      let (Entity mainTestId mainTest) = getMainTest activeTests
+      (Entity mainTestId mainTest) <- runDB $ fetchMainTest challengeId
+
+      (Entity _ currentVersion) <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+      let submittedMajorVersion = versionMajor currentVersion
 
       let orderDirection = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
             TheHigherTheBetter -> E.desc
             TheLowerTheBetter -> E.asc
 
-      bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out) -> do
+      bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out, test, version) -> do
               E.where_ (submission ^. SubmissionChallenge E.==. E.val challengeId
                         E.&&. submission ^. SubmissionIsHidden E.==. E.val False
                         E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId
                         E.&&. evaluation ^. EvaluationChecksum E.==. out ^. OutChecksum
                         E.&&. (E.not_ (E.isNothing (evaluation ^. EvaluationScore)))
                         E.&&. out ^. OutVariant E.==. variant ^. VariantId
-                        E.&&. evaluation ^. EvaluationTest E.==. E.val mainTestId)
+                        E.&&. evaluation ^. EvaluationTest E.==. test ^. TestId
+                        E.&&. test ^. TestChallenge E.==. E.val challengeId
+                        E.&&. test ^. TestName E.==. E.val (testName mainTest)
+                        E.&&. test ^. TestMetric E.==. E.val (testMetric mainTest)
+                        E.&&. test ^. TestActive
+                        E.&&. version ^. VersionCommit E.==. test ^. TestCommit
+                        E.&&. version ^. VersionMajor E.>=. E.val submittedMajorVersion)
               E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
               E.limit 1
               return evaluation

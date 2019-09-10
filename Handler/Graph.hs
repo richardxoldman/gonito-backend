@@ -4,7 +4,7 @@ import Import
 
 import Handler.Tables
 import Handler.Dashboard (indicatorToEntry, prettyIndicatorEntry, formatTarget, IndicatorEntry(..), TargetStatus(..), filterEntries, getTargetStatus)
-import Handler.Shared (formatParameter, formatScore, getMainTest, compareFun)
+import Handler.Shared (formatParameter, formatScore, fetchMainTest, compareFun)
 import Data.Maybe
 import Data.List ((!!))
 import Database.Persist.Sql
@@ -88,8 +88,8 @@ submissionsToJSON condition challengeName = do
                                                   (\entry -> [entityKey $ tableEntrySubmission entry])
 
 
-  tests <- runDB $ selectList [TestChallenge ==. challengeId] []
-  let mainTestRef = getTestReference $ getMainTest tests
+  entMainTest <- runDB $ fetchMainTest challengeId
+  let mainTestRef = getTestReference entMainTest
 
   let naturalRange = getNaturalRange mainTestRef entries
   let submissionIds = map leaderboardBestSubmissionId entries
