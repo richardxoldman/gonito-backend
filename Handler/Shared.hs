@@ -413,11 +413,14 @@ formatScore (Just precision) = T.pack . (printf "%0.*f" precision)
 formatParameter :: Parameter -> Text
 formatParameter param = parameterName param ++ "=" ++ parameterValue param
 
+formatTestEvaluationScheme :: Test -> Text
+formatTestEvaluationScheme = T.pack . evaluationSchemeName . testMetric
+
 formatTest :: Test -> Text
-formatTest test = (testName test) ++ "/" ++ (T.pack $ show $ testMetric test)
+formatTest test = (testName test) ++ "/" ++ (formatTestEvaluationScheme test)
 
 formatTestForHtml :: Test -> Text
-formatTestForHtml test = (testName test) ++ " " ++ (T.pack $ show $ testMetric test)
+formatTestForHtml test = (testName test) ++ " " ++ (formatTestEvaluationScheme test)
 
 findFilePossiblyCompressed :: FilePath -> IO (Maybe FilePath)
 findFilePossiblyCompressed baseFilePath = do
