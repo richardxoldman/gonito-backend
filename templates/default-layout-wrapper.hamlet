@@ -16,8 +16,13 @@ $newline never
     <link rel="stylesheet" type="text/css" href="/static/css/datatables.min.css"/>
     <link rel="stylesheet" type="text/css" href="/static/css/c3.min.css"/>
     <link rel="stylesheet" type="text/css" href="/static/css/extra.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/css/buttons.dataTables.min.css"/>
+
     <script type="text/javascript" src="/static/js/datatables.min.js">
     <script type="text/javascript" src="/static/js/datatables-extended.js">
+    <script type="text/javascript" src="/static/js/dataTables.buttons.min.js">
+    <script type="text/javascript" src="/static/js/buttons.html5.min.js">
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js">
 
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
           integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">

@@ -10,6 +10,12 @@
   $(document).ready(function() {
      $("table").DataTable({
        'pageLength': 50,
-       'columnDefs': columnDefs
+       'columnDefs': columnDefs,
+       'dom': 'Bfrtlip',
+       'buttons': [
+            'copy',
+            'csv',
+            'excel'
+        ]
        })
   });

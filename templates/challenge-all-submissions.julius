@@ -11,6 +11,12 @@
      $("table").DataTable({
        'pageLength': 50,
        'order': [[2, 'desc'], [#{delta} + columnDefs.length-1, 'desc']],
-       'columnDefs': columnDefs
+       'columnDefs': columnDefs,
+       'dom': 'Bfrtlip',
+       'buttons': [
+            'copy',
+            'csv',
+            'excel'
+        ]
        });
   } );
