@@ -192,8 +192,8 @@ doChallengeUpdate challengeId updateType publicUrl publicBranch publicGitAnnexRe
 
 
 incrementVersion :: ChallengeUpdateType -> (Int, Int, Int) -> (Int, Int, Int)
-incrementVersion MajorChange (major, minor, patch) = (major + 1, minor, patch)
-incrementVersion MinorChange (major, minor, patch) = (major, minor + 1, patch)
+incrementVersion MajorChange (major, minor, patch) = (major + 1, 0, 0)
+incrementVersion MinorChange (major, minor, patch) = (major, minor + 1, 0)
 incrementVersion ChallengePatch (major, minor, patch) = (major, minor, patch + 1)
 
 
