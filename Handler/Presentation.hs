@@ -2,6 +2,8 @@ module Handler.Presentation where
 
 import Import
 
+import GEval.MetricsMeta
+
 import Handler.ShowChallenge
 import Handler.Tables
 
@@ -10,17 +12,16 @@ import qualified Yesod.Table as Table
 import Text.Hamlet (hamletFile)
 
 sampleChallengeName :: Text
-sampleChallengeName = "petite-difference-challenge"
+sampleChallengeName = "petite-difference-challenge2"
 
 sampleChallengeName' :: Text
-sampleChallengeName' = "retroc"
+sampleChallengeName' = "retroc2"
 
 retrocChallengeName :: Text
-retrocChallengeName = "retroc"
+retrocChallengeName = "retroc2"
 
 retroc2ChallengeName :: Text
 retroc2ChallengeName = "retroc2"
-
 
 sampleUserIdent :: Text
 sampleUserIdent = "ptlen@ceti.pl"
@@ -45,6 +46,27 @@ getPresentation4RealR = do
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
   presentationLayout $(widgetFile "presentation-4real")
+
+getPresentationPSNC2019R :: Handler Html
+getPresentationPSNC2019R = do
+  readme <- challengeReadme sampleChallengeName
+
+  (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName sampleChallengeName
+
+  (Just (Entity sampleUserId _)) <- runDB $ getBy $ UniqueUser sampleUserIdent
+  let condition = (\(Entity _ submission) -> (submissionSubmitter submission == sampleUserId))
+  (evaluationMaps', tests) <- runDB $ getChallengeSubmissionInfos condition challengeId
+  let evaluationMaps = take 10 evaluationMaps'
+
+  sampleLeaderboard <- getSampleLeaderboard sampleChallengeName
+  sampleLeaderboard' <- getSampleLeaderboard sampleChallengeName'
+
+  app <- getYesod
+  let scheme = appRepoScheme $ appSettings app
+
+  challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
+
+  presentationLayout $(widgetFile "presentation-psnc-2019")
 
 getPresentationDATeCH2017R = do
   readme <- challengeReadme retrocChallengeName

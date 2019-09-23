@@ -1,0 +1,238 @@
+<script src="/static/js/sigma.min.js">
+<script src="/static/js/sigma.parsers.json.min.js">
+
+<div id="title" class="step" data-x="0" data-y="-1500">
+   <h1>Gonito.net
+   <p>open platform for research competition, cooperation and reproducibility
+   <p class="footnote">Filip Graliński
+   <p class="footnote">Adam Mickiewicz University / Applica.ai
+   <p class="footnote">24 September 2019, PSNC
+
+
+<div class="step slide" data-x="0" data-y="-500">
+   <h2>Motivation
+   <ul>
+     <li>We needed a place to keep track of our results for:
+       <ul>
+          <li>carrying out our research (AMU)
+          <li>teaching our students (AMU)
+          <li>just playing with our data sets (AMU)
+          <li>tracking ML solutions internally (Applica.ai)
+     <li>(but didn't want to save the world or earn $$$ directly with it)
+
+<div class="step slide" data-x="0" data-y="500">
+   <h2>Alternatives?
+   <ul>
+     <li><a href="https://www.kaggle.com">Kaggle</a>
+        <ul>
+           <li>you need to <em>ask</em> Kaggle people
+           <li>Kaggle in class only for teaching
+           <li>not fully open ☹
+     <li><a href="https://www.drivendata.org">DrivenData</a>
+        <ul>
+           <li>more or less similar to Kaggle</li>
+     <li><a href="https://codalab.org">CodaLab</a>
+        <ul>
+           <li>trying hard but hadn't found it ☹
+           <li>open!
+           <li>no git
+           <li>quite popular, but see the recent Evaporation Incident
+
+<div class="step slide" data-x="1000" data-y="500">
+   <p>That's why we created
+   <h1>Gonito.net
+   <p>open platform for machine learning competition
+   <ul>
+     <li>Be open
+        <ul>
+          <li>GNU Affero General Public License
+          <li>Anyone can set up their own instance
+          <li>Users are encouraged to share source codes
+          <li>Users are free to use whatever programming language and tools
+     <li>Use git
+        <ul>
+           <li>Challenges are created as Git repositories
+           <li>Solutions uploaded with Git
+           <li>Solutions can be forked and reused
+           <li>Even if a Gonito.net ceases to exist, Git repos may live
+
+<div class="step slide" data-x="2000" data-y="500">
+   <p>… and
+   <h1>GEval
+   <p>companion Haskell library and stand-alone tool for machine learning evaluation
+   <p style="font-size: 50%">#{helpMetricParameterMetricsList}
+
+<div class="step slide" style="height: 1000px;" data-x="1000" data-y="1500">
+   <h2>A challenge…
+   <div style="font-size: 50%" class="readme">
+     ^{readme}
+
+<div class="step slide" data-x="2000" data-y="2000">
+   <h2>Install GEval
+
+   <pre>
+     curl -sSL https://get.haskellstack.org/ | sh  # Haskell Stack
+     git clone git://gonito.net/geval
+     cd geval
+     stack setup
+     stack install
+     # add ~/.local/bin to $PATH
+
+   <h3>Or just download the GEval binary
+   <p>(Fully static binary for 64-bit Linuxes)
+
+   <pre>
+     wget https://gonito.net/get/bin/geval
+     chmod u+x geval
+     ./geval --help
+
+<div class="step slide" style="height: 800px;" data-x="1000" data-y="2500">
+   <h2>Current status…
+
+   <div style="font-size: 50%">
+     ^{sampleLeaderboard}
+
+<div class="step slide" data-x="2000" data-y="3000">
+   <h2>How to replicate the best result?
+
+   <ul>
+     <li>Let's assume you know Git commit hash
+       <ul>
+         <li>(e.g. you found it in the paper)
+     <li>see the submission number at http://gonito.net/q/58b1c3
+
+   <pre>
+     # this will take some time (big repo)
+     git clone --single-branch git://gonito.net/petite-difference-challenge2 -b submission-00448
+     cd petite-difference-challenge2
+     make clean && make # optionally if you to want to replicate training
+     geval --test-name dev-0
+     0.71473
+
+  <ul>
+    <li>line-by-line mode
+
+  <pre>
+     geval --test-name dev-0 --line-byline -s | head -n 8
+
+     0.0     firmy. Słyszałem że ciężko się drukuje na papierze kredowym.Czy jest może       M       F
+     0.0     A co do wiersza to zgadzam się prawie, prawie...Miałem może troszkę inną wizję, troszkę inną interpretacje, ale to nie jest aż tak ważne. Mnie też ogarnęło wzruszenie, mnie też zrobiło się tak wspaniale na sercu, że jednak, że nie tylko tak bardzo egoistycznie, że jeszcze ktoś widzi to co obok, a może przewiduje to co kiedyś... "pomiędzy gwiazdą a kamieniem"... dawno nie czytałem tak pięknego wersu, tak wymownego i bogatego w możliwości interpretacji. To dla mnie tak jakby gwiazda była tym czymś co dalekie, marzeniem, złudzeniem, ciepłem, ideałem, czymś nieosiągalnym, takim... niebiańskim... Kamień zaś pozostaje tylko kamieniem, symbolem uporu i twardości, takim, którego czas się nie ima, takim, który ciężko naruszyć, ale on sam może być przyczyną... I ten lęk , o którym pisał Tomaszek. Czułem go i nadal czuję. I przy każdym czytaniu wiersza jest silny. Nie słabnie. Czy to znaczy, że trafiłem na bardzo dobry wiersz? Chyba tak. Nie. Na pewno tak.         F       M
+     0.0     (*) Popularna jest też szkoła, że nie należy grzybka myć, żeby nie stracić cennych mikroelementów. Osobiście grzybka codziennie przepłukuję do czysta i rośnie jak opętany. Jeżeli jest jakiś biolog na sali, to bedę wdzięczny za naukowe wytłumaczenie za lub przeciw :)      F       M
+     0.0     Alkad na próżno chciał się dowiedzieć jakichś bliższych szczegółów iż rozwiązanie zagadki będzie raczej trudne niż łatwe. Zauważyłem Wszedł do  M       F
+     0.0     łóżka, którego nie dotykałem,   F       M
+     0.0     breathżyłem w klatce(Siergiej, 17 lat) Przyznaję, podobało mi się wiele dziewczyn i chłopaków. Odczuwałem całą gamę emocji, wszystkie stopnie podniecenia, niekontrolowane drżenie, gdy pragnienie było silniejsze od zdrowego rozsądku. Ale nie, nie, nie, nie. To nie może się dziać naprawdę. Czemu, do cholery, musiałem zakochać się w kimś takim?! Niski, chudy, do wyglądu aktorów z okładek, którzy mnie kręcili <U+0096> tak daleko, jak tylko możliwe. Samotnik emanuj      M       F
+     0.0     Nie zgodziłbym się że tylko, ale ustalcie to między sobą z flor_ekiem jeśli się pojawi (nie jestem pewien, bo nie wszyscy mają ochotę kwitować odbiór roboty).        M       F
+     0.0     Zawijałem i spinałem wykałaczkami.      F       M
+
+<div class="step slide" data-x="2000" data-y="4000">
+   <h2>I wanna do something better
+
+   <p>Sign up, add SSH key etc.
+
+   <p>Clone the repo:
+
+   <pre>
+     git clone --single-branch ssh://gitolite@gonito.net/john/petite-difference-challenge2
+     cd petite-difference-challenge2
+     git pull ssh://gitolite@gonito.net/petite-difference-challenge2
+     git push origin master
+
+   <p>Work on your solution and check locally:
+
+   <pre>
+     geval --test-name dev-0
+
+   <p>Push your brilliant solution:
+
+   <pre>
+     git add dev-0/out.tsv test-A/out.tsv # ...
+     git commit -m 'my brilliant solution'
+     git push origin master
+
+   <p>… and let Gonito.net know about your submission (or configure a Git hook)
+
+<div class="step slide" style="height: 800px;" data-x="1000" data-y="4500">
+   <h2>… and see your results
+
+   <div style="font-size: 50%">
+     ^{Table.buildBootstrap (submissionsTable Nothing (challengeName challenge) scheme challengeRepo tests) evaluationMaps}
+
+<div class="step slide" data-x="2000" data-y="5000">
+   <h2>Be open!</h2>
+
+   <p>You can open <span class="glyphicon glyphicon-share"></span>&nbsp; your submission so that everybody could see it
+
+   <p>… and you fork somebody else's submission <span class="glyphicon glyphicon-folder-open"></span>&nbsp; and build upon it
+
+   <pre>
+     git clone --single-branch ssh://gitolite@gonito.net/john/petite-difference-challenge2
+     cd petite-difference-challenge2
+     git fetch ssh://gitolite@gonito.net/petite-difference-challenge2 submission-00448
+     git reset --hard FETCH_HEAD
+
+   <p>… or you can browse the code at <a href="http://gonito.net/gitlist/petite-difference-challenge.git/submission-00115">http://gonito.net/gitlist/petite-difference-challenge2.git/submission-00448</a>
+
+<div class="step slide" style="height: 800px;" data-x="1000" data-y="6500">
+   <h2>Yet another challenge
+
+   <div style="font-size: 50%">
+     ^{sampleLeaderboard'}
+
+<div class="step slide" data-x="2000" data-y="7000">
+   <pre>
+     git clone --single-branch git://gonito.net/retroc2 -b submission-00647
+     cd retroc2
+     geval --test-name dev-0
+
+     22.4133
+
+  <pre>
+     geval --test-name dev-0 --line-by-line -s | head -n 2
+
+     149.17849548415006	i Rdlñmczy samorzfšü” Wybnwdclsgylláwdolvlmhkvel Izby RUIHI( (e1 odbyły się a gmdmn zouz y cyyuyę Eyal: rwym. będą veyrezL-nlum/nh w . w mnęszkzunec y „yyy, yy yy awm ?gniew tym. mœszkamę( Ustawa z dma M grudnia v99; y. y .zumy rownych, ktora wasi yy zym s kwyelma 199c y. ,yyuyzy syçnzhvohuciychwPolxv wyme- ,yę mnędzywu ennym azymyy w Pmm ymy rowan: Syçganne do „yy uadyqy yymyyyyyyy „yyy y. ynspwaqedadzyašanyaobecnyth .z Wymœnyunquäuyvapvzewyduy y z moty ;smaga paw.) przynar Ieznoár yy umovxądu mhvczegu „yy Ivycxrwch y prawnych będą' „yyy ;xxhtnykami „ymy rolnego, pedalku dochodowego yy yyy» y /yunvnh y „a m: priv/nych z dzmlnwsprqalnyrh nvmlukql yyy, „c, ovyxzczlonkuw rohuczych ipn)- Hush!! prudulœygnych posada”. tychw dzyelnyarh Krąg kyd! pudmmmwy yyœyyyyuye wszyslkye osuby .ymm y.] swe dzmła\\nn›ć«ą yyyyyyyzy. yyy ›a maxu yesl ubhgalnryuun, ak* znak ysy mch .yyyz wyka; zyyyyzyz» nunzłvyvohyczel.klóvydualnutna alrauna pvwlalu Muglby hanlne; y y abauue powlnm Wybory w lym mlm zysmy pvnpmwadmm wędki; z y znwanei uslawy Inhwilunœi 2| (uma zum y. Dmyçhrzzs w wyhomrh „yyy dzem: cyyyyyyyy hczątc pnmdłlyś lu nzylkńw mhnwh wyblsruüy dodalkowych xlmhonláw, Mldeymo dzralan y. vzezz mxw .yyy yyyyyzsyymyyy rohvyrlwn y ww yyy; pnpawysuukxuyyzgvalmy „yam dZemeV neywyzsxy „ym uby, M0 „yyy Lłulydwtmsw Lynam. Izbie Rohm-vy okolo m0 osob. m- ym. «umow me zmienna „ę, .ny łwurzą yyy ›wę Pawyymwa uR Do 29 gmdma uabęaę wę ymm poswdzcnya yyy ymyyyy Wy, m» dokonają wyboru wle woxlnnuqxstšn „ay y yyyyyyy. ;sdr neguäelsgah y. Walmlgmnvadzcr „ux š 7 kazde; miły yade" :mę gal będa lworzyly wyyy. Zgmmar dxenm wasy yyyyyyyyyyyozwyy :yy orgraruuyt ym mab Wahcgn Zyumadzcnna, bo yyy zawsze duzu sprawnie y dam. yy y. na w I "wurządzamt analu, yny, Dpm!! y »vnmsköw z mkvesu pmduktu yoyyyy ym Nm kumhvagay gynvom admlmslmqy rudawe] y ;yr „ma u wysxçpnwama ay ulgznow adnvvmuluqy vvąduœœy w wugewudzlwl: y „p, nnw sammządu lnyylnmünygo y ynyqavywa w zakresie regulaql prawnydv dulvrząryrh yoyyycryyy, yymyyy wy y rynków mnyyzy mmz upmiüwame pyyyęyyyyyyy (ych pilar „ymy, prowadzeme dzmlzn yrzerz Iwnlzumn rynku yyyysgo oraz wprawy »uruukávy zbytu „ymy mw rolnych, pmwadzenœ ..yynyy kuędów y yyynmyyyymy pmdmyy mhm, gtnmadvrnœ, prze' ducenluw mhuyrh oraz yyytyy pyzedayębnunáw, dundzhvn y znkresy: dzyawmáry mhm/eg, wytqskyego gospodarslwx dummy/ego uml uzyskiwania yyyyz rolnykáw wzmę Mmww kwahhkacygnych yy zakusy:: yyyyyyyyyyy, kuvalkvwanw y upowszechnmnye zyunnlelvky vue ay ympyd.y‹z.~„yyzy.xyy .y navzecz pndnnvrnm yakołn ,yoynyow y urządzen swsuwmnydw w dhamma- ›(1 mwnn; uraz yyy rzczz popm- slw.: w :elnnnw z yyayosykyyyy pvrw/ ny yyyyyyczy. wapœvalvœ yyy LIuaMI Hush, ymqawame powsuwanm „eyy pmducemnw rnhvynh y k» ;yyy zyyyyyyy yy m-ci pupmwv wame ekwpullu prudukláw ruhuyüly yyyyy orgnmzaqnmn pvndurrnxów mlnyzh „wyrwy y yynyyyyyy. qą ;mhm/ną w zakresyę uzhvony Środowska, zdmwm y wyeyyyyygy dxmdznrma yynyyyymgy, wy; nwolubehkir pomady: yyyyyym ty; yy „zyyywyyyyyyy haha gospodarsku w wuyewadz {mewynmy „y zzuyyyzyyyyyzmz panad 2,5 .yyy yyy co svavvowy yn yyyyz. produky kraymvq, zyęyyyyy mw ponad z xs yyyy yyy /I lpm( nk' :huvakńm cukwwyüw ;,4 yyyy yyy y' ye z lys. yyy/ au y y mez naywnznyeyszœ w kraju zagyyby. „ym yyynyy yagnrüwych r myłhny czym pnrzeczky, xmsknwky, yyy: mo" uvvawy tyloma y zy dnkańcuni: n: m.	2002.49999998415	1853.3215045
+     146.48617498419003	r yyyyyy 1004 y y z rLyym yyzzyyy œçácrq Merkvsga rynku zyyyyyzzywwyzyyo Zuwagr yyy wzrosl zbraniw zbó: w us nre yyarzzy z teg:: powod !rtzyć yyy wzrost zzy, które bedq mkr: ;awiejak w dwóm pwned/Hth :zza/mdr Zaćma w wrr yyyrmw drwygw „a swyrh hymm rra/wrekfm „szwy zmyyyy zyzrmyyzyyyyry w myszyyyy kra/u. w vu xe ' uma zyyyyypyyzwy Nrchórym mrruamrom muyna yyyz blaka y w zzy. cza miesa, zwłaszcza mniam/ego, kmm m produkty rolne Ĺy yrzzymz wykupywane yyyzyz przrdsrrbrvrswwa z rnnydr raruw zyze œrr upy. Przew/mkrum yyy Dvzwkaçh Cmrnnydr w Dokm/owre Wiadomnśc Gm nne -±______ „yw yyzyyyyyyyz mundy yywyyzzyyy., stamwa ule mz. me skazane wyzrwy-m ,y Tc ukolrunma sprawna/ą, yz Inne „yyy yy y !orne y yzw yyyzzywyy będą wyyyywymyzyyyz y yyyyszyywywayz yy., yywyy „yyyyyyyyyy, lesza: mz powtarzam, ze nakazem rhwrr na( ,yz y n aby porskr y Nas/ys „ymyyy ,esy ralrrrw/a, yy syzyyyyyzzyyym polazzvvru ramka! duzego mrawz Gmrna wyzy-swy Brala Podlnka !o v2. soo ha yyyywyzyzyryyyy, w yyy yyy au (rz m nz yyy gmmy ame, r524 ryz yyy lasy) nalezace do r 55v gospodarstw 0d wyrwwy !a1 w yyyyyyyyyz yyyyywywyyyym yyy mweçlycre uzy lep ym !zg/Madam ;esw yyw 2004, w którym przeznanzyrramy »a mo( budzetu grnrny yyy zzdarrra yyy, we yyyye Eudwcmyrnln zs orrqg w, ?Jkm ›rem kdrraIr/axtymer y 2 wm dróggmrrrrvydl :podbudową y asfaltem. N y nn yyywu y docrągawer, 22 wm syzzy wzyyzrrzzzyyyyz; y zsz wny zyc; gymyymyzn z scy wyyy dróg .yywzyyzzyyyyww sw wrę:( [sucze duzo donot/rama Wdm ym yyaryazyy 20m4 roku omm, my yyyyywayrzyry ›Ae/eg wyyĹyyyyyry, wazrvyrrr dla (Imrrvy y mreszkańmw rnwcstyc/r, Mrcdzy ymyymy zymyyyz zywym sportowa 7 wrdnwrdanmr przy rvyyzyryayyyyyy Dimmu/um w Crcrborze Dux m Nrcxapomrnamymkze a naszsr, brfskrer kuhurze Przy wryyyyzzn wyyryyyyy mz nłvrellrrarh zzyyywyyy zespoły (prew/ay ›a mwyr, ne. Mymy a racowm grnaryrh rawodńw yyy yyy ywyywy, kurorrkarskąy xdobmcrwa ludow/ngo, yzzzwyy, ;dowan. zaaz mk yyyyyyza :a grup rmędzynslodowyth Dzrękr temu nasza gnu/m , ,arz wawy ze pala yeye gyyyyyzyyyyy. Dzra yar/mv( yy.; yyywye kultury to wsyyarczysyyy powrór ywy wyyzyzyy. w Lhvwwrrę( azwyyz /wyC/are oraz vhyriywy* yrryy yyy y pr V, szwy pokoleń DOŻYNKI POWIATOWE: ŁOMAZY: Ic. ŻNIWA SKOŃCZONE, SNOPY ZWIEZIONE; ŻEŃCY 5:5 SPIESZĄ, SKACZĄ A CIESZĄ.” Uwieńczenie Iudzkiej pracy Mszą śwwęłą w kmuęre pw. Apusmmw Prmm y Pawla w wyyyyyzyzw, wyymzrzwyyyywzya wzzz rs brskupa uy dozynkowe Na „ere lradyrymtgu duzynkuwegu kuruwudu nhuk Fidenza hzamkiega .yzyyyswy yyyywyyyyyy brarakregu sldnąl ws. brskupZbrgnrexv Klemlkuwskr. P0 mz prerwszy arswyp Sredleckl zymzyu ywayy obecnaśzcrą ;skm wazne ara yyorywyego rornrka, poaraswyey ws. śwręw. w swourr wyshęp yyy Tedemu Lzzyywswy alarmu puwraru hrakkrago rmędxy yyyyymy paw/redzie) Dustar „wz Mamy yyy, bypodrrzymañprçkną !radyqçpnlskyv/ wyy rl yyy vy anega ›ym du, by ,yyywzzze dorobek, kullurç oraz folklor pod/askrcr zyzmy- rplzekazać .zy ugmmny bagaz wyryymwy rraswęp yyym pokorę/warr w którym udzrat wzręly zlspałymlkiawslytzne, rudawe y ubrzçdowc z pav/mu brals gu ny raz swn u ma wrencnw gmrny yzyyyzzzyyyy wzyz yyyyy przu stursk.), m kmvydt puknzarrn m, (u yyy, repszegu mamy n: pudlask „zym, w mmz zyyzz ry :ks zyql zyzzzyyyywyyz o przyznay ,yyy z s:. a udlukz. Wrenrz( zz Sryrzyn wu-y reprezemmval	2004.49999998419	1858.013825
+
+     <pre>
+        geval --test-name dev-0 --worst-features | head -n 10
+
+        in<1>:iest	1288	29.96086426	0.00000000000000000000
+        in<1>:iak	1059	29.56892036	0.00000000000000000000
+        in<1>:iego	1041	29.10324719	0.00000000000000000000
+        in<1>:;	15855	18.44934849	0.00000000000000000000
+        in<1>:iako	663	31.50026033	0.00000000000000000000
+        in<1>:tey	577	31.77574310	0.00000000000000000000
+        in<1>:d	9075	19.36616635	0.00000000000000000000
+        in<1>:iey	400	32.41432702	0.00000000000000000000
+        in<1>:y	6962	20.11327877	0.00000000000000000000
+        in<1>:bydź	403	31.78838173	0.00000000000000000000
+
+
+<div class="step slide" data-x="0" data-y="7000">
+   <h2>Not a toy!
+
+   <ul>
+     <li>works for us!
+       <ul>
+         <li>as an auxiliary teaching tool
+         <li>for keeping track of our research
+         <li>when writing a paper in a team
+     <li>why not for other people?
+       <ul>
+         <li>for organizing shared tasks
+         <li>for tracking effort of a research community in a longer-term perspective
+     <li>other features
+       <ul>
+         <li>challenge versions (<i>à la</i> semantic versioning)
+         <li>Git annex for storing models
+         <li>parameters, tags, etc.
+
+
+<div class="step slide" data-x="0" data-y="8000">
+   <h1>Thanks!
+
+   <p>And check it out at <a href="http://gonito.net">gonito.net</a>:
+
+   <ul>
+     <li><a href="https://gonito.net/challenge/dia-norm">Diachronic normalisation of Polish texts</a>
+     <li><a href="https://gonito.net/challenge/diaeq-challenge">Diachronic equivalents</a>
+     <li><a href="https://gonito.net/challenge/asr-corrections">ASR error correction</a>
