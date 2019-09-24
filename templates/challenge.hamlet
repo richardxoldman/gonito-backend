@@ -16,4 +16,7 @@
         $if withHeader
            <h1>#{challengeTitle challenge}
            <p>#{challengeDescription challenge}
+           $maybe deadline <- versionDeadline $ entityVal version
+              <p>Deadline: #{show deadline}
+           $nothing
         ^{pageBody bc}

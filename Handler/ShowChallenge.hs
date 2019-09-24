@@ -261,10 +261,22 @@ trigger userId challengeName url mBranch mGitAnnexRemote = do
                                                                            repoSpecGitAnnexRemote=mGitAnnexRemote}
     Nothing -> return $ toTypedContent (("Unknown challenge `" ++ (Data.Text.unpack challengeName) ++ "`. Cannot be triggered, must be submitted manually at Gonito.net!\n") :: String)
 
+isBefore :: UTCTime -> Maybe UTCTime -> Bool
+isBefore _ Nothing = True
+isBefore moment (Just deadline) = moment <= deadline
+
 doCreateSubmission :: UserId -> Key Challenge -> Maybe Text -> Maybe Text -> RepoSpec -> Channel -> Handler ()
 doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
   challenge <- runDB $ get404 challengeId
-  doCreateSubmission' (challengeArchived challenge) userId challengeId mDescription mTags repoSpec chan
+
+  version <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+  theNow <- liftIO getCurrentTime
+
+  if theNow `isBefore` (versionDeadline $ entityVal version)
+    then
+      doCreateSubmission' (challengeArchived challenge) userId challengeId mDescription mTags repoSpec chan
+    else
+      msg chan "Submission is past the deadline, no submission will be accepted from now on."
 
 doCreateSubmission' :: Maybe Bool -> UserId -> Key Challenge -> Maybe Text -> Maybe Text -> RepoSpec -> Channel -> Handler ()
 doCreateSubmission' (Just True) _ _ _ _ _ chan = msg chan "This challenge is archived, you cannot submit to it. Ask the site admin to unarchive it."
@@ -731,6 +743,7 @@ $.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) testId param}", 
 challengeLayout :: Bool -> Challenge -> WidgetFor App () -> HandlerFor App Html
 challengeLayout withHeader challenge widget = do
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
+  version <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
   maybeUser <- maybeAuth
   bc <- widgetToPageContent widget
   defaultLayout $ do

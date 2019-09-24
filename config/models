@@ -43,7 +43,21 @@ Challenge
     version SHA1
 -- challenge version
 Version
+    -- introduced later, hence Maybe
+    -- to be replaced with non-Maybe value later
+    challenge ChallengeId Maybe
     commit SHA1
+    -- Optional challenge deadline. After the deadline
+    -- no submission will be accepted, though a new
+    -- challenge version might be uploaded and then
+    -- new submissions could be sent. This could be used
+    -- for organizing a "post-track" after the competition
+    -- has ended. Note, however, that, when sorting submissions,
+    -- the ones uploaded under the version with a deadline (i.e. within
+    -- the main track) will be preferred against the ones
+    -- uploaded under the version without a deadline (no matter what
+    -- is the major version).
+    deadline UTCTime Maybe
     major Int
     minor Int
     patch Int
