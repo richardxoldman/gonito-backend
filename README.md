@@ -31,6 +31,8 @@ After installing Stack:
     git clone git://gonito.net/gonito
     cd gonito
     stack setup
+    # before starting the build you might need some non-Haskell dependencies, e.g. in Ubuntu:
+    # sudo apt-get install libbz2-dev liblzma-dev libpcre3-dev libcairo-dev libfcgi-dev
     stack build
     stack exec yesod devel
 
