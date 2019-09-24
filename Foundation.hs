@@ -84,7 +84,6 @@ isTrusted user =
     _ -> True
 
 
-
 -- Please see the documentation for the Yesod typeclass. There are a number
 -- of settings which can be configured by overriding methods here.
 instance Yesod App where
