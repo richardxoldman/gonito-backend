@@ -16,7 +16,7 @@
                    $if location /= ""
                       \@#{location}
         $maybe user <- maybeUser
-          <ul class="nav navbar-nav navbar-collapse collapse">
+          <ul class="nav navbar-nav navbar-top navbar-collapse collapse">
                 <li class="dropdown">
                    <a id="about" href="#" class="dropdown-toggle" data-toggle="dropdown">_{MsgAbout}<span class="caret"></span>
                    <ul class="dropdown-menu">
