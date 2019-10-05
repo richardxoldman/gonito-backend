@@ -21,3 +21,4 @@ cabal.sandbox.config
 arena/t*
 arena/r*
 gonito-*.tar.gz
+stack.yaml.lock

@@ -8,9 +8,12 @@ import Text.Hamlet                 (hamletFile)
 import Yesod.Auth.HashDB           (HashDBUser(..), authHashDBWithForm)
 import qualified Yesod.Core.Unsafe as Unsafe
 import Yesod.Core.Types            (Logger)
-import qualified Data.CaseInsensitive as CI
-import qualified Data.Text.Encoding as TE
 import Yesod.Default.Util          (addStaticContentExternal)
+
+import Text.Blaze
+import Text.Blaze.Internal (MarkupM)
+
+import Data.Default
 
 instance HashDBUser User where
     userPasswordHash = userPassword
@@ -83,6 +86,41 @@ isTrusted user =
     "rafalj@amu.edu.pl" -> True
     _ -> True
 
+data LayoutCustomization = LayoutCustomization {
+  layoutCustomizationBanner :: Maybe Text,
+  layoutCustomizationRightPanel :: Maybe (WidgetFor App ())
+}
+
+instance Default LayoutCustomization where
+  def = LayoutCustomization {
+    layoutCustomizationBanner = Nothing,
+    layoutCustomizationRightPanel = Nothing }
+
+ourBanner :: Text -> LayoutCustomization
+ourBanner banner = def {
+  layoutCustomizationBanner = Just ("/static/images/" <> banner <> ".jpg")
+  }
+
+defaultCustomizableLayout :: ToWidget App a => LayoutCustomization -> a -> HandlerFor App (MarkupM ())
+defaultCustomizableLayout customization widget = do
+  let mBanner = layoutCustomizationBanner customization
+  let mRightPanel = layoutCustomizationRightPanel customization
+
+  master <- getYesod
+  mmsg <- getMessage
+
+  -- We break up the default layout into two components:
+  -- default-layout is the contents of the body tag, and
+  -- default-layout-wrapper is the entire page. Since the final
+  -- value passed to hamletToRepHtml cannot be a widget, this allows
+  -- you to use normal widget features in default-layout.
+
+  maybeUser <- maybeAuth
+
+  pc <- widgetToPageContent $ do
+      $(widgetFile "default-layout")
+  withUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
+
 
 -- Please see the documentation for the Yesod typeclass. There are a number
 -- of settings which can be configured by overriding methods here.
@@ -107,21 +145,7 @@ instance Yesod App where
     yesodMiddleware :: ToTypedContent res => Handler res -> Handler res
     yesodMiddleware = defaultYesodMiddleware
 
-    defaultLayout widget = do
-        master <- getYesod
-        mmsg <- getMessage
-
-        -- We break up the default layout into two components:
-        -- default-layout is the contents of the body tag, and
-        -- default-layout-wrapper is the entire page. Since the final
-        -- value passed to hamletToRepHtml cannot be a widget, this allows
-        -- you to use normal widget features in default-layout.
-
-        maybeUser <- maybeAuth
-
-        pc <- widgetToPageContent $ do
-            $(widgetFile "default-layout")
-        withUrlRenderer $(hamletFile "templates/default-layout-wrapper.hamlet")
+    defaultLayout widget = defaultCustomizableLayout def widget
 
     -- The page to be redirected to when authentication is required.
     authRoute _ = Just $ AuthR LoginR
