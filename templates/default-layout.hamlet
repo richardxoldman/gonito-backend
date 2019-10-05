@@ -1,4 +1,10 @@
-   <nav class="navbar navbar-default navbar-fixed-top">
+  $maybe banner <- mBanner
+    <div class="header-row" id="header-row" style="padding: 0px; overflow:hidden;">
+      <div class="container-fluid" style="padding: 0px;">
+        <div class="row">
+           <div class="col-xs-12">
+              <img src="#{banner}">
+  <nav class="navbar navbar-default navbar-fixed-top">
     <div class="container-fluid">
           <div class="navbar-header">
             <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
@@ -49,5 +55,8 @@
 
 $maybe msg <- mmsg
     <div #message .alert .alert-warning><a href="#" class="close" data-dismiss="alert">&times;</a> #{msg}
+
+$maybe rightPanel <- mRightPanel
+  <div class="pull-right">^{rightPanel}
 
 ^{widget}
