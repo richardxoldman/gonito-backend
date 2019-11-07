@@ -21,6 +21,7 @@
                    <a id="about" href="#" class="dropdown-toggle" data-toggle="dropdown">_{MsgAbout}<span class="caret"></span>
                    <ul class="dropdown-menu">
                        <li><a href="@{PresentationPSNC2019R}">_{MsgPresentation}</a>
+                       <li><a href="@{WritingPapersWithGonitoR}">_{MsgWritingPapers}</a>
                        <li><a href="@{GonitoInClassR}">_{MsgGonitoInClass}</a>
                 <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a>
                 <li><a href="@{TagsR}">_{MsgListTags}</a>
@@ -45,7 +46,11 @@
                     <li><a href="@{AuthR LogoutR}">_{MsgLogOut}</a></li>
         $nothing
             <ul class="nav navbar-nav navbar-top navbar-collapse collapse">
-                <li><a href="@{PresentationPSNC2019R}">_{MsgAbout}</a>
+                <li class="dropdown">
+                   <a id="about" href="#" class="dropdown-toggle" data-toggle="dropdown">_{MsgAbout}<span class="caret"></span>
+                   <ul class="dropdown-menu">
+                       <li><a href="@{PresentationPSNC2019R}">_{MsgPresentation}</a>
+                       <li><a href="@{WritingPapersWithGonitoR}">_{MsgWritingPapers}</a>
                 <li><a href="@{ListChallengesR}">_{MsgListChallenges}</a>
                 <li><a href="@{TagsR}">_{MsgListTags}</a>
                 <li><a href="@{DashboardR}">_{MsgDashboard}</a>

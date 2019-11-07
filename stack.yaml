@@ -6,9 +6,3 @@ packages:
 - '.'
 extra-deps: [../geval,wai-handler-fastcgi-3.0.0.2,murmur3-1.0.3,random-strings-0.1.1.0,naturalcomp-0.0.3,Munkres-0.1,Chart-1.9.1,Chart-cairo-1.9.1,multiset-0.3.4.1,pwstore-fast-2.4.4,yesod-table-2.0.3,esqueleto-3.0.0]
 resolver: lts-12.26
-image:
-  container:
-    name: filipg/gonito
-    base: fpco/stack-run
-    add:
-        executables: /usr/local/bin/gonito-bin

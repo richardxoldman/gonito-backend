@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Handler.Presentation where
 
 import Import
@@ -95,3 +97,12 @@ getSampleLeaderboard name = do
 presentationLayout widget = do
   pc <- widgetToPageContent widget
   withUrlRenderer $(hamletFile "templates/presentation-layout.hamlet")
+
+getWritingPapersWithGonitoR :: Handler Html
+getWritingPapersWithGonitoR = do
+  app <- getYesod
+  let tab :: String = "\t"
+  let rootAddress = appRoot $ appSettings app
+  defaultLayout $ do
+    setTitle "Writing papers with Gonito"
+    $(widgetFile "writing-papers")

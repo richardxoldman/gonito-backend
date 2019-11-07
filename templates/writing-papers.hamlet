@@ -1,0 +1,71 @@
+<p>If you write a paper, Gonito can make your life a little bit easier: you won't need to copy&paste evaluation results manually and all your results will referenced in a proper manner.
+
+<p>Just add the following piece of LaTeX code to your paper:
+
+<pre>
+  \\usepackage{hyperref}
+  \\usepackage{xstring}
+  % Format a reference to a Gonito submission
+  \\newcommand{\gonitoref}[1]{\{\href{#{rootAddress}/q/#1}{\StrMid{#1}{1}{6}}\}}
+  % A score from Gonito along with a reference
+  \\newcommand{\gonitoscore}[1]{\minput{scores/#1.txt} \gonitoref{#1}}
+  % A reference and a score as two cells in a table
+  \\newcommand{\gonitoentry}[1]{\gonitoref{#1} & \minput{scores/#1.txt}}
+
+<p>Now you will be able to reference your Gonito submissions using its git commit hash, e.g.: <tt>\gonitoref{433e8cfdc4b5e20e276f4ddef5885c5ed5947ae5}</tt>. The hash will be printed in a shorter form (just first 6 digits) and it will be clickable leading to the Gonito entry describing the submission (information how to get the data will be presented there).
+
+<p>You can explain the idea like this:
+
+<pre>
+  \\gonitoscore{433e8cfdc4b5e20e276f4ddef5885c5ed5947ae5}%
+  \\footnote{Reference codes to repositories stored at
+  Gonito.net~\cite{gonito2016} are given in curly brackets. Such a repository may be also accessed by going
+  to \url{http://gonito.net/q} and entering the code there.}
+
+<p>Here is the BiBTeX entry referenced in the above snippet:
+
+<pre>
+  @incollection { gonito2016,
+  \  title = {Gonito.net -- Open Platform for Research Competition, Cooperation and Reproducibility},
+  \  author = "Grali{\'n}ski, Filip and Jaworski, Rafa{\l} and Borchmann, {\L}ukasz and Wierzcho{\'n}, Piotr",
+  \  editor = "Branco, António and Calzolari , Nicoletta and Choukri, Khalid",
+  \  booktitle = {Proceedings of the 4REAL Workshop: Workshop on Research Results Reproducibility and Resources Citation in Science and Technology of Language},
+  \  year = "2016",
+  \  pages = "13-20"
+  }
+
+<p>But, wait, with Gonito you can give evaluation scores without manual copy&paste. The <tt>\gonitoscore</tt> command gives a score and a reference. The score is taken from a file <tt>scores/HASH.txt</tt>. You need to get it from Gonito, but it's not difficult to set it up in such a way that the scores could be downloaded automatically. For instance, if you use Makefile for building your papers, you could use the following snippet:
+
+<pre>
+  SCOREFILES=$(shell ./extract-score-files.pl main.tex)
+  \
+  paper.pdf: paper.tex main.tex $(SCOREFILES)
+  #{tab}... building instructions ...
+  \
+  scores/%.txt:
+  #{tab}mkdir -p scores
+  #{tab}wget "https://gonito.net/api/txt/score/"$* -O $@
+
+<p>The script <tt>extract-score-files.pl</tt> is like this:
+
+<pre>
+  #!/usr/bin/perl
+  \
+  use strict;
+  \
+  open(my $ih, '<', $ARGV[0]);
+  binmode($ih, ':utf8');
+  \
+  my %found = ();
+  \
+  while (my $line=<$ih>) {
+  \    while ($line =~ m<\\gonito(?:score|entry)\{([^\}]+)\}>g) {
+  \        $found{$1} = 1;
+  \    }
+  }
+  \
+  print join(" ", map { "scores/${_}.txt" } sort keys %found);
+
+<p>The <tt>\gonitoentry</tt> command is very similar to <tt>\gonitoscore</tt>, it just formats the infromation as two cells in a table (i.e. <tt>\gonitoentry</tt> can be used <strong>only</strong> in tables).
+
+<p>Note that you can commit score files to your repository, so that everything is OK when your paper is edited at Overleaf or a similar service.
