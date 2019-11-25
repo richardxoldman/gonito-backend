@@ -87,3 +87,4 @@ ChallengeDeadlineDay: challenge deadline day
 ChallengeDeadlineTime: challenge deadline time
 ChallengeDeadlineTooltip: no submissions will be accepted after the deadline; this can be used for organizing competitions set in time
 WritingPapers: writing papers with Gonito
+UserIdentifier: user login/identifier

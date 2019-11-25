@@ -20,18 +20,18 @@ getCreateResetLinkR = do
 postCreateResetLinkR :: Handler Html
 postCreateResetLinkR = do
   ((result, _), _) <- runFormPost createResetLinkForm
-  let mEmail = case result of
-                 FormSuccess (email, _) -> Just email
-                 _ -> Nothing
+  let mUserIdentifier = case result of
+                          FormSuccess (userIdentifier, _) -> Just userIdentifier
+                          _ -> Nothing
   let mCourseId = case result of
                  FormSuccess (_, Just courseId) -> Just courseId
                  _ -> Nothing
-  doCreateResetLink mEmail mCourseId
+  doCreateResetLink mUserIdentifier mCourseId
 
 doCreateResetLink :: Maybe Text -> Maybe CourseId -> Handler Html
-doCreateResetLink (Just email) mCourseId  = do
-  mUserEnt <- runDB $ getBy $ UniqueUser email
-  userId <- createOrUse mUserEnt email
+doCreateResetLink (Just userIdentifier) mCourseId  = do
+  mUserEnt <- runDB $ getBy $ UniqueUser userIdentifier
+  userId <- createOrUse mUserEnt userIdentifier
 
   addParticipant userId mCourseId
 
@@ -45,28 +45,42 @@ doCreateResetLink (Just email) mCourseId  = do
      $(widgetFile "reset-link-created")
 
 doCreateResetLink Nothing _ = do
-  setMessage $ toHtml ("No e-mail given" :: Text)
+  setMessage $ toHtml ("No user identifier given" :: Text)
   getCreateResetLinkR
 
 
-addParticipant userId Nothing = return ()
+addParticipant :: (PersistStoreWrite (YesodPersistBackend site),
+                  YesodPersist site,
+                  BaseBackend (YesodPersistBackend site) ~ SqlBackend)
+                 => Key User -> Maybe (Key Course) -> HandlerFor site ()
+addParticipant _ Nothing = return ()
 addParticipant userId (Just courseId) = do
-  runDB $ insert $ Participant userId courseId
+  _ <- runDB $ insert $ Participant userId courseId
   return ()
 
 createOrUse :: Maybe (Entity User) -> Text -> Handler UserId
 createOrUse (Just userEnt) _ = return $ entityKey userEnt
-createOrUse Nothing email = do
-  setMessage $ toHtml ("Created new user " ++ email)
+createOrUse Nothing userIdentifier = do
+  setMessage $ toHtml ("Created new user " ++ userIdentifier)
   triggerToken <- newToken
-  userId <- runDB $ insert $ User email Nothing Nothing False Nothing True Nothing Nothing Nothing (Just triggerToken)
+  userId <- runDB $ insert $ User userIdentifier
+                                 Nothing
+                                 Nothing
+                                 False
+                                 Nothing
+                                 True
+                                 Nothing
+                                 Nothing
+                                 Nothing
+                                 (Just triggerToken)
   return userId
 
 createResetLinkForm :: Form (Text, Maybe CourseId)
 createResetLinkForm = renderBootstrap3 BootstrapBasicForm $ (,)
-    <$> areq textField (bfs MsgEMail) Nothing
+    <$> areq textField (bfs MsgUserIdentifier) Nothing
     <*> coursesSelectFieldList
 
+coursesSelectFieldList :: (PersistQueryRead (YesodPersistBackend site), YesodPersist site, RenderMessage site FormMessage, RenderMessage site AppMessage, BaseBackend (YesodPersistBackend site) ~ SqlBackend) => AForm (HandlerFor site) (Maybe (Key Course))
 coursesSelectFieldList = aopt (selectField courses) (bfs MsgCourseOptional) Nothing
     where
       courses = do
@@ -120,7 +134,7 @@ doResetPassword' :: Bool -> Text -> Key User -> Text -> Handler Html
 doResetPassword' True _ userId password = do
   updatePassword userId (Just password)
   runDB $ update userId removeVerificationKeyStatement
-  setMessage $ toHtml ("Password set! Now, you can log in with your e-mail address." :: Text)
+  setMessage $ toHtml ("Password set! Now, you can log in with your login." :: Text)
   redirect HomeR
 
 doResetPassword' False key _ _ = do
@@ -143,5 +157,6 @@ changePasswordForm :: AccountStatus -> Form Text
 changePasswordForm accountStatus = renderBootstrap3 BootstrapBasicForm
     $ areq passwordConfirmField (bfs $ passwordFormHeader accountStatus) Nothing
 
+passwordFormHeader :: AccountStatus -> AppMessage
 passwordFormHeader NewlyCreated = MsgPasswordForNewAccount
 passwordFormHeader PasswordReset = MsgPassword
