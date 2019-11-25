@@ -89,6 +89,7 @@ data AppSettings = AppSettings
     , appAutoOpening            :: Bool
     , appLeaderboardStyle       :: LeaderboardStyle
     , appNewBestResultSlackHook :: Maybe Text
+    , appServerSSHPublicKey     :: Maybe Text
     }
 
 instance FromJSON AppSettings where
@@ -129,6 +130,8 @@ instance FromJSON AppSettings where
         appLeaderboardStyle       <- toLeaderboardStyle <$> o .: "leaderboard-style"
 
         appNewBestResultSlackHook <- o .:? "new-best-result-slack-hook"
+
+        appServerSSHPublicKey <- o .:? "server-ssh-public-key"
 
         return AppSettings {..}
 

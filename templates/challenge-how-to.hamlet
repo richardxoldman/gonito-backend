@@ -54,7 +54,17 @@ $case (appRepoScheme settings)
     cd #{challengeName challenge}
     git pull #{appRepoHost settings}#{challengeName challenge}
 
-  <p>(Alternatively, you can use any other Git repo, e.g. GitLab, make sure Gonito.net has access to your repo.)
+  <h4>Using an external repository
+
+  $maybe serverPubKey <- (appServerSSHPublicKey settings)
+    <p>Alternatively, you can use any other Git repo, e.g. GitLab, GitHub or your own repo, make sure Gonito.net has access to your repo, either by making it public or giving read access to the SSH public key:
+    <pre>
+      #{serverPubKey}
+  $nothing
+    <p>Alternatively, you can use any other Git repo, e.g. GitLab, GitHub or your own repo, make sure Gonito.net has access to your repo.
+
+  <p>(And initiate it with #{appRepoHost settings}#{challengeName challenge}.)
+
  $of Branches
     <p>Clone the repo:
 
