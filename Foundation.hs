@@ -168,6 +168,7 @@ instance Yesod App where
     isAuthorized DashboardR _ = return Authorized
 
     isAuthorized (ShowChallengeR _) _ = return Authorized
+    isAuthorized (ChallengeHowToR _) _ = return Authorized
     isAuthorized (ChallengeReadmeR _) _ = return Authorized
     isAuthorized (ChallengeAllSubmissionsR _) _ = return Authorized
     isAuthorized (ChallengeGraphDataR _) _ = return Authorized
