@@ -110,15 +110,20 @@ resultTable (Entity submissionId submission) = do
 
   $(widgetFile "result-table")
 
-queryResult :: FullSubmissionInfo -> WidgetFor App ()
-queryResult submission = do
-  $(widgetFile "query-result")
+
+submissionHeader :: FullSubmissionInfo -> WidgetFor App ()
+submissionHeader submission =
+  $(widgetFile "submission-header")
     where commitSha1AsText = fromSHA1ToText $ submissionCommit $ fsiSubmission submission
           submitter = formatSubmitter $ fsiUser submission
           publicSubmissionBranch = getPublicSubmissionBranch $ fsiSubmissionId submission
           publicSubmissionRepo = getReadOnlySubmissionUrl (fsiScheme submission) (fsiChallengeRepo submission) $ challengeName $ fsiChallenge submission
           browsableUrl = browsableGitRepoBranch (fsiScheme submission) (fsiChallengeRepo submission) (challengeName $ fsiChallenge submission) publicSubmissionBranch
           stamp = T.pack $ show $ submissionStamp $ fsiSubmission submission
+
+queryResult :: FullSubmissionInfo -> WidgetFor App ()
+queryResult submission = do
+  $(widgetFile "query-result")
 
 queryForm :: Form Text
 queryForm = renderBootstrap3 BootstrapBasicForm $ areq textField (fieldSettingsLabel MsgGitCommitSha1) Nothing

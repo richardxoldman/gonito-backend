@@ -3,34 +3,7 @@
    <p class="media-object">
      <span class="glyphicon glyphicon-asterisk" aria-hidden="hidden">
  <div class="media-body">
-  <div class="media-heading">
-    <div .subm-commit>#{commitSha1AsText}
-
-  <div .subm-description>^{fragmentWithTags (submissionDescription $ fsiSubmission submission) (map fst $ fsiTags submission)}
-  <p>&nbsp;</p>
-  <dl class="dl-horizontal">
-    <dt>challenge
-    <dd><a href="@{ShowChallengeR $ challengeName $ fsiChallenge submission}">#{challengeTitle $ fsiChallenge submission}</a>
-    <dt>submitter
-    <dd>#{submitter}
-    <dt>submitted
-    <dd>#{stamp}
-    <dt>original repo
-    <dd><code>#{repoUrl $ fsiRepo submission}</code> / branch <code>#{repoBranch $ fsiRepo submission}</code>
-    $if submissionIsPublic $ fsiSubmission submission
-      <dt>publicly available at
-      <dd><code>#{publicSubmissionRepo}</code> / branch <code>#{publicSubmissionBranch}</code>
-      <dt>browsable at
-      <dd><a href="#{browsableUrl}">#{browsableUrl}</a>
-      <dt>clone by
-      <dd><code>git clone --single-branch #{publicSubmissionRepo} -b #{publicSubmissionBranch}</code>
-    $if not (null (fsiExternalLinks submission))
-      <dt>see also
-      <dd>
-        $forall (Entity _ externalLink) <- fsiExternalLinks submission
-          <a href="#{externalLinkUrl externalLink}">
-             #{fromMaybe (externalLinkUrl externalLink) (externalLinkTitle externalLink)}
-          <br>
+  ^{submissionHeader submission}
   ^{resultTable (Entity (fsiSubmissionId submission) (fsiSubmission submission))}
 
   $if not (null (fsiSuperSubmissions submission))
