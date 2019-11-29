@@ -172,9 +172,9 @@ idToBeShown _ maybeUser =
    Nothing -> defaultIdToBe
   where defaultIdToBe = "YOURID" :: Text
 
-defaultRepo :: RepoScheme -> Challenge -> Repo -> Maybe (Entity User) -> Text
-defaultRepo SelfHosted challenge _ maybeUser = "ssh://gitolite@gonito.net/" ++ (idToBeShown challenge maybeUser) ++ "/" ++ (challengeName challenge)
-defaultRepo Branches _ repo _ = repoUrl repo
+defaultRepo :: RepoScheme -> Text -> Challenge -> Repo -> Maybe (Entity User) -> Text
+defaultRepo SelfHosted repoHost challenge _ maybeUser = repoHost ++ (idToBeShown challenge maybeUser) ++ "/" ++ (challengeName challenge)
+defaultRepo Branches repoHost _ repo _ = repoUrl repo
 
 defaultBranch :: IsString a => RepoScheme -> Maybe a
 defaultBranch SelfHosted = Just "master"
@@ -210,8 +210,9 @@ getChallengeSubmissionR name = do
    Just repo <- runDB $ get $ challengePublicRepo challenge
    app <- getYesod
    let scheme = appRepoScheme $ appSettings app
+   let repoHost = appRepoHost $ appSettings app
 
-   (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just $ defaultRepo scheme challenge repo maybeUser) (defaultBranch scheme) (repoGitAnnexRemote repo)
+   (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just $ defaultRepo scheme repoHost challenge repo maybeUser) (defaultBranch scheme) (repoGitAnnexRemote repo)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
