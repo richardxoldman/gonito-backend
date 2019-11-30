@@ -10,10 +10,7 @@ import qualified Yesod.Core.Unsafe as Unsafe
 import Yesod.Core.Types            (Logger)
 import Yesod.Default.Util          (addStaticContentExternal)
 
-import Text.Blaze
 import Text.Blaze.Internal (MarkupM)
-
-import Data.Default
 
 instance HashDBUser User where
     userPasswordHash = userPassword
@@ -52,7 +49,7 @@ mkYesodData "App" $(parseRoutesFile "config/routes")
 mkMessage "App" "messages" "en"
 
 -- | A convenient synonym for creating forms.
-type Form x = Html -> MForm (HandlerT App IO) (FormResult x, Widget)
+type Form x = Html -> MForm (HandlerFor App) (FormResult x, Widget)
 
 -- | A convenient synonym for database access functions.
 type DB a = forall (m :: * -> *).
@@ -179,6 +176,7 @@ instance Yesod App where
     isAuthorized Presentation4RealR _ = return Authorized
     isAuthorized PresentationPSNC2019R _ = return Authorized
     isAuthorized GonitoInClassR _ = return Authorized
+    isAuthorized WritingPapersWithGonitoR _ = return Authorized
 
     isAuthorized (AvatarR _) _ = return Authorized
 
