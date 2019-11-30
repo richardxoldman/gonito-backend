@@ -100,6 +100,10 @@ getViewVariantR variantId = do
   let theSubmissionId = variantSubmission variant
   theSubmission <- runDB $ get404 theSubmissionId
 
+  ([entry], tests) <- runDB $ getChallengeSubmissionInfos (\e -> entityKey e == theSubmissionId)
+                                                         (\e -> entityKey e == variantId)
+                                                         (submissionChallenge theSubmission)
+
   if submissionIsPublic theSubmission || Just (submissionSubmitter theSubmission) == (entityKey <$> mauthId)
     then
      do
@@ -112,7 +116,6 @@ getViewVariantR variantId = do
                             E.orderBy []
                             return (out, test)
 
-
       let outputs =
             sortBy (\a b -> ((snd b) `compare` (snd a)))
             $ nub
@@ -124,15 +127,32 @@ getViewVariantR variantId = do
     else
       error "Cannot access this submission variant"
 
-viewOutput :: (SHA1, Text) -> WidgetFor App ()
-viewOutput (outputHash, test) =  do
+
+outputEvaluationsTable :: TableEntry -> Table.Table App (Entity Test)
+outputEvaluationsTable tableEntry = mempty
+  ++ Table.text "Metric" (formatTestEvaluationScheme . entityVal)
+  ++ Table.text "Score" (\test -> (formatTruncatedScore (testPrecision $ entityVal test)
+                                  $ extractScore (getTestReference test) tableEntry))
+
+
+paramsTable :: Table.Table App Parameter
+paramsTable = mempty
+  ++ Table.text "Parameter" parameterName
+  ++ Table.text "Value" parameterValue
+
+viewOutput :: TableEntry -> [Entity Test] -> (SHA1, Text) -> WidgetFor App ()
+viewOutput entry tests (outputHash, testSet) =  do
+  let tests' = filter (\e -> (testName $ entityVal e) == testSet) tests
   let outputSha1AsText = fromSHA1ToText $ outputHash
   $(widgetFile "view-output")
 
 resultTable :: Entity Submission -> WidgetFor App ()
 resultTable (Entity submissionId submission) = do
-  (tableEntries, tests) <- handlerToWidget $ runDB $ getChallengeSubmissionInfos (\s -> entityKey s == submissionId)
-                                                                                (submissionChallenge submission)
+  (tableEntries, tests) <- handlerToWidget
+                          $ runDB
+                          $ getChallengeSubmissionInfos (\s -> entityKey s == submissionId)
+                                                        (const True)
+                                                        (submissionChallenge submission)
   let paramNames =
         nub
         $ map (parameterName . entityVal)

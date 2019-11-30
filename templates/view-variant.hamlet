@@ -4,5 +4,11 @@
      <span class="glyphicon glyphicon-asterisk" aria-hidden="hidden">
  <div class="media-body">
   ^{submissionHeader fullSubmissionInfo}
+
+  $case tableEntryParams entry
+    $of []
+    $of _
+      ^{Table.buildBootstrap paramsTable (map entityVal $ tableEntryParams entry)}
+
   $forall output <- outputs
-    ^{viewOutput output}
+    ^{viewOutput entry tests output}

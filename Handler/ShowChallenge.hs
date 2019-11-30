@@ -174,7 +174,7 @@ idToBeShown _ maybeUser =
 
 defaultRepo :: RepoScheme -> Text -> Challenge -> Repo -> Maybe (Entity User) -> Text
 defaultRepo SelfHosted repoHost challenge _ maybeUser = repoHost ++ (idToBeShown challenge maybeUser) ++ "/" ++ (challengeName challenge)
-defaultRepo Branches repoHost _ repo _ = repoUrl repo
+defaultRepo Branches _ _ repo _ = repoUrl repo
 
 defaultBranch :: IsString a => RepoScheme -> Maybe a
 defaultBranch SelfHosted = Just "master"
@@ -430,7 +430,7 @@ checkIndicators user challengeId submissionId submissionLink relevantIndicators 
 
 checkIndicator :: UTCTime -> User -> ChallengeId -> SubmissionId -> Text -> IndicatorEntry -> Channel -> Handler ()
 checkIndicator theNow user challengeId submissionId submissionLink indicator chan = do
-  (entries, _) <- runDB $ getChallengeSubmissionInfos (\(Entity sid _) -> sid == submissionId) challengeId
+  (entries, _) <- runDB $ getChallengeSubmissionInfos (\(Entity sid _) -> sid == submissionId) (const True) challengeId
   mapM_ (\t -> checkTarget theNow user submissionLink entries indicator t chan) (indicatorEntryTargets indicator)
 
 checkTarget :: UTCTime -> User -> Text -> [TableEntry] -> IndicatorEntry -> Entity Target -> Channel -> Handler ()
@@ -655,7 +655,7 @@ getChallengeAllSubmissionsR name = getChallengeSubmissions (\_ -> True) name
 getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
 getChallengeSubmissions condition name = do
   Entity challengeId challenge <- runDB $ getBy404 $ UniqueName name
-  (evaluationMaps, tests') <- runDB $ getChallengeSubmissionInfos condition challengeId
+  (evaluationMaps, tests') <- runDB $ getChallengeSubmissionInfos condition (const True) challengeId
   let tests = sortBy testComparator tests'
   mauth <- maybeAuth
   let muserId = (\(Entity uid _) -> uid) <$> mauth

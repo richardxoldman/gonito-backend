@@ -77,8 +77,8 @@ submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
                                                                        entityKey $ tableEntrySubmitter tableEntry,
                                                                        mauthId))
 
-paramTable :: [Text] -> [Entity Test] -> Table App TableEntry
-paramTable paramNames tests = mempty
+variantTable :: [Text] -> [Entity Test] -> Table App TableEntry
+variantTable paramNames tests = mempty
   ++ Table.int "#" tableEntryRank
   ++ mconcat (map paramExtractor paramNames)
   ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScore $ getTestReference e)) tests)
@@ -203,7 +203,7 @@ getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge
                                              -> (TableEntry -> [a])
                                              -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntriesByCriterion challengeId condition selector = do
-  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos condition challengeId
+  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos condition (const True) challengeId
   let mainTests = getMainTests tests
   let mainTestEnt = getMainTest tests
   let mainTestRef = getTestReference mainTestEnt
@@ -290,8 +290,8 @@ compareResult _ (Just _) Nothing = GT
 compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ
 
-getChallengeSubmissionInfos :: (MonadIO m, PersistQueryRead backend, BackendCompatible SqlBackend backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend) => (Entity Submission -> Bool) -> Key Challenge -> ReaderT backend m ([TableEntry], [Entity Test])
-getChallengeSubmissionInfos condition challengeId = do
+getChallengeSubmissionInfos :: (MonadIO m, PersistQueryRead backend, BackendCompatible SqlBackend backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend) => (Entity Submission -> Bool) -> (Entity Variant -> Bool) -> Key Challenge -> ReaderT backend m ([TableEntry], [Entity Test])
+getChallengeSubmissionInfos condition variantCondition challengeId = do
 
   challenge <- get404 challengeId
   let commit = challengeVersion challenge
@@ -317,7 +317,8 @@ getChallengeSubmissionInfos condition challengeId = do
         $ sortBy (\(s1, _) (s2, _) -> compareResult (entityVal mainTest) s2 s1)
         $ zip scores allSubmissionsVariants
 
-  evaluationMaps <- mapM getEvaluationMap allSubmissionsVariantsWithRanks
+  evaluationMaps' <- mapM getEvaluationMap allSubmissionsVariantsWithRanks
+  let evaluationMaps = filter (variantCondition . tableEntryVariant) evaluationMaps'
   return (evaluationMaps, tests)
 
 getScore :: (MonadIO m, BackendCompatible SqlBackend backend, PersistQueryRead backend, PersistUniqueRead backend) => Key Test -> Key Variant -> ReaderT backend m (Maybe Double)

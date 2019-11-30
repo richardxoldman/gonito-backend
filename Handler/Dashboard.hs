@@ -19,6 +19,8 @@ import Handler.Tables (timestampCell)
 import GEval.Core (isBetter)
 import GEval.EvaluationScheme
 
+import Text.Blaze
+
 import qualified Database.Esqueleto      as E
 import           Database.Esqueleto      ((^.))
 
@@ -93,6 +95,7 @@ postEditIndicatorR indicatorId = do
 
   doEditIndicator mUser indicatorId formWidget formEnctype
 
+doEditIndicator :: (Text.Blaze.ToMarkup a1, ToWidget App a2) => Maybe (Entity User) -> Key Indicator -> a2 -> a1 -> HandlerT App IO Html
 doEditIndicator mUser indicatorId formWidget formEnctype = do
   (addTargetformWidget, addTargetFormEnctype) <- generateFormPost addTargetForm
 
@@ -128,6 +131,7 @@ getDeleteTargetR targetId = do
   doEditIndicator mUser (targetIndicator target) formWidget formEnctype
 
 
+doDashboard :: (Text.Blaze.ToMarkup a1, ToWidget App a2) => Maybe (Entity User) -> a2 -> a1 -> HandlerFor App Html
 doDashboard mUser formWidget formEnctype = do
   indicators <- runDB $ selectList [] [Asc IndicatorId]
 
@@ -247,7 +251,7 @@ getOngoingTargets challengeId = do
                         return indicator
   indicatorEntries <- mapM indicatorToEntry indicators
   theNow <- liftIO $ getCurrentTime
-  (entries, _) <- runDB $ getChallengeSubmissionInfos (const True) challengeId
+  (entries, _) <- runDB $ getChallengeSubmissionInfos (const True) (const True) challengeId
   let indicatorEntries' = map (onlyWithOngoingTargets theNow entries) indicatorEntries
   return indicatorEntries'
 
