@@ -100,9 +100,10 @@ getViewVariantR variantId = do
   let theSubmissionId = variantSubmission variant
   theSubmission <- runDB $ get404 theSubmissionId
 
-  ([entry], tests) <- runDB $ getChallengeSubmissionInfos (\e -> entityKey e == theSubmissionId)
-                                                         (\e -> entityKey e == variantId)
-                                                         (submissionChallenge theSubmission)
+  ([entry], tests') <- runDB $ getChallengeSubmissionInfos (\e -> entityKey e == theSubmissionId)
+                                                          (\e -> entityKey e == variantId)
+                                                          (submissionChallenge theSubmission)
+  let tests = sortBy (flip testComparator) tests'
 
   if submissionIsPublic theSubmission || Just (submissionSubmitter theSubmission) == (entityKey <$> mauthId)
     then

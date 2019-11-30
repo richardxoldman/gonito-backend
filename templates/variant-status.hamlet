@@ -1,0 +1,2 @@
+<a href="@{ViewVariantR theVariantId}">
+    <span class="glyphicon glyphicon-info-sign" title="click to see the detailed information" aria-hidden="true">

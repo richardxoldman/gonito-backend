@@ -82,6 +82,11 @@ variantTable paramNames tests = mempty
   ++ Table.int "#" tableEntryRank
   ++ mconcat (map paramExtractor paramNames)
   ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScore $ getTestReference e)) tests)
+  ++ Table.widget "" variantStatusCellWidget
+
+variantStatusCellWidget :: TableEntry -> WidgetFor App ()
+variantStatusCellWidget entry = $(widgetFile "variant-status")
+  where theVariantId = entityKey $ tableEntryVariant entry
 
 paramExtractor :: Text -> Table App TableEntry
 paramExtractor paramName = Table.text paramName (\entry ->
