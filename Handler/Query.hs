@@ -34,34 +34,45 @@ findSubmissions sha1Prefix = do
     Nothing -> rawCommitQuery sha1Prefix
   mapM getFullInfo submissions
 
-getApiTxtScoreR :: Text -> Handler Text
-getApiTxtScoreR sha1Prefix = do
+getApiTxtScoreMainMetricR :: Text -> Handler Text
+getApiTxtScoreMainMetricR sha1Prefix = getApiTxtScore Nothing sha1Prefix
+
+getApiTxtScoreWithMetricR :: Text -> Text -> Handler Text
+getApiTxtScoreWithMetricR sha1Prefix metricName = getApiTxtScore (Just metricName) sha1Prefix
+
+getApiTxtScore :: Maybe Text -> Text -> Handler Text
+getApiTxtScore mMetricName sha1Prefix = do
   submissions <- runDB $ rawCommitQuery sha1Prefix
   case submissions of
-    [submission] -> doGetScore submission
+    [submission] -> doGetScore mMetricName submission
     [] -> return "NONE"
     _ -> return "AMBIGUOUS ARGUMENT"
 
-doGetScore :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistUniqueRead (YesodPersistBackend site), BackendCompatible SqlBackend (YesodPersistBackend site), YesodPersist site, PersistQueryRead (YesodPersistBackend site)) => Entity Submission -> HandlerFor site Text
-doGetScore submission = do
+doGetScore :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistUniqueRead (YesodPersistBackend site), BackendCompatible SqlBackend (YesodPersistBackend site), YesodPersist site, PersistQueryRead (YesodPersistBackend site)) => Maybe Text -> Entity Submission -> HandlerFor site Text
+doGetScore mMetricName submission = do
   let challengeId = submissionChallenge $ entityVal submission
-  mainTest <- runDB $ fetchMainTest challengeId
-  let mainTestId = entityKey mainTest
-  let submissionId = entityKey submission
 
-  evals <- runDB $ E.select
-                   $ E.from $ \(out, evaluation, variant) -> do
-                     E.where_ (variant ^. VariantSubmission E.==. E.val submissionId
-                               E.&&. out ^. OutVariant E.==. variant ^. VariantId
-                               E.&&. out ^. OutTest E.==. E.val mainTestId
-                               E.&&. evaluation ^. EvaluationTest E.==. E.val mainTestId
-                               E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum)
-                     E.orderBy []
-                     return (evaluation)
+  mTestEnt <- runDB $ fetchTestByName mMetricName challengeId
+  case mTestEnt of
+    Just testEnt -> do
+      let theTestId = entityKey testEnt
 
-  case evals of
-    [eval] -> return $ formatTruncatedScore (testPrecision $ entityVal mainTest) (Just $ entityVal eval)
-    _ -> return "NONE"
+      let submissionId = entityKey submission
+
+      evals <- runDB $ E.select
+                    $ E.from $ \(out, evaluation, variant) -> do
+                      E.where_ (variant ^. VariantSubmission E.==. E.val submissionId
+                                E.&&. out ^. OutVariant E.==. variant ^. VariantId
+                                E.&&. out ^. OutTest E.==. E.val theTestId
+                                E.&&. evaluation ^. EvaluationTest E.==. E.val theTestId
+                                E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum)
+                      E.orderBy []
+                      return (evaluation)
+
+      case evals of
+        [eval] -> return $ formatTruncatedScore (testPrecision $ entityVal testEnt) (Just $ entityVal eval)
+        _ -> return "NONE"
+    Nothing -> return "NONE"
 
 getQueryFormR :: Handler Html
 getQueryFormR = do

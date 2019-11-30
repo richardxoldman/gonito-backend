@@ -367,10 +367,26 @@ fetchMainTest challengeId = do
   challenge <- get404 challengeId
 
   activeTests <- selectList [TestChallenge ==. challengeId,
-                                    TestActive ==. True,
-                                    TestCommit ==. challengeVersion challenge] []
+                            TestActive ==. True,
+                            TestCommit ==. challengeVersion challenge] []
 
   return $ getMainTest activeTests
+
+
+fetchTestByName :: (MonadIO m, PersistQueryRead backend, BaseBackend backend ~ SqlBackend) => Maybe Text -> Key Challenge -> ReaderT backend m (Maybe (Entity Test))
+fetchTestByName Nothing challengeId = do
+  mainTest <- fetchMainTest challengeId
+  return $ Just mainTest
+fetchTestByName (Just tName) challengeId = do
+  challenge <- get404 challengeId
+
+  tests' <- selectList [TestChallenge ==. challengeId,
+                       TestCommit ==. challengeVersion challenge] []
+
+  let tests = sortBy (flip testComparator) tests'
+
+  return $ find (\t -> formatTestEvaluationScheme (entityVal t) == tName) tests
+
 
 -- get the test with the highest priority
 getMainTest :: [Entity Test] -> Entity Test
