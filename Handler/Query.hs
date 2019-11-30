@@ -19,6 +19,7 @@ import           Database.Esqueleto      ((^.))
 import qualified Data.Text as T
 
 import Data.List (nub)
+import Data.List.Extra (groupOn)
 
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 
@@ -30,14 +31,33 @@ rawOutQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
 rawOutQuery sha1Prefix =
   rawSql "SELECT ?? FROM out WHERE cast(checksum as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
 
+groupBySecond :: Eq b => [(FullSubmissionInfo, b)] -> [(FullSubmissionInfo, [b])]
+groupBySecond lst = map putOut $ groupOn (fsiSubmissionId . fst) lst
+  where putOut ((ha, hb):t) = (ha, hb:nub (map snd t))
+        putOut [] = error "should not be here"
+
 findSubmissions :: Text -> Handler [(FullSubmissionInfo, [SHA1])]
 findSubmissions sha1Prefix = do
   mauthId <- maybeAuth
   submissions <- runDB $ case mauthId of
     Just (Entity authId _) -> rawSql "SELECT ?? FROM submission WHERE (is_public OR submitter = ?) AND cast(commit as text) like ?" [toPersistValue authId, PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
     Nothing -> rawCommitQuery sha1Prefix
-  justSubmissions <- mapM getFullInfo submissions
-  return $ map (\s -> (s, [])) justSubmissions
+  justSubmissions' <- mapM getFullInfo submissions
+  let justSubmissions = map (\s -> (s, [])) justSubmissions'
+
+  outs <- runDB $ rawOutQuery sha1Prefix
+  submissionsByOuts <- mapM fetchSubmissionByOut outs
+
+  return (justSubmissions ++ groupBySecond submissionsByOuts)
+
+fetchSubmissionByOut :: Entity Out -> HandlerFor App (FullSubmissionInfo, SHA1)
+fetchSubmissionByOut (Entity _ out) = do
+  variant <- runDB $ get404 $ outVariant out
+  let theSubmissionId = variantSubmission variant
+  theSubmission <- runDB $ get404 theSubmissionId
+  let theSubmissionEnt = Entity theSubmissionId theSubmission
+  fsi <- getFullInfo theSubmissionEnt
+  return (fsi, outChecksum out)
 
 getApiTxtScoreMainMetricR :: Text -> Handler Text
 getApiTxtScoreMainMetricR sha1Prefix = getApiTxtScore Nothing sha1Prefix
@@ -49,10 +69,21 @@ getApiTxtScore :: Maybe Text -> Text -> Handler Text
 getApiTxtScore mMetricName sha1Prefix = do
   submissions <- findSubmissions sha1Prefix
   case submissions of
-    [(fsi, _)] -> doGetScore mMetricName (Entity (fsiSubmissionId fsi)
-                                                (fsiSubmission fsi))
-    [] -> return "NONE"
-    _ -> return "AMBIGUOUS ARGUMENT"
+    [] -> return noneMessage
+    ((fsi, _):_) -> case submissions of
+      [(_, [])] -> doGetScore mMetricName (Entity (fsiSubmissionId fsi)
+                                                 (fsiSubmission fsi))
+      _ -> do
+        let hashes = nub $ concat $ map snd submissions
+        case hashes of
+          [h] -> doGetScoreForOut mMetricName
+                                 (Entity (fsiSubmissionId fsi)
+                                         (fsiSubmission fsi))
+                                 h
+          [] -> return noneMessage
+          _ -> return ambiguousArgumentMessage
+  where ambiguousArgumentMessage = "AMBIGUOUS ARGUMENT"
+        noneMessage = "NONE"
 
 doGetScore :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistUniqueRead (YesodPersistBackend site), BackendCompatible SqlBackend (YesodPersistBackend site), YesodPersist site, PersistQueryRead (YesodPersistBackend site)) => Maybe Text -> Entity Submission -> HandlerFor site Text
 doGetScore mMetricName submission = do
@@ -79,6 +110,32 @@ doGetScore mMetricName submission = do
         [eval] -> return $ formatTruncatedScore (testPrecision $ entityVal testEnt) (Just $ entityVal eval)
         _ -> return "NONE"
     Nothing -> return "NONE"
+
+doGetScoreForOut :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistUniqueRead (YesodPersistBackend site), BackendCompatible SqlBackend (YesodPersistBackend site), YesodPersist site, PersistQueryRead (YesodPersistBackend site)) => Maybe Text -> Entity Submission -> SHA1 -> HandlerFor site Text
+doGetScoreForOut mMetricName submission sha1code = do
+  let submissionId = entityKey submission
+
+  evals <- runDB $ E.select
+                $ E.from $ \(out, evaluation, variant, test) -> do
+                  E.where_ (variant ^. VariantSubmission E.==. E.val submissionId
+                            E.&&. out ^. OutVariant E.==. variant ^. VariantId
+                            E.&&. out ^. OutTest E.==. test ^. TestId
+                            E.&&. evaluation ^. EvaluationTest E.==. test ^. TestId
+                            E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum
+                            E.&&. out ^. OutChecksum E.==. E.val sha1code)
+                  E.orderBy [E.asc (test ^. TestPriority)]
+                  return (evaluation, test)
+
+  let evalSelected = case evals of
+        [] -> Nothing
+        ((eval, test):_)  -> case mMetricName of
+                              Nothing -> Just (eval, test)
+                              Just mn -> find (\(_, t) -> formatTestEvaluationScheme (entityVal t) == mn) evals
+  case evalSelected of
+    Nothing -> return "None"
+    Just (eval, testEnt) -> return $ formatTruncatedScore (testPrecision $ entityVal testEnt)
+                                                         (Just $ entityVal eval)
+
 
 getQueryFormR :: Handler Html
 getQueryFormR = do
