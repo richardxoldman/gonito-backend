@@ -34,8 +34,7 @@
 
 /view-variant/#VariantId ViewVariantR GET
 
-/api/txt/score/#Text ApiTxtScoreMainMetricR GET
-/api/txt/score/#Text/#Text ApiTxtScoreWithMetricR GET
+/api/txt/score/#Text ApiTxtScoreR GET
 
 /make-public/#SubmissionId MakePublicR GET
 /hide-submission/#SubmissionId HideSubmissionR GET

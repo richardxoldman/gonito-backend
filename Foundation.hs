@@ -199,8 +199,7 @@ instance Yesod App where
 
     isAuthorized (ChallengeImageR _) _ = return Authorized
 
-    isAuthorized (ApiTxtScoreMainMetricR _) _ = return Authorized
-    isAuthorized (ApiTxtScoreWithMetricR _ _) _ = return Authorized
+    isAuthorized (ApiTxtScoreR _) _ = return Authorized
 
     isAuthorized (ChallengeParamGraphDataR _ _ _) _ = return Authorized
     isAuthorized (IndicatorGraphDataR _) _ = return Authorized

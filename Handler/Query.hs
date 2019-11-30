@@ -59,11 +59,12 @@ fetchSubmissionByOut (Entity _ out) = do
   fsi <- getFullInfo theSubmissionEnt
   return (fsi, outChecksum out)
 
-getApiTxtScoreMainMetricR :: Text -> Handler Text
-getApiTxtScoreMainMetricR sha1Prefix = getApiTxtScore Nothing sha1Prefix
-
-getApiTxtScoreWithMetricR :: Text -> Text -> Handler Text
-getApiTxtScoreWithMetricR sha1Prefix metricName = getApiTxtScore (Just metricName) sha1Prefix
+getApiTxtScoreR :: Text -> Handler Text
+getApiTxtScoreR query =
+  if T.null post
+  then getApiTxtScore Nothing pre
+  else getApiTxtScore (Just $ T.tail post) pre
+  where (pre, post) = T.breakOn "-" query
 
 getApiTxtScore :: Maybe Text -> Text -> Handler Text
 getApiTxtScore mMetricName sha1Prefix = do
