@@ -47,7 +47,7 @@
 <p>In general, Gonito tries to guess the right metric in case of ambiguity. It is, however, a good idea to give the metric name along the reference codes, e.g.:
 
 <pre>
-  \\gonitoscore{433e8cfdc4b5e20e276f4ddef5885c5ed5947ae5}%
+  \\gonitoscore{433e8cfdc4b5e20e276f4ddef5885c5ed5947ae5-Accuracy}
 
 <h3>Actually getting the scores
 
