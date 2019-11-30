@@ -7,14 +7,16 @@
   \\usepackage{xstring}
   % Format a reference to a Gonito submission
   \\newcommand{\gonitoref}[1]{\{\href{#{rootAddress}/q/#1}{\StrMid{#1}{1}{6}}\}}
+  % A bare score from Gonito
+  \\newcommand{\gonitobarescore}[1]{\minput{scores/#1.txt}}
   % A score from Gonito along with a reference
-  \\newcommand{\gonitoscore}[1]{\minput{scores/#1.txt} \gonitoref{#1}}
+  \\newcommand{\gonitoscore}[1]{\gonitobarescore{#1} \gonitoref{#1}}
   % A reference and a score as two cells in a table
   \\newcommand{\gonitoentry}[1]{\gonitoref{#1} & \minput{scores/#1.txt}}
 
 <p>Now you will be able to reference your Gonito submissions using its git commit hash, e.g.: <tt>\gonitoref{433e8cfdc4b5e20e276f4ddef5885c5ed5947ae5}</tt>. The hash will be printed in a shorter form (just first 6 digits) and it will be clickable leading to the Gonito entry describing the submission (information how to get the data will be presented there).
 
-<p>You can explain the idea like this:
+<p>You might explain the idea like this:
 
 <pre>
   \\gonitoscore{433e8cfdc4b5e20e276f4ddef5885c5ed5947ae5}%
@@ -33,6 +35,21 @@
   \  year = "2016",
   \  pages = "13-20"
   }
+
+<h3>Hashes
+
+<p>Two kinds of (SHA1) hashes can be used here:
+
+<ul>
+  <li>submission hashes, i.e. the commit hash with the submission; the problem is that they can contain multiple output files (so-called variants), in such a case…
+  <li>… output hashes can be used (i.e. the SHA1 digest of a specific output file)
+
+<p>In general, Gonito tries to guess the right metric in case of ambiguity. It is, however, a good idea to give the metric name along the reference codes, e.g.:
+
+<pre>
+  \\gonitoscore{433e8cfdc4b5e20e276f4ddef5885c5ed5947ae5}%
+
+<h3>Actually getting the scores
 
 <p>But, wait, with Gonito you can give evaluation scores without manual copy&paste. The <tt>\gonitoscore</tt> command gives a score and a reference. The score is taken from a file <tt>scores/HASH.txt</tt>. You need to get it from Gonito, but it's not difficult to set it up in such a way that the scores could be downloaded automatically. For instance, if you use Makefile for building your papers, you could use the following snippet:
 
@@ -59,7 +76,7 @@
   my %found = ();
   \
   while (my $line=<$ih>) {
-  \    while ($line =~ m<\\gonito(?:score|entry)\{([^\}]+)\}>g) {
+  \    while ($line =~ m<\\gonito(?:barescore|score|entry)\{([^\}]+)\}>g) {
   \        $found{$1} = 1;
   \    }
   }
