@@ -26,13 +26,18 @@ rawCommitQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
 rawCommitQuery sha1Prefix =
   rawSql "SELECT ?? FROM submission WHERE is_public AND cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
 
-findSubmissions :: Text -> Handler [FullSubmissionInfo]
+rawOutQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
+rawOutQuery sha1Prefix =
+  rawSql "SELECT ?? FROM out WHERE cast(checksum as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
+
+findSubmissions :: Text -> Handler [(FullSubmissionInfo, [SHA1])]
 findSubmissions sha1Prefix = do
   mauthId <- maybeAuth
   submissions <- runDB $ case mauthId of
     Just (Entity authId _) -> rawSql "SELECT ?? FROM submission WHERE (is_public OR submitter = ?) AND cast(commit as text) like ?" [toPersistValue authId, PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
     Nothing -> rawCommitQuery sha1Prefix
-  mapM getFullInfo submissions
+  justSubmissions <- mapM getFullInfo submissions
+  return $ map (\s -> (s, [])) justSubmissions
 
 getApiTxtScoreMainMetricR :: Text -> Handler Text
 getApiTxtScoreMainMetricR sha1Prefix = getApiTxtScore Nothing sha1Prefix
@@ -42,9 +47,10 @@ getApiTxtScoreWithMetricR sha1Prefix metricName = getApiTxtScore (Just metricNam
 
 getApiTxtScore :: Maybe Text -> Text -> Handler Text
 getApiTxtScore mMetricName sha1Prefix = do
-  submissions <- runDB $ rawCommitQuery sha1Prefix
+  submissions <- findSubmissions sha1Prefix
   case submissions of
-    [submission] -> doGetScore mMetricName submission
+    [(fsi, _)] -> doGetScore mMetricName (Entity (fsiSubmissionId fsi)
+                                                (fsiSubmission fsi))
     [] -> return "NONE"
     _ -> return "AMBIGUOUS ARGUMENT"
 
@@ -98,7 +104,8 @@ isFullQuery query = length query == 40
 
 processQuery :: Text -> Handler Html
 processQuery query = do
-  submissions <- findSubmissions query
+  submissions' <- findSubmissions query
+  let submissions = map fst submissions'
   defaultLayout $ do
     setTitle "query results"
     $(widgetFile "query-results")
