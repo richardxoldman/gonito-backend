@@ -9,7 +9,7 @@
 
 <ul>
  $forall (achievement, workingOnId) <- achievements
-  <li><a href=@{SubmissionForAchievementR submissionId workingOnId}>send to review for #{achievementName $ entityVal achievement} achievement
+  <li><a href=@{SubmissionForAchievementR submissionId workingOnId}>send to review for #{achievementName $ entityVal achievement} achievement</a>
 
 $maybe variantId <- mVariantId
   <h4>Variant parameters

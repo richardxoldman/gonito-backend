@@ -92,6 +92,43 @@ processQuery query = do
     setTitle "query results"
     $(widgetFile "query-results")
 
+
+getViewVariantR :: VariantId -> Handler Html
+getViewVariantR variantId = do
+  mauthId <- maybeAuth
+  variant <- runDB $ get404 variantId
+  let theSubmissionId = variantSubmission variant
+  theSubmission <- runDB $ get404 theSubmissionId
+
+  if submissionIsPublic theSubmission || Just (submissionSubmitter theSubmission) == (entityKey <$> mauthId)
+    then
+     do
+      fullSubmissionInfo <- getFullInfo (Entity theSubmissionId theSubmission)
+
+      testOutputs <- runDB $ E.select
+                          $ E.from $ \(out, test) -> do
+                            E.where_ (out ^. OutTest E.==. test ^. TestId
+                                      E.&&. out ^. OutVariant E.==. E.val variantId)
+                            E.orderBy []
+                            return (out, test)
+
+
+      let outputs =
+            sortBy (\a b -> ((snd b) `compare` (snd a)))
+            $ nub
+            $ map (\(out, test) -> (outChecksum $ entityVal out, testName $ entityVal test)) testOutputs
+
+      defaultLayout $ do
+        setTitle "Variant"
+        $(widgetFile "view-variant")
+    else
+      error "Cannot access this submission variant"
+
+viewOutput :: (SHA1, Text) -> WidgetFor App ()
+viewOutput (outputHash, test) =  do
+  let outputSha1AsText = fromSHA1ToText $ outputHash
+  $(widgetFile "view-output")
+
 resultTable :: Entity Submission -> WidgetFor App ()
 resultTable (Entity submissionId submission) = do
   (tableEntries, tests) <- handlerToWidget $ runDB $ getChallengeSubmissionInfos (\s -> entityKey s == submissionId)

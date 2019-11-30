@@ -159,6 +159,7 @@ instance Yesod App where
     isAuthorized QueryFormR _ = return Authorized
     isAuthorized (QueryResultsR _) _ = return Authorized
     isAuthorized ListChallengesR _ = return Authorized
+    isAuthorized (ViewVariantR _) _ = return Authorized
 
     isAuthorized TagsR _ = return Authorized
     isAuthorized AchievementsR _ = return Authorized

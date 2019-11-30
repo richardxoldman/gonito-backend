@@ -32,6 +32,8 @@
 /q QueryFormR GET POST
 /q/#Text QueryResultsR  GET
 
+/view-variant/#VariantId ViewVariantR GET
+
 /api/txt/score/#Text ApiTxtScoreR GET
 
 /make-public/#SubmissionId MakePublicR GET

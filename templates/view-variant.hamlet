@@ -1,0 +1,8 @@
+<div class="media">
+ <div class="media-left">
+   <p class="media-object">
+     <span class="glyphicon glyphicon-asterisk" aria-hidden="hidden">
+ <div class="media-body">
+  ^{submissionHeader fullSubmissionInfo}
+  $forall output <- outputs
+    ^{viewOutput output}
