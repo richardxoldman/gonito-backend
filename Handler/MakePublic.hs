@@ -45,7 +45,7 @@ pushRepo :: String -> SHA1 -> String -> String -> Channel -> Handler ()
 pushRepo repoDir commit targetRepoUrl targetBranchName chan = do
   (_, _) <- runProgram (Just repoDir) gitPath [
     "push",
-    targetRepoUrl,
+    (T.unpack $ fixGitRepoUrl $ T.pack targetRepoUrl),
     (T.unpack $ fromSHA1ToText commit) ++ ":refs/heads/" ++ targetBranchName] chan
   return ()
 
