@@ -32,8 +32,9 @@ doMakePublic userId submissionId chan = do
 
     app <- getYesod
     let scheme = appRepoScheme $ appSettings app
+    let repoHost = appRepoHost $ appSettings app
 
-    let targetRepoUrl = getPublicSubmissionUrl scheme (Just repo) $ challengeName challenge
+    let targetRepoUrl = getPublicSubmissionUrl scheme repoHost (Just repo) $ challengeName challenge
     let targetBranchName = getPublicSubmissionBranch submissionId
     msg chan $ "Start pushing from " ++ (T.pack submissionRepoDir) ++ " to repo " ++ targetRepoUrl ++ ", branch " ++ targetBranchName ++ " ..."
     let commit = submissionCommit submission
