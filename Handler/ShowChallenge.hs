@@ -237,7 +237,11 @@ postTriggerLocallyR = do
   mBranch <- lookupPostParam "branch"
   mGitAnnexRemote <- lookupPostParam "git-annex-remote"
   [Entity userId _] <- runDB $ selectList [UserLocalId ==. Just localId] []
-  let localRepo = gitServer ++ localId ++ "/" ++ challengeName
+
+  app <- getYesod
+  let repoHost = appRepoHost $ appSettings app
+
+  let localRepo = repoHost ++ localId ++ "/" ++ challengeName
   trigger userId challengeName localRepo mBranch mGitAnnexRemote
 
 postTriggerRemotelyR :: Handler TypedContent
