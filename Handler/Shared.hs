@@ -251,6 +251,14 @@ cloneRepo' userId repoCloningSpec chan = do
             err chan "git failed"
             return Nothing
 
+-- An auxilliary function for fixing git URLs.
+-- By default, this does nothing, but can be changed
+-- in Gonito forks.
+-- Should be used just before a raw git command is executed
+-- (i.e. its changes will not be reflected in the database).
+fixGitRepoUrl :: Text -> Text
+fixGitRepoUrl = id
+
 rawClone :: FilePath -> RepoCloningSpec -> Channel -> Handler ExitCode
 rawClone tmpRepoDir repoCloningSpec chan = runWithChannel chan $ do
   let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
@@ -262,7 +270,7 @@ rawClone tmpRepoDir repoCloningSpec chan = runWithChannel chan $ do
                            "--single-branch",
                            "--branch",
                            T.unpack referenceBranch,
-                           T.unpack referenceUrl,
+                           T.unpack (fixGitRepoUrl referenceUrl),
                            tmpRepoDir]
   if url /= referenceUrl || branch /= referenceBranch
     then
@@ -270,7 +278,7 @@ rawClone tmpRepoDir repoCloningSpec chan = runWithChannel chan $ do
        runProg (Just tmpRepoDir) gitPath ["remote",
                                            "set-url",
                                            "origin",
-                                           T.unpack url]
+                                           T.unpack (fixGitRepoUrl url)]
        runProg (Just tmpRepoDir) gitPath ["fetch",
                                            "origin",
                                            T.unpack branch]
