@@ -59,9 +59,6 @@ data TableEntry = TableEntry {
 tableEntryStamp :: TableEntry -> UTCTime
 tableEntryStamp = submissionStamp . entityVal . tableEntrySubmission
 
-formatVersion :: (Int, Int, Int) -> Text
-formatVersion (major, minor, patch) = (Data.Text.pack $ show major) <> "." <> (Data.Text.pack $ show minor) <> "." <> (Data.Text.pack $ show patch)
-
 submissionsTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App TableEntry
 submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.int "#" tableEntryRank

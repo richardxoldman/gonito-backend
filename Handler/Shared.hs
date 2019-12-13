@@ -499,3 +499,8 @@ runSlackHook hook message = do
 slackLink :: App -> Text -> Text -> Text
 slackLink app title addr = "<" ++ slink ++ "|" ++ title ++ ">"
   where slink = (appRoot $ appSettings app) ++ "/" ++ addr
+
+formatVersion :: (Int, Int, Int) -> Text
+formatVersion (major, minor, patch) = (T.pack $ show major)
+                                      <> "." <> (T.pack $ show minor)
+                                      <> "." <> (T.pack $ show patch)

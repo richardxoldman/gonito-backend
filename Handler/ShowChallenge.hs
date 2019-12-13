@@ -749,6 +749,9 @@ challengeLayout :: Bool -> Challenge -> WidgetFor App () -> HandlerFor App Html
 challengeLayout withHeader challenge widget = do
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
   version <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+  let versionFormatted = formatVersion ((versionMajor $ entityVal version),
+                                        (versionMinor $ entityVal version),
+                                        (versionPatch $ entityVal version))
   maybeUser <- maybeAuth
   bc <- widgetToPageContent widget
   defaultLayout $ do

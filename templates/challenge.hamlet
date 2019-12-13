@@ -15,7 +15,7 @@
       <div class="panel-body">
         $if withHeader
            <h1>#{challengeTitle challenge}
-           <p>#{challengeDescription challenge}
+           <p>#{challengeDescription challenge} [ver. #{versionFormatted}]
            $maybe deadline <- versionDeadline $ entityVal version
               <p>Deadline: #{show deadline}
            $nothing
