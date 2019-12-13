@@ -11,6 +11,7 @@ import Handler.Extract
 import GEval.Core
 import GEval.OptionsParser
 import GEval.EvaluationScheme
+import GEval.Validation
 
 import Gonito.ExtractMetadata (getLastCommitMessage)
 
@@ -95,7 +96,9 @@ doCreateChallenge name publicUrl publicBranch publicGitAnnexRemote privateUrl pr
                                              repoSpecBranch = (repoBranch publicRepo),
                                              repoSpecGitAnnexRemote = (repoGitAnnexRemote publicRepo)}}) chan
       case maybePrivateRepoId of
-        Just privateRepoId -> addChallenge name publicRepoId privateRepoId mDeadline chan
+        Just privateRepoId -> do
+          isValidated <- validateChallenge privateRepoId chan
+          when isValidated $ addChallenge name publicRepoId privateRepoId mDeadline chan
         Nothing -> return ()
     Nothing -> return ()
 
@@ -204,46 +207,50 @@ doChallengeUpdate challengeId
                                                    repoSpecGitAnnexRemote = privateGitAnnexRemote}
                                                  chan
 
-  privateRepo <- runDB $ get404 $ privateRepoId
-  repoDir <- getRepoDir privateRepoId
-  (Just versionDescription) <- liftIO $ getLastCommitMessage repoDir
-  theNow <- liftIO getCurrentTime
-  let commit = (repoCurrentCommit privateRepo)
+  isValidated <- validateChallenge privateRepoId chan
 
-  mAlreadyExistingVersion <- runDB $ getBy $ UniqueVersionByCommit commit
-  case mAlreadyExistingVersion of
-    Just (Entity versionId _) -> do
-                                 runDB $ update versionId [VersionDeadline =. newDeadline,
-                                                           VersionMajor =. newMajor,
-                                                           VersionMinor =. newMinor,
-                                                           VersionPatch =. newPatch,
-                                                           VersionDescription =. versionDescription,
-                                                           VersionStamp =. theNow]
+  when isValidated $
+     do
+        privateRepo <- runDB $ get404 $ privateRepoId
+        repoDir <- getRepoDir privateRepoId
+        (Just versionDescription) <- liftIO $ getLastCommitMessage repoDir
+        theNow <- liftIO getCurrentTime
+        let commit = (repoCurrentCommit privateRepo)
 
-    Nothing -> do
-               _ <- runDB $ insert $ Version (Just challengeId)
-                                            commit
-                                            newDeadline
-                                            newMajor
-                                            newMinor
-                                            newPatch
-                                            versionDescription
-                                            theNow
-               return ()
+        mAlreadyExistingVersion <- runDB $ getBy $ UniqueVersionByCommit commit
+        case mAlreadyExistingVersion of
+          Just (Entity versionId _) -> do
+                                       runDB $ update versionId [VersionDeadline =. newDeadline,
+                                                                 VersionMajor =. newMajor,
+                                                                 VersionMinor =. newMinor,
+                                                                 VersionPatch =. newPatch,
+                                                                 VersionDescription =. versionDescription,
+                                                                 VersionStamp =. theNow]
 
-  (title, description, mImage) <- extractChallengeMetadata publicRepoId chan
+          Nothing -> do
+                     _ <- runDB $ insert $ Version (Just challengeId)
+                                                  commit
+                                                  newDeadline
+                                                  newMajor
+                                                  newMinor
+                                                  newPatch
+                                                  versionDescription
+                                                  theNow
+                     return ()
 
-  runDB $ update challengeId [ChallengePublicRepo =. publicRepoId,
-                              ChallengePrivateRepo =. privateRepoId,
-                              ChallengeVersion =. commit,
-                              ChallengeTitle =. title,
-                              ChallengeDescription =. description,
-                              ChallengeImage =. mImage]
+        (title, description, mImage) <- extractChallengeMetadata publicRepoId chan
 
-  updateTests challengeId chan
+        runDB $ update challengeId [ChallengePublicRepo =. publicRepoId,
+                                    ChallengePrivateRepo =. privateRepoId,
+                                    ChallengeVersion =. commit,
+                                    ChallengeTitle =. title,
+                                    ChallengeDescription =. description,
+                                    ChallengeImage =. mImage]
 
+        updateTests challengeId chan
+
+        return ()
   return ()
-
 
 incrementVersion :: ChallengeUpdateType -> (Int, Int, Int) -> (Int, Int, Int)
 incrementVersion MajorChange (major, _, _) = (major + 1, 0, 0)
@@ -431,3 +438,29 @@ updateChallengeForm publicRepo privateRepo mDeadline = renderBootstrap3 Bootstra
     <*> aopt dayField (bfs MsgChallengeDeadlineDay) (Just $ utctDay <$> mDeadline)
     <*> aopt timeFieldTypeTime (fieldWithTooltip MsgChallengeDeadlineTime MsgChallengeDeadlineTooltip)
                                (Just $ timeToTimeOfDay <$> utctDayTime <$> mDeadline)
+
+-- Validate whether a challenge is correct.
+-- Contrary to `GEval.Validate.validationChallenge` do not
+-- throw an exception (just return `False`)
+validateChallenge :: RepoId  -- ID of the private repository
+                    -> Channel
+                    -> Handler Bool -- returns false if not validated
+validateChallenge repoId chan = do
+  msg chan "Validating the challenge..."
+
+  repoDir <- getRepoDir repoId
+
+  optionsParsingResult <- liftIO $ getOptions [
+    "--expected-directory", repoDir]
+
+  case optionsParsingResult of
+    Left _ -> do
+      err chan "Cannot read metric"
+      return False
+    Right opts -> do
+      result <- liftIO (try $ validationChallenge repoDir (geoSpec opts) :: IO (Either SomeException ()))
+      case result of
+        Left ex -> do
+          err chan (T.pack $ "Invalid challenge!!! " ++ (show ex))
+          return False
+        Right _ -> return True
