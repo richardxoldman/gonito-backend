@@ -19,6 +19,7 @@ import Handler.TagUtils
 import Handler.MakePublic
 import Handler.Dashboard
 import Handler.Common
+import Handler.Evaluate
 
 import Text.Blaze
 
@@ -316,6 +317,8 @@ doCreateSubmission' _ userId challengeId mDescription mTags repoSpec chan = do
                         E.&&. test ^. TestName E.==. E.val (testName mainTest)
                         E.&&. test ^. TestMetric E.==. E.val (testMetric mainTest)
                         E.&&. test ^. TestActive
+                        E.&&. (evaluation ^. EvaluationVersion E.==. E.just (version ^. VersionCommit)
+                               E.||. E.isNothing (evaluation ^. EvaluationVersion))
                         E.&&. version ^. VersionCommit E.==. test ^. TestCommit
                         E.&&. version ^. VersionMajor E.>=. E.val submittedMajorVersion)
               E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
@@ -489,137 +492,6 @@ getSubmission userId repoId commit challengeId description chan = do
         submissionIsPublic=False,
         submissionIsHidden=False,
         submissionVersion=challengeVersion challenge}
-
--- | Does the evaluation for a submission. Inserts Out, Variant and Evaluation records.
-getOuts :: Channel -> Key Submission -> M.Map Text Text -> Handler ([Out])
-getOuts chan submissionId generalParams = do
-  submission <- runDB $ get404 submissionId
-  let challengeId = submissionChallenge submission
-  repoDir <- getRepoDir $ submissionRepo submission
-  activeTests <- runDB $ selectList [TestChallenge ==. challengeId,
-                                    TestActive ==. True,
-                                    TestCommit ==. submissionVersion submission] []
-
-  outs' <- mapM (outsForTest repoDir submissionId generalParams) activeTests
-  let outs = concat outs'
-
-  mapM_ checkOrInsertOut outs
-  mapM_ (checkOrInsertEvaluation repoDir chan) outs
-  return outs
-
-outFileName :: FilePath
-outFileName = "out.tsv"
-
-getOutFilePath :: FilePath -> Test -> FilePath
-getOutFilePath repoDir test = repoDir </> (T.unpack $ testName test) </> outFileName
-
-findOutFile :: FilePath -> Test -> IO (Maybe FilePath)
-findOutFile repoDir test = do
-  let baseOut = getOutFilePath repoDir test
-  ofs <- mapM (\ext -> findFilePossiblyCompressed (baseOut -<.> ext)) extensionsHandled
-  return $ listToMaybe $ catMaybes ofs
-
-doesOutExist :: FilePath -> Entity Test -> IO Bool
-doesOutExist repoDir (Entity _ test) = do
-  result <- findOutFile repoDir test
-  return $ isJust result
-
--- | Returns an Out object (won't insert into a database!)
-outForTest :: MonadIO m => FilePath -> FilePath -> Key Variant -> Entity Test -> m Out
-outForTest repoDir outF variantId (Entity testId test) = do
-  let outPath = repoDir </> (T.unpack $ testName test) </> outF
-  checksum <- liftIO $ gatherSHA1ForCollectionOfFiles [outPath]
-  return Out {
-    outVariant=variantId,
-    outTest=testId,
-    outChecksum=SHA1 checksum }
-
--- | Returns all possible outs for a given test.
--- Won't insert Out objects to the database, though it might add new variant objects.
-outsForTest :: FilePath -> SubmissionId -> M.Map Text Text -> Entity Test -> HandlerFor App [Out]
-outsForTest repoDir submissionId generalParams testEnt@(Entity _ test) = do
-  outFiles <- liftIO $ outFilesForTest repoDir test
-
-  forM outFiles $ \outFile -> do
-    theVariant <- getVariant submissionId generalParams outFile
-    outForTest repoDir outFile theVariant testEnt
-
--- | Returns the filenames (not file paths) of all output files for a given test.
-outFilesForTest :: FilePath -> Test -> IO [FilePath]
-outFilesForTest repoDir test = do
-    mMultipleOuts <- checkMultipleOutsCore repoDir (Data.Text.unpack $ testName test) "out.tsv"
-    case mMultipleOuts of
-      Just outFiles -> return $ map takeFileName outFiles
-      Nothing -> do
-        mOutFile <- findOutFile repoDir test
-        case mOutFile of
-          Just outF -> return [takeFileName outF]
-          Nothing -> return []
-
-getVariant :: SubmissionId -> M.Map Text Text -> FilePath -> Handler VariantId
-getVariant submissionId generalParams outFilePath = runDB $ do
-  let outFile = takeFileName outFilePath
-  let name = Data.Text.pack $ dropExtensions outFile
-  maybeVariant <- getBy $ UniqueVariantSubmissionName submissionId name
-  case maybeVariant of
-    Just (Entity vid _) -> return vid
-    Nothing -> do
-      vid <- insert $ Variant submissionId name
-      let (OutputFileParsed _ paramMap) = parseParamsFromFilePath outFile
-
-      forM_ (M.toList (paramMap `M.union` generalParams)) $ \(param, val) -> do
-        _ <- insert $ Parameter vid param val
-        return ()
-
-      return vid
-
-checkOrInsertOut :: Out -> Handler ()
-checkOrInsertOut out = do
-  maybeOut <- runDB $ getBy $ UniqueOutVariantTestChecksum (outVariant out) (outTest out) (outChecksum out)
-  case maybeOut of
-    Just _ -> return ()
-    Nothing -> (runDB $ insert out) >> return ()
-
-checkOrInsertEvaluation :: FilePath -> Channel -> Out -> Handler ()
-checkOrInsertEvaluation repoDir chan out = do
-  test <- runDB $ get404 $ outTest out
-  challenge <- runDB $ get404 $ testChallenge test
-  maybeEvaluation <- runDB $ fetchTheEvaluation out undefined
-  case maybeEvaluation of
-    Just (Entity _ evaluation) -> do
-      msg chan $ concat ["Already evaluated with score ", (fromMaybe "???" $ formatNonScientifically <$> evaluationScore evaluation)]
-    Nothing -> do
-      msg chan $ "Start evaluation..."
-      challengeDir <- getRepoDir $ challengePrivateRepo challenge
-      variant <- runDB $ get404 $ outVariant out
-      resultOrException <- liftIO $ rawEval challengeDir (evaluationSchemeMetric $ testMetric test) repoDir (testName test) ((T.unpack $ variantName variant) <.> "tsv")
-      case resultOrException of
-        Right (Left _) -> do
-          err chan "Cannot parse options, check the challenge repo"
-        Right (Right (_, Just [(_, [result])])) -> do
-          msg chan $ concat [ "Evaluated! Score ", (formatNonScientifically result) ]
-          time <- liftIO getCurrentTime
-          _ <- runDB $ insert $ Evaluation {
-            evaluationTest=outTest out,
-            evaluationChecksum=outChecksum out,
-            evaluationScore=Just result,
-            evaluationErrorMessage=Nothing,
-            evaluationStamp=time }
-          msg chan "Evaluation done"
-        Right (Right (_, Just _)) -> do
-          err chan "Unexpected multiple results (???)"
-        Right (Right (_, Nothing)) -> do
-          err chan "Error during the evaluation"
-        Left exception -> do
-          err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
-
-rawEval :: FilePath -> Metric -> FilePath -> Text -> FilePath -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [(SourceSpec, [MetricValue])])))
-rawEval challengeDir metric repoDir name outF = Import.try (runGEvalGetOptions [
-                                                          "--alt-metric", (show metric),
-                                                          "--expected-directory", challengeDir,
-                                                          "--out-directory", repoDir,
-                                                          "--out-file", outF,
-                                                          "--test-name", (T.unpack name)])
 
 getSubmissionRepo :: UserId -> Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo userId challengeId repoSpec chan = getPossiblyExistingRepo checkRepoAvailibility userId challengeId repoSpec chan

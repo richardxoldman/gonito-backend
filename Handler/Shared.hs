@@ -530,6 +530,23 @@ checkWhetherGivenUserRepo userId submissionId = do
   submission <- get404 submissionId
   return $ userId == submissionSubmitter submission
 
-fetchTheEvaluation :: (MonadIO m, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
+fetchTheEvaluation :: (PersistQueryRead backend, MonadIO m, BaseBackend backend ~ SqlBackend)
                      => Out -> SHA1 -> ReaderT backend m (Maybe (Entity Evaluation))
-fetchTheEvaluation out _ = getBy $ UniqueEvaluationTestChecksum (outTest out) (outChecksum out)
+fetchTheEvaluation out version = do
+  -- It's complicated due to legacy issues - should be
+  -- done by simply running UniqueEvaluationTestChecksumVersion
+
+  evals <- selectList [EvaluationTest ==. outTest out,
+                      EvaluationChecksum ==. outChecksum out,
+                      EvaluationVersion ==. Just version] []
+  case evals of
+    [eval] -> return $ Just eval
+    [] -> do
+      evals' <- selectList [EvaluationTest ==. outTest out,
+                           EvaluationChecksum ==. outChecksum out,
+                           EvaluationVersion ==. Nothing] []
+      case evals' of
+        [eval] -> return $ Just eval
+        [] -> return Nothing
+        _ -> error "More than evaluation for the same test and version!"
+    _ -> error "More than evaluation for the same test, checksum and version!"

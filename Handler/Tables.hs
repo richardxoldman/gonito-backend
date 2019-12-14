@@ -326,13 +326,24 @@ getChallengeSubmissionInfos condition variantCondition challengeId = do
   let evaluationMaps = filter (variantCondition . tableEntryVariant) evaluationMaps'
   return (evaluationMaps, tests)
 
-getScore :: (MonadIO m, BackendCompatible SqlBackend backend, PersistQueryRead backend, PersistUniqueRead backend) => Key Test -> Key Variant -> ReaderT backend m (Maybe Double)
+getScore :: (MonadIO m, BackendCompatible SqlBackend backend,
+            PersistQueryRead backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
+           => Key Test -> Key Variant -> ReaderT backend m (Maybe Double)
 getScore testId variantId = do
+  variant <- get404 variantId
+  submission <- get404 $ variantSubmission variant
+  let version = submissionVersion submission
+
   evaluations <- E.select $ E.from $ \(out, evaluation) -> do
                   E.where_ (out ^. OutVariant E.==. E.val variantId
                             E.&&. out ^. OutTest E.==. E.val testId
                             E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum
+                            -- all this complication here and with orderBy due
+                            -- to the legacy issue with evaluation version sometimes missing
+                            E.&&. (evaluation ^. EvaluationVersion E.==. E.val (Just version)
+                                   E.||. E.isNothing (evaluation ^. EvaluationVersion))
                             E.&&. evaluation ^. EvaluationTest E.==. E.val testId)
+                  E.orderBy [E.desc (E.isNothing (evaluation ^. EvaluationVersion))]
                   return evaluation
   return $ case evaluations of
              (e:_) -> evaluationScore $ entityVal e
@@ -343,7 +354,8 @@ getEvaluationMap :: (MonadIO m, PersistQueryRead backend, PersistUniqueRead back
 getEvaluationMap (rank, (s@(Entity submissionId submission), v@(Entity variantId _))) = do
   outs <- selectList [OutVariant ==. variantId] []
   user <- get404 $ submissionSubmitter submission
-  maybeEvaluations <- mapM (\(Entity _ o) -> fetchTheEvaluation o undefined) outs
+  let versionHash = submissionVersion submission
+  maybeEvaluations <- mapM (\(Entity _ o) -> fetchTheEvaluation o versionHash) outs
   let evaluations = catMaybes maybeEvaluations
   let pairs = map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
   pairs' <- mapM (\(testId, e) -> do
@@ -355,7 +367,7 @@ getEvaluationMap (rank, (s@(Entity submissionId submission), v@(Entity variantId
 
   parameters <- selectList [ParameterVariant ==. variantId] [Asc ParameterName]
 
-  (Entity _ version) <- getBy404 $ UniqueVersionByCommit $ submissionVersion submission
+  (Entity _ version) <- getBy404 $ UniqueVersionByCommit versionHash
   let major = versionMajor version
   let minor = versionMinor version
   let patch = versionPatch version

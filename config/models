@@ -123,7 +123,8 @@ Evaluation
     score Double Maybe
     errorMessage Text Maybe
     stamp UTCTime default=now()
-    UniqueEvaluationTestChecksum test checksum
+    -- Should be just SHA1 (without Maybe) - Maybe is just a legacy
+    version SHA1 Maybe
 Comment
     challenge ChallengeId
     author UserId

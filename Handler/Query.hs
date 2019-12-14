@@ -117,14 +117,18 @@ doGetScoreForOut mMetricName submission sha1code = do
   let submissionId = entityKey submission
 
   evals <- runDB $ E.select
-                $ E.from $ \(out, evaluation, variant, test) -> do
+                $ E.from $ \(out, evaluation, variant, test, version) -> do
                   E.where_ (variant ^. VariantSubmission E.==. E.val submissionId
                             E.&&. out ^. OutVariant E.==. variant ^. VariantId
                             E.&&. out ^. OutTest E.==. test ^. TestId
                             E.&&. evaluation ^. EvaluationTest E.==. test ^. TestId
                             E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum
-                            E.&&. out ^. OutChecksum E.==. E.val sha1code)
-                  E.orderBy [E.asc (test ^. TestPriority)]
+                            E.&&. out ^. OutChecksum E.==. E.val sha1code
+                            E.&&. (evaluation ^. EvaluationVersion E.==. E.just (version ^. VersionCommit)))
+                  E.orderBy [E.asc (test ^. TestPriority),
+                             E.desc (version ^. VersionMajor),
+                             E.desc (version ^. VersionMinor),
+                             E.desc (version ^. VersionPatch)]
                   return (evaluation, test)
 
   let evalSelected = case evals of
