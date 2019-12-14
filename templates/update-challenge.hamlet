@@ -1,5 +1,22 @@
 <h2>Update a challenge
 
+<p>Be careful about choosing the change. It has consequences!
+
+<ul>
+  <li><em>major change</em>: the new challenge version is completely incompatible with the previous versions,
+     \ and as a consequence all the submissions done for the previous versions will be demoted (even if their score is numerically higher);
+  <li><em>minor change</em>: the score obtained for the new version will be roughly comparable with the scores you got
+    \ for the previous version, but there is no guarantee that the existing submissions could be re-evaluated
+    \ (e.g. because the number of items changed);
+  <li><em>patch change</em>: the score obtained for the new version will be comparable with the scores you got
+    \ for the previous version <em>and</em> it is guaranteed that the existing submissions could be re-evaluated
+    \ (you will actually see the <span class="glyphicon glyphicon-repeat" title="re-evaluate" aria-hidden="true"></span> button
+    \ for such submissions), i.e:
+  <ul>
+    <li>the number of items in all tests has not changed,
+    <li>changes to the input and expected files are possible, but are not significant (but note that some changes might break re-evaluation for some metrics)
+    <li>in particular, changing <tt>README.md</tt> and adding extra evaluation metrics could usually be done as a patch change.
+
 <p>
   <form method=post action=@{ChallengeUpdateR challengeId}#form enctype=#{formEnctype}>
     ^{formWidget}
