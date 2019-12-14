@@ -3,7 +3,7 @@
    <p class="media-object">
      <span class="glyphicon glyphicon-asterisk" aria-hidden="hidden">
  <div class="media-body">
-  ^{submissionHeader submission}
+  ^{submissionHeader submission Nothing}
   ^{resultTable (Entity (fsiSubmissionId submission) (fsiSubmission submission))}
 
   $if not (null (fsiSuperSubmissions submission))

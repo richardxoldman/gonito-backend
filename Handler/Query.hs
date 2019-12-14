@@ -249,8 +249,8 @@ resultTable (Entity submissionId submission) = do
   $(widgetFile "result-table")
 
 
-submissionHeader :: FullSubmissionInfo -> WidgetFor App ()
-submissionHeader submission =
+submissionHeader :: FullSubmissionInfo -> Maybe Text -> WidgetFor App ()
+submissionHeader submission mVariantName =
   $(widgetFile "submission-header")
     where commitSha1AsText = fromSHA1ToText $ submissionCommit $ fsiSubmission submission
           submitter = formatSubmitter $ fsiUser submission

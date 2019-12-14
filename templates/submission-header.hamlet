@@ -26,3 +26,7 @@
         <a href="#{externalLinkUrl externalLink}">
            #{fromMaybe (externalLinkUrl externalLink) (externalLinkTitle externalLink)}
         <br>
+  $maybe variant <- mVariantName
+    <dt>file basename
+    <dd><tt>#{variant}</tt>
+  $nothing

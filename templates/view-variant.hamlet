@@ -3,7 +3,7 @@
    <p class="media-object">
      <span class="glyphicon glyphicon-asterisk" aria-hidden="hidden">
  <div class="media-body">
-  ^{submissionHeader fullSubmissionInfo}
+  ^{submissionHeader fullSubmissionInfo (Just $ variantName variant)}
 
   $case tableEntryParams entry
     $of []
