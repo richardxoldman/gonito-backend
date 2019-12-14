@@ -224,7 +224,7 @@ getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge
                                              -> (TableEntry -> [a])
                                              -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntriesByCriterion challengeId condition selector = do
-  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos condition (const True) challengeId
+  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos 1 condition (const True) challengeId
   let mainTests = getMainTests tests
   let mainTestEnt = getMainTest tests
   let mainTestRef = getTestReference mainTestEnt
@@ -311,13 +311,21 @@ compareResult _ (Just _) Nothing = GT
 compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ
 
-getChallengeSubmissionInfos :: (MonadIO m, PersistQueryRead backend, BackendCompatible SqlBackend backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend) => (Entity Submission -> Bool) -> (Entity Variant -> Bool) -> Key Challenge -> ReaderT backend m ([TableEntry], [Entity Test])
-getChallengeSubmissionInfos condition variantCondition challengeId = do
+getChallengeSubmissionInfos :: (MonadIO m,
+                               PersistQueryRead backend,
+                               BackendCompatible SqlBackend backend,
+                               PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
+                              => Int
+                                -> (Entity Submission -> Bool)
+                                -> (Entity Variant -> Bool)
+                                -> Key Challenge -> ReaderT backend m ([TableEntry], [Entity Test])
+getChallengeSubmissionInfos maxMetricPriority condition variantCondition challengeId = do
 
   challenge <- get404 challengeId
   let commit = challengeVersion challenge
 
-  tests <- selectList [TestChallenge ==. challengeId, TestActive ==. True, TestCommit ==. commit] []
+  tests' <- selectList [TestChallenge ==. challengeId, TestActive ==. True, TestCommit ==. commit] []
+  let tests = filter (\t -> (evaluationSchemePriority $ testMetric $ entityVal t) <= maxMetricPriority) tests'
   let mainTest = getMainTest tests
 
   allSubmissionsVariants <- E.select $ E.from $ \(submission, variant) -> do

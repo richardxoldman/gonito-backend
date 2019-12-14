@@ -186,7 +186,8 @@ getViewVariantR variantId = do
   let theSubmissionId = variantSubmission variant
   theSubmission <- runDB $ get404 theSubmissionId
 
-  ([entry], tests') <- runDB $ getChallengeSubmissionInfos (\e -> entityKey e == theSubmissionId)
+  ([entry], tests') <- runDB $ getChallengeSubmissionInfos 3
+                                                          (\e -> entityKey e == theSubmissionId)
                                                           (\e -> entityKey e == variantId)
                                                           (submissionChallenge theSubmission)
   let tests = sortBy (flip testComparator) tests'
@@ -295,7 +296,8 @@ resultTable :: Entity Submission -> WidgetFor App ()
 resultTable (Entity submissionId submission) = do
   (tableEntries, tests) <- handlerToWidget
                           $ runDB
-                          $ getChallengeSubmissionInfos (\s -> entityKey s == submissionId)
+                          $ getChallengeSubmissionInfos 2
+                                                        (\s -> entityKey s == submissionId)
                                                         (const True)
                                                         (submissionChallenge submission)
   let paramNames =
