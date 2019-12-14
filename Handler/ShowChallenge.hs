@@ -490,6 +490,7 @@ getSubmission userId repoId commit challengeId description chan = do
         submissionIsHidden=False,
         submissionVersion=challengeVersion challenge}
 
+-- | Does the evaluation for a submission. Inserts Out, Variant and Evaluation records.
 getOuts :: Channel -> Key Submission -> M.Map Text Text -> Handler ([Out])
 getOuts chan submissionId generalParams = do
   submission <- runDB $ get404 submissionId
@@ -523,6 +524,7 @@ doesOutExist repoDir (Entity _ test) = do
   result <- findOutFile repoDir test
   return $ isJust result
 
+-- | Returns an Out object (won't insert into a database!)
 outForTest :: MonadIO m => FilePath -> FilePath -> Key Variant -> Entity Test -> m Out
 outForTest repoDir outF variantId (Entity testId test) = do
   let outPath = repoDir </> (T.unpack $ testName test) </> outF
@@ -532,6 +534,8 @@ outForTest repoDir outF variantId (Entity testId test) = do
     outTest=testId,
     outChecksum=SHA1 checksum }
 
+-- | Returns all possible outs for a given test.
+-- Won't insert Out objects to the database, though it might add new variant objects.
 outsForTest :: FilePath -> SubmissionId -> M.Map Text Text -> Entity Test -> HandlerFor App [Out]
 outsForTest repoDir submissionId generalParams testEnt@(Entity _ test) = do
   outFiles <- liftIO $ outFilesForTest repoDir test
@@ -540,7 +544,7 @@ outsForTest repoDir submissionId generalParams testEnt@(Entity _ test) = do
     theVariant <- getVariant submissionId generalParams outFile
     outForTest repoDir outFile theVariant testEnt
 
--- returns the filename (not file path)
+-- | Returns the filenames (not file paths) of all output files for a given test.
 outFilesForTest :: FilePath -> Test -> IO [FilePath]
 outFilesForTest repoDir test = do
     mMultipleOuts <- checkMultipleOutsCore repoDir (Data.Text.unpack $ testName test) "out.tsv"
