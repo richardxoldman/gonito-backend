@@ -584,7 +584,7 @@ checkOrInsertEvaluation :: FilePath -> Channel -> Out -> Handler ()
 checkOrInsertEvaluation repoDir chan out = do
   test <- runDB $ get404 $ outTest out
   challenge <- runDB $ get404 $ testChallenge test
-  maybeEvaluation <- runDB $ getBy $ UniqueEvaluationTestChecksum (outTest out) (outChecksum out)
+  maybeEvaluation <- runDB $ fetchTheEvaluation out undefined
   case maybeEvaluation of
     Just (Entity _ evaluation) -> do
       msg chan $ concat ["Already evaluated with score ", (fromMaybe "???" $ formatNonScientifically <$> evaluationScore evaluation)]

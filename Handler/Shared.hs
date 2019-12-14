@@ -8,7 +8,6 @@ import Import
 import qualified Data.IntMap            as IntMap
 
 import Handler.Runner
-import Handler.Common
 import System.Exit
 
 import qualified Data.Text as T
@@ -525,6 +524,12 @@ formatVersion (major, minor, patch) = (T.pack $ show major)
                                       <> "." <> (T.pack $ show patch)
 
 
+checkWhetherGivenUserRepo :: (PersistStoreRead backend, MonadIO m, BaseBackend backend ~ SqlBackend)
+                            => Key User -> Key Submission -> ReaderT backend m Bool
 checkWhetherGivenUserRepo userId submissionId = do
   submission <- get404 submissionId
   return $ userId == submissionSubmitter submission
+
+fetchTheEvaluation :: (MonadIO m, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
+                     => Out -> SHA1 -> ReaderT backend m (Maybe (Entity Evaluation))
+fetchTheEvaluation out _ = getBy $ UniqueEvaluationTestChecksum (outTest out) (outChecksum out)

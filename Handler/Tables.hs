@@ -343,7 +343,7 @@ getEvaluationMap :: (MonadIO m, PersistQueryRead backend, PersistUniqueRead back
 getEvaluationMap (rank, (s@(Entity submissionId submission), v@(Entity variantId _))) = do
   outs <- selectList [OutVariant ==. variantId] []
   user <- get404 $ submissionSubmitter submission
-  maybeEvaluations <- mapM (\(Entity _ o) -> getBy $ UniqueEvaluationTestChecksum (outTest o) (outChecksum o)) outs
+  maybeEvaluations <- mapM (\(Entity _ o) -> fetchTheEvaluation o undefined) outs
   let evaluations = catMaybes maybeEvaluations
   let pairs = map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
   pairs' <- mapM (\(testId, e) -> do
