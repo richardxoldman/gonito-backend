@@ -4,6 +4,7 @@ module Handler.Tables where
 
 import Import
 import Handler.Shared
+import Handler.Evaluate
 import Handler.SubmissionView
 import Handler.TagUtils
 
@@ -162,7 +163,9 @@ resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
 resultCell test fun = hoverTextCell (formatTestForHtml test) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
 
 statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, UserId, Maybe UserId) -> WidgetFor App ()
-statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, userId, mauthId) = $(widgetFile "submission-status")
+statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, userId, mauthId) = do
+  isReevaluable <- handlerToWidget $ runDB $ canBeReevaluated submissionId
+  $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
           isOwner = (mauthId == Just userId)

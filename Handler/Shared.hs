@@ -8,6 +8,7 @@ import Import
 import qualified Data.IntMap            as IntMap
 
 import Handler.Runner
+import Handler.Common
 import System.Exit
 
 import qualified Data.Text as T
@@ -504,3 +505,8 @@ formatVersion :: (Int, Int, Int) -> Text
 formatVersion (major, minor, patch) = (T.pack $ show major)
                                       <> "." <> (T.pack $ show minor)
                                       <> "." <> (T.pack $ show patch)
+
+
+checkWhetherGivenUserRepo userId submissionId = do
+  submission <- get404 submissionId
+  return $ userId == submissionSubmitter submission

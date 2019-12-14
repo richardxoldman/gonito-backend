@@ -17,7 +17,7 @@ getMakePublicR submissionId = do
 
 doMakePublic :: UserId -> SubmissionId -> Channel -> Handler ()
 doMakePublic userId submissionId chan = do
-  isOwner <- checkWhetherGivenUserRepo userId submissionId
+  isOwner <- runDB $ checkWhetherGivenUserRepo userId submissionId
   if not isOwner
    then
     err chan "Only the submitter can make a submission public!"
@@ -52,9 +52,4 @@ pushRepo repoDir commit targetRepoUrl targetBranchName chan = do
 checkWhetherUserRepo :: SubmissionId -> Handler Bool
 checkWhetherUserRepo submissionId = do
   userId <- requireAuthId
-  checkWhetherGivenUserRepo userId submissionId
-
-checkWhetherGivenUserRepo :: UserId -> SubmissionId -> Handler Bool
-checkWhetherGivenUserRepo userId submissionId = do
-  submission <- runDB $ get404 submissionId
-  return $ userId == submissionSubmitter submission
+  runDB $ checkWhetherGivenUserRepo userId submissionId

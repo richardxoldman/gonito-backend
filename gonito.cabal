@@ -54,6 +54,7 @@ library
                      Handler.ExtraPoints
                      Handler.Runner
                      Handler.Dashboard
+                     Handler.Evaluate
                      Data.SubmissionConditions
                      Gonito.ExtractMetadata
 

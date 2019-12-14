@@ -39,6 +39,7 @@
 /make-public/#SubmissionId MakePublicR GET
 /hide-submission/#SubmissionId HideSubmissionR GET
 /restore-submission/#SubmissionId RestoreSubmissionR GET
+/reevaluate-submission/#SubmissionId ReevaluateSubmissionR GET
 
 /challenge-archive/#ChallengeId ArchiveR POST
 /challenge-unarchive/#ChallengeId UnarchiveR POST
