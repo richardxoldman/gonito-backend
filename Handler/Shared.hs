@@ -165,6 +165,24 @@ updateRepo repoId chan = do
           Nothing -> return False
     _ -> return False
 
+-- | Get a directionary with a submission.
+-- It may reset a git repository which might be risky if a repository
+-- is shared among a number of submissions.
+getSubmissionRepoDir :: SubmissionId -> Channel -> Handler (Maybe FilePath)
+getSubmissionRepoDir submissionId chan = do
+  submission <- runDB $ get404 submissionId
+  repoDir <- getRepoDir $ submissionRepo submission
+  let sha1Code = submissionCommit submission
+  -- this is not right... it should be fixed in the future
+  -- 1. All kinds of mayhem may ensue in case of concurrency
+  -- 2. ... especially if the repository is shared among a number of submissions
+  -- 3. The commit might not be actually there (it might have been garbage collected).
+  (exitCode, _) <- runProgram (Just repoDir) gitPath ["reset", "--hard", T.unpack $ fromSHA1ToText sha1Code] chan
+  case exitCode of
+    ExitSuccess -> return (Just repoDir)
+    ExitFailure _ -> return Nothing
+
+
 getHeadCommit :: FilePath -> Channel -> Handler (Maybe SHA1)
 getHeadCommit repoDir chan = do
   (exitCode, out) <- runProgram (Just repoDir) gitPath ["rev-parse", "HEAD"] chan

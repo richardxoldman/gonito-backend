@@ -6,6 +6,8 @@ import Handler.Common
 import Handler.Runner
 import Handler.Shared
 
+import qualified Data.Text as T
+
 canBeReevaluated :: (YesodAuthPersist (HandlerSite m), MonadHandler m, PersistUniqueRead backend, AuthEntity (HandlerSite m) ~ User, AuthId (HandlerSite m) ~ Key User, BaseBackend backend ~ SqlBackend) => Key Submission -> ReaderT backend m Bool
 canBeReevaluated submissionId = do
   maybeUser <- maybeAuth
@@ -45,6 +47,12 @@ doReevaluateSubmission submissionId chan = do
   status <- runDB $ canBeReevaluated submissionId
   if status
     then
-      msg chan "Will re-evaluate!"
+     do
+      mRepoDir <- getSubmissionRepoDir submissionId chan
+      case mRepoDir of
+        Just repoDir -> do
+          msg chan ("Will evaluate in " ++ (T.pack repoDir))
+        Nothing -> do
+          err chan "Something went wrong, won't evaluate"
     else
       msg chan "Won't re-evaluate!"
