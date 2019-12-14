@@ -6,3 +6,7 @@
    <div class="media-heading">
      <div .subm-commit>#{testSet} / #{outputSha1AsText}
      ^{Table.buildBootstrap (outputEvaluationsTable entry) tests'}
+     $maybe result <- mResult
+        <h4>worst items
+        ^{Table.buildBootstrap (lineByLineTable mainTest theStamp) result}
+     $nothing

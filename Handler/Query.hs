@@ -23,6 +23,12 @@ import Data.List.Extra (groupOn)
 
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 
+import Data.Conduit.SmartSource (lookForCompressedFiles)
+import GEval.Core (GEvalSpecification(..), ResultOrdering(..))
+import GEval.LineByLine (runLineByLineGeneralized, LineRecord(..))
+import qualified Data.Conduit.List as CL
+import System.FilePath (takeFileName)
+
 rawCommitQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
 rawCommitQuery sha1Prefix =
   rawSql "SELECT ?? FROM submission WHERE is_public AND cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
@@ -222,10 +228,68 @@ paramsTable = mempty
   ++ Table.text "Value" parameterValue
 
 viewOutput :: TableEntry -> [Entity Test] -> (SHA1, Text) -> WidgetFor App ()
-viewOutput entry tests (outputHash, testSet) =  do
-  let tests' = filter (\e -> (testName $ entityVal e) == testSet) tests
+viewOutput entry tests (outputHash, testSet) = do
+  let tests'@(mainTest:_) = filter (\e -> (testName $ entityVal e) == testSet) tests
   let outputSha1AsText = fromSHA1ToText $ outputHash
+
+  mRepoDir <- handlerToWidget $ justGetSubmissionRepoDir (entityKey $ tableEntrySubmission entry)
+  let variant = variantName $ entityVal $ tableEntryVariant entry
+
+  let theStamp = submissionStamp $ entityVal $ tableEntrySubmission entry
+  let isPublic = submissionIsPublic $ entityVal $ tableEntrySubmission entry
+  challenge <- handlerToWidget $ runDB $ get404 $ submissionChallenge $ entityVal $ tableEntrySubmission entry
+  let isNonSensitive = challengeSensitive challenge == Just False
+
+  let shouldBeShown = not ("test-" `isInfixOf` testSet) && isPublic && isNonSensitive
+
+  let mainMetric = testMetric $ entityVal mainTest
+
+  mResult <-
+    if shouldBeShown
+      then
+        case mRepoDir of
+               Just repoDir -> do
+                 outFile' <- liftIO $ lookForCompressedFiles (repoDir </> (T.unpack variant) <.> "tsv")
+                 let outFile = takeFileName outFile'
+
+                 let spec = GEvalSpecification {
+                       gesOutDirectory = repoDir,
+                       gesExpectedDirectory = Nothing,
+                       gesTestName = (T.unpack testSet),
+                       gesSelector = Nothing,
+                       gesOutFile = outFile,
+                       gesExpectedFile = "expected.tsv",
+                       gesInputFile = "in.tsv",
+                       gesMetrics = [mainMetric],
+                       gesPrecision = Nothing,
+                       gesTokenizer = Nothing,
+                       gesGonitoHost = Nothing,
+                       gesToken = Nothing,
+                       gesGonitoGitAnnexRemote = Nothing,
+                       gesReferences = Nothing }
+
+                 result <- liftIO $ runLineByLineGeneralized FirstTheWorst spec (\_ -> CL.take 20)
+
+                 return $ Just $ zip [1..] result
+               Nothing -> return Nothing
+      else
+        return Nothing
   $(widgetFile "view-output")
+
+lineByLineTable :: Entity Test -> UTCTime -> Table.Table App (Int, LineRecord)
+lineByLineTable (Entity testId test) theStamp = mempty
+  ++ Table.int "#" fst
+  ++ theLimitedTextCell "input" (((\(LineRecord inp _ _ _ _) -> inp) . snd))
+  ++ theLimitedTextCell "expected output" ((\(LineRecord _ expected _ _ _) -> expected) . snd)
+  ++ theLimitedTextCell "actual output" ((\(LineRecord _ _ out _ _) -> out) . snd)
+  ++ resultCell test (fakeEvaluation . (\(LineRecord _ _ _ _ score) -> score) . snd)
+  where fakeEvaluation score = Just $ Evaluation {
+          evaluationTest = testId,
+          evaluationChecksum = testChecksum test,
+          evaluationScore = Just score,
+          evaluationErrorMessage = Nothing,
+          evaluationStamp = theStamp,
+          evaluationVersion = Nothing }
 
 resultTable :: Entity Submission -> WidgetFor App ()
 resultTable (Entity submissionId submission) = do

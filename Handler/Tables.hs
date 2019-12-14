@@ -16,7 +16,7 @@ import           Database.Esqueleto      ((^.))
 
 import qualified Data.Map as Map
 
-import Data.Text (pack, unpack, unwords)
+import Data.Text (pack, unpack, unwords, take)
 
 import PersistSHA1
 
@@ -161,6 +161,22 @@ statusCell challengeName repoScheme challengeRepo fun = Table.widget "" (statusC
 
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
 resultCell test fun = hoverTextCell (formatTestForHtml test) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
+
+textLimited :: Int -> Text -> Text
+textLimited limit t
+  | l < limit = t
+  | otherwise = (Data.Text.take limit t) <> "…"
+  where l = length t
+
+limitedTextCell :: Text -> Int -> Int -> (a -> Text) -> Table site a
+limitedTextCell h softLimit hardLimit textFun = Table.widget h (
+  \v -> [whamlet|<span title="#{textLimited hardLimit $ textFun v}"><tt>#{textLimited softLimit $ textFun v}</tt>|])
+
+theLimitedTextCell :: Text -> (a -> Text) -> Table site a
+theLimitedTextCell h textFun = limitedTextCell h softLimit hardLimit textFun
+  where softLimit = 80
+        hardLimit = 5 * softLimit
+
 
 statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, UserId, Maybe UserId) -> WidgetFor App ()
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, userId, mauthId) = do

@@ -181,6 +181,10 @@ getSubmissionRepoDir submissionId chan = do
     ExitSuccess -> return (Just repoDir)
     ExitFailure _ -> return Nothing
 
+justGetSubmissionRepoDir :: SubmissionId -> Handler (Maybe FilePath)
+justGetSubmissionRepoDir submissionId = do
+  devNullChan <- liftIO newTChanIO
+  getSubmissionRepoDir submissionId devNullChan
 
 getHeadCommit :: FilePath -> Channel -> Handler (Maybe SHA1)
 getHeadCommit repoDir chan = do

@@ -41,6 +41,7 @@ Challenge
     starred Bool
     archived Bool Maybe
     version SHA1
+    sensitive Bool Maybe
 -- challenge version
 Version
     -- introduced later, hence Maybe

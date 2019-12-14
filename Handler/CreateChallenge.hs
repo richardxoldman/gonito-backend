@@ -314,7 +314,8 @@ addChallenge name publicRepoId privateRepoId deadline chan = do
     challengeImage=mImage,
     challengeStarred=False,
     challengeArchived=Just False,
-    challengeVersion=commit}
+    challengeVersion=commit,
+    challengeSensitive=Just False }
 
   _ <- runDB $ insert $ Version {
     versionChallenge=Just challengeId,
