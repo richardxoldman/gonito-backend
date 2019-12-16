@@ -78,10 +78,15 @@ getPresentationDATeCH2017R = do
 
 
 getSampleLeaderboard :: Text -> HandlerFor App (WidgetFor App ())
-getSampleLeaderboard name = do
+getSampleLeaderboard name = getSampleLeaderboardGeneralized name 1 BySubmitter leaderboardTable
+
+getSampleAltLeaderboard :: Text -> HandlerFor App (WidgetFor App ())
+getSampleAltLeaderboard name = getSampleLeaderboardGeneralized name 2 ByTag altLeaderboardTable
+
+getSampleLeaderboardGeneralized name maxPriority method table = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
 
-  (leaderboard, (_, tests)) <- getLeaderboardEntries 1 BySubmitter challengeId
+  (leaderboard, (_, tests)) <- getLeaderboardEntries maxPriority method challengeId
   let leaderboardWithRanks = zip [1..] (take 10 leaderboard)
 
   app <- getYesod
@@ -89,10 +94,12 @@ getSampleLeaderboard name = do
 
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
-  return $ Table.buildBootstrap (leaderboardTable Nothing
-                                                  (challengeName challenge)
-                                                  scheme challengeRepo tests)
+  return $ Table.buildBootstrap (table Nothing
+                                       (challengeName challenge)
+                                       scheme challengeRepo tests)
                                 leaderboardWithRanks
+
+
 
 presentationLayout widget = do
   pc <- widgetToPageContent widget
