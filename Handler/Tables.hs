@@ -135,7 +135,7 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
 altLeaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Int, LeaderboardEntry)
 altLeaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.int "#" fst
-  ++ leaderboardDescriptionCell mauthId
+  ++ leaderboardOnlyTagsCell mauthId
   ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScoreFromLeaderboardEntry (getTestReference e) . snd)) tests)
   ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
                                        leaderboardBestSubmission e,
@@ -159,6 +159,14 @@ leaderboardDescriptionCell mauthId = Table.widget "description" (
                                           (leaderboardTags entry)
   )
 
+leaderboardOnlyTagsCell :: Maybe UserId -> Table App (a, LeaderboardEntry)
+leaderboardOnlyTagsCell mauthId = Table.widget "tags" (
+  \(_,entry) -> fragmentWithSubmissionTags ("" :: Text)
+                                          (getInfoLink (leaderboardBestSubmission entry)
+                                                       (leaderboardUserId entry)
+                                                       mauthId)
+                                          (leaderboardTags entry)
+  )
 
 
 hoverTextCell :: Text -> (a -> Text) -> (a -> Text) -> Table site a
