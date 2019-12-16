@@ -61,7 +61,18 @@ getShowChallengeR name = do
 
   challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
   Just repo <- runDB $ get $ challengePublicRepo challenge
-  (leaderboard, (entries, tests)) <- getLeaderboardEntries leaderboardStyle challengeId
+  (leaderboard, (entries, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
+
+  showAltLeaderboard <- runDB $ hasMetricsOfSecondPriority challengeId
+
+  (altLeaderboard, altTests) <- if showAltLeaderboard
+                               then
+                                do
+                                 (leaderboard', (_, tests')) <- getLeaderboardEntries 2 ByTag challengeId
+                                 return $ (Just leaderboard', Just tests')
+                               else
+                                 return (Nothing, Nothing)
+
   mauth <- maybeAuth
 
   let params = getNumericalParams entries
@@ -76,8 +87,16 @@ getShowChallengeR name = do
                                                       challengeRepo
                                                       repo
                                                       leaderboard
+                                                      altLeaderboard
                                                       params
-                                                      tests)
+                                                      tests
+                                                      altTests)
+
+hasMetricsOfSecondPriority challengeId = do
+  tests' <- selectList [TestChallenge ==. challengeId, TestActive ==. True] []
+  let tests = filter (\t -> (evaluationSchemePriority $ testMetric $ entityVal t) == 2) tests'
+  return $ not (null tests)
+
 
 getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR name = do
@@ -100,8 +119,10 @@ showChallengeWidget :: Maybe (Entity User)
                       -> Repo
                       -> Repo
                       -> [LeaderboardEntry]
+                      -> (Maybe [LeaderboardEntry])
                       -> [Text]
                       -> [Entity Test]
+                      -> (Maybe [Entity Test])
                       -> WidgetFor App ()
 showChallengeWidget mUserEnt
                     (Entity challengeId challenge)
@@ -109,10 +130,13 @@ showChallengeWidget mUserEnt
                     challengeRepo
                     repo
                     leaderboard
+                    mAltLeaderboard
                     params
                     tests
+                    mAltTests
   = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
+        mAltLeaderboardWithRanks = zip [1..] <$> mAltLeaderboard
         maybeRepoLink = getRepoLink repo
         delta = Number 4
         higherTheBetterArray = getIsHigherTheBetterArray $ map entityVal tests

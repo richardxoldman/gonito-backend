@@ -83,7 +83,7 @@ submissionsToJSON :: ((Entity Submission) -> Bool) -> Text -> Handler Value
 submissionsToJSON condition challengeName = do
   (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
 
-  (entries, _) <- getLeaderboardEntriesByCriterion challengeId
+  (entries, _) <- getLeaderboardEntriesByCriterion 1 challengeId
                                                   condition
                                                   (\entry -> [entityKey $ tableEntrySubmission entry])
 

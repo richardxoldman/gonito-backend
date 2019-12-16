@@ -21,6 +21,12 @@ $if (checkIfAdmin mUserEnt)
 
 ^{Table.buildBootstrap (leaderboardTable mUserId (challengeName challenge) scheme challengeRepo tests) leaderboardWithRanks}
 
+$maybe altLeaderboardWithRanks <- mAltLeaderboardWithRanks
+  $maybe altTests <- mAltTests
+    ^{Table.buildBootstrap (altLeaderboardTable mUserId (challengeName challenge) scheme challengeRepo altTests) altLeaderboardWithRanks}
+  $nothing
+$nothing
+
 <div id="graph-container">
 
 <script src="/static/js/sigma.min.js">

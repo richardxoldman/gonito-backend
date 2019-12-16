@@ -81,7 +81,7 @@ getSampleLeaderboard :: Text -> HandlerFor App (WidgetFor App ())
 getSampleLeaderboard name = do
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
 
-  (leaderboard, (_, tests)) <- getLeaderboardEntries BySubmitter challengeId
+  (leaderboard, (_, tests)) <- getLeaderboardEntries 1 BySubmitter challengeId
   let leaderboardWithRanks = zip [1..] (take 10 leaderboard)
 
   app <- getYesod

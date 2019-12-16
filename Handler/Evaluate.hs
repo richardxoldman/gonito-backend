@@ -217,7 +217,7 @@ checkOrInsertEvaluation repoDir chan version out = do
       msg chan $ "Start evaluation..."
       challengeDir <- getRepoDir $ challengePrivateRepo challenge
       variant <- runDB $ get404 $ outVariant out
-      resultOrException <- liftIO $ rawEval challengeDir (evaluationSchemeMetric $ testMetric test) repoDir (testName test) ((T.unpack $ variantName variant) <.> "tsv")
+      resultOrException <- liftIO $ rawEval challengeDir (testMetric test) repoDir (testName test) ((T.unpack $ variantName variant) <.> "tsv")
       case resultOrException of
         Right (Left _) -> do
           err chan "Cannot parse options, check the challenge repo"
@@ -240,7 +240,7 @@ checkOrInsertEvaluation repoDir chan version out = do
           err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
 
 rawEval :: FilePath
-          -> Metric
+          -> EvaluationScheme
           -> FilePath
           -> Text
           -> FilePath

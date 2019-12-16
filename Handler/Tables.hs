@@ -132,6 +132,19 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
                                        leaderboardUserId e,
                                        mauthId))
 
+altLeaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Int, LeaderboardEntry)
+altLeaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
+  ++ Table.int "#" fst
+  ++ leaderboardDescriptionCell mauthId
+  ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScoreFromLeaderboardEntry (getTestReference e) . snd)) tests)
+  ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
+                                       leaderboardBestSubmission e,
+                                       leaderboardBestVariantId e,
+                                       leaderboardBestVariant e,
+                                       leaderboardUserId e,
+                                       mauthId))
+
+
 extractScoreFromLeaderboardEntry :: TestReference -> LeaderboardEntry -> Maybe Evaluation
 extractScoreFromLeaderboardEntry k entry = lookup k (leaderboardEvaluationMap entry)
 
@@ -219,12 +232,13 @@ compareVersions (aM, aN, aP) (bM, bN, bP) = (aM `compare` bM)
                                             <> (aN `compare` bN)
                                             <> (aP `compare` bP)
 
-getLeaderboardEntriesByCriterion :: (Ord a) => Key Challenge
+getLeaderboardEntriesByCriterion :: (Ord a) => Int
+                                             -> Key Challenge
                                              -> ((Entity Submission) -> Bool)
                                              -> (TableEntry -> [a])
                                              -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
-getLeaderboardEntriesByCriterion challengeId condition selector = do
-  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos 1 condition (const True) challengeId
+getLeaderboardEntriesByCriterion maxPriority challengeId condition selector = do
+  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos maxPriority condition (const True) challengeId
   let mainTests = getMainTests tests
   let mainTestEnt = getMainTest tests
   let mainTestRef = getTestReference mainTestEnt
@@ -293,13 +307,15 @@ toLeaderboardEntry challengeId tests ss = do
              <>
              (compareVersions v1 v2)
 
-getLeaderboardEntries :: LeaderboardStyle -> Key Challenge -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
-getLeaderboardEntries BySubmitter challengeId =
-  getLeaderboardEntriesByCriterion challengeId
+getLeaderboardEntries :: Int -> LeaderboardStyle -> Key Challenge -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
+getLeaderboardEntries maxPriority BySubmitter challengeId =
+  getLeaderboardEntriesByCriterion maxPriority
+                                   challengeId
                                    (const True)
                                    (\entry -> [entityKey $ tableEntrySubmitter entry])
-getLeaderboardEntries ByTag challengeId =
-  getLeaderboardEntriesByCriterion challengeId
+getLeaderboardEntries maxPriority ByTag challengeId =
+  getLeaderboardEntriesByCriterion maxPriority
+                                   challengeId
                                    (const True)
                                    (noEmptyList . (map (entityKey . fst)) . tableEntryTagsInfo)
   where noEmptyList [] = [Nothing]
