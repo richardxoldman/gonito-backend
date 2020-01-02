@@ -3,9 +3,9 @@ module Handler.TagUtils where
 import Import
 import Yesod.Form.Bootstrap3 (bfs)
 
-import qualified Data.Set as S
+import Text.Blaze (ToMarkup)
 
-import Gonito.ExtractMetadata (parseTags)
+import qualified Data.Set as S
 
 getAvailableTagsAsJSON :: (BaseBackend backend ~ SqlBackend, MonadIO m, PersistQueryRead backend) => ReaderT backend m Value
 getAvailableTagsAsJSON = do
@@ -31,6 +31,7 @@ tagsAsTextToTagIds tags = do
   mTs <- mapM (\t -> getBy $ UniqueTagName t) newTags
   return $ Import.map entityKey $ Import.catMaybes mTs
 
+fragmentWithTags :: (Text.Blaze.ToMarkup a, Foldable t) => a -> t (Entity Tag) -> WidgetFor site ()
 fragmentWithTags t tagEnts = [whamlet|
 #{t}
 
@@ -38,6 +39,7 @@ $forall (Entity _ v) <- tagEnts
   \ <span class="label label-primary">#{tagName v}</span>
 |]
 
+fragmentWithSubmissionTags :: (Text.Blaze.ToMarkup a, Foldable t) => a -> Maybe (Route site) -> t (Entity Tag, Entity SubmissionTag) -> WidgetFor site ()
 fragmentWithSubmissionTags t mLink tagEnts = [whamlet|
 $maybe link <- mLink
   <a href="@{link}">#{t}</a>

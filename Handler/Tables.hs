@@ -370,7 +370,15 @@ getChallengeSubmissionInfos maxMetricPriority condition variantCondition challen
         $ sortBy (\(s1, _) (s2, _) -> compareResult (entityVal mainTest) s2 s1)
         $ zip scores allSubmissionsVariants
 
-  evaluationMaps' <- mapM getEvaluationMap allSubmissionsVariantsWithRanks
+  allTests <- selectList [] [Asc TestName]
+  let testsMap = Map.fromList $ map (\(ent@(Entity testId _)) -> (testId, getTestReference ent)) allTests
+
+  let allSubmissions = DL.nubBy (\(Entity a _) (Entity b _) -> a == b) $ map (\(_, (s, _)) -> s) allSubmissionsVariantsWithRanks
+  subs <- mapM getBasicSubmissionInfo allSubmissions
+  let submissionMap = Map.fromList subs
+  -- testsMap and submissionMap are created to speed up getEvaluationMap
+
+  evaluationMaps' <- mapM (getEvaluationMap testsMap submissionMap) allSubmissionsVariantsWithRanks
   let evaluationMaps = filter (variantCondition . tableEntryVariant) evaluationMaps'
   return (evaluationMaps, tests)
 
@@ -378,17 +386,15 @@ getScore :: (MonadIO m, BackendCompatible SqlBackend backend,
             PersistQueryRead backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
            => Key Test -> Key Variant -> ReaderT backend m (Maybe Double)
 getScore testId variantId = do
-  variant <- get404 variantId
-  submission <- get404 $ variantSubmission variant
-  let version = submissionVersion submission
-
-  evaluations <- E.select $ E.from $ \(out, evaluation) -> do
+  evaluations <- E.select $ E.from $ \(out, evaluation, variant, submission) -> do
                   E.where_ (out ^. OutVariant E.==. E.val variantId
+                            E.&&. variant ^. VariantId E.==. E.val variantId
+                            E.&&. submission ^. SubmissionId E.==. variant ^. VariantSubmission
                             E.&&. out ^. OutTest E.==. E.val testId
                             E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum
                             -- all this complication here and with orderBy due
                             -- to the legacy issue with evaluation version sometimes missing
-                            E.&&. (evaluation ^. EvaluationVersion E.==. E.val (Just version)
+                            E.&&. (evaluation ^. EvaluationVersion E.==. E.just (submission ^. SubmissionVersion)
                                    E.||. E.isNothing (evaluation ^. EvaluationVersion))
                             E.&&. evaluation ^. EvaluationTest E.==. E.val testId)
                   E.orderBy [E.desc (E.isNothing (evaluation ^. EvaluationVersion))]
@@ -398,24 +404,45 @@ getScore testId variantId = do
              [] -> Nothing
 
 
-getEvaluationMap :: (MonadIO m, PersistQueryRead backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend) => (Int, (Entity Submission, Entity Variant)) -> ReaderT backend m TableEntry
-getEvaluationMap (rank, (s@(Entity submissionId submission), v@(Entity variantId _))) = do
-  outs <- selectList [OutVariant ==. variantId] []
+data BasicSubmissionInfo = BasicSubmissionInfo {
+  basicSubmissionInfoUser :: User,
+  basicSubmissionInfoTagEnts :: [(Entity Tag, Entity SubmissionTag)],
+  basicSubmissionInfoVersion :: Version }
+
+getBasicSubmissionInfo :: (MonadIO m, PersistQueryRead backend,
+                          PersistUniqueRead backend,
+                          BaseBackend backend ~ SqlBackend)
+                         => Entity Submission -> ReaderT backend m (SubmissionId, BasicSubmissionInfo)
+getBasicSubmissionInfo (Entity submissionId submission) = do
   user <- get404 $ submissionSubmitter submission
+  tagEnts <- getTags submissionId
+  let versionHash = submissionVersion submission
+  (Entity _ version) <- getBy404 $ UniqueVersionByCommit versionHash
+  return $ (submissionId, BasicSubmissionInfo {
+               basicSubmissionInfoUser = user,
+               basicSubmissionInfoTagEnts = tagEnts,
+               basicSubmissionInfoVersion = version })
+
+getEvaluationMap :: (MonadIO m, PersistQueryRead backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
+                   => Map.Map TestId TestReference
+                     -> Map.Map SubmissionId BasicSubmissionInfo
+                     -> (Int, (Entity Submission, Entity Variant)) -> ReaderT backend m TableEntry
+getEvaluationMap testsMap submissionsMap (rank, (s@(Entity submissionId submission), v@(Entity variantId _))) = do
+  let submissionInfo = submissionsMap Map.! submissionId
+  let user = basicSubmissionInfoUser submissionInfo
+  let tagEnts = basicSubmissionInfoTagEnts submissionInfo
+  let version = basicSubmissionInfoVersion submissionInfo
+
+  outs <- selectList [OutVariant ==. variantId] []
   let versionHash = submissionVersion submission
   maybeEvaluations <- mapM (\(Entity _ o) -> fetchTheEvaluation o versionHash) outs
   let evaluations = catMaybes maybeEvaluations
   let pairs = map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
-  pairs' <- mapM (\(testId, e) -> do
-                                 test <- get404 testId
-                                 let testRef = getTestReference (Entity testId test)
-                                 return (testRef, e)) pairs
+  let pairs' = map (\(testId, e) -> (testsMap Map.! testId, e)) pairs
   let m = Map.fromList pairs'
-  tagEnts <- getTags submissionId
 
   parameters <- selectList [ParameterVariant ==. variantId] [Asc ParameterName]
 
-  (Entity _ version) <- getBy404 $ UniqueVersionByCommit versionHash
   let major = versionMajor version
   let minor = versionMinor version
   let patch = versionPatch version
