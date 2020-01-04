@@ -408,7 +408,7 @@ getScore testId variantId = do
                             E.&&. (evaluation ^. EvaluationVersion E.==. E.just (submission ^. SubmissionVersion)
                                    E.||. E.isNothing (evaluation ^. EvaluationVersion))
                             E.&&. evaluation ^. EvaluationTest E.==. E.val testId)
-                  E.orderBy [E.desc (E.isNothing (evaluation ^. EvaluationVersion))]
+                  E.orderBy [E.asc (E.isNothing (evaluation ^. EvaluationVersion))]
                   return evaluation
   return $ case evaluations of
              (e:_) -> evaluationScore $ entityVal e
