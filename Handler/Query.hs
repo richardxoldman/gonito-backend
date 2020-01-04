@@ -18,8 +18,9 @@ import           Database.Esqueleto      ((^.))
 
 import qualified Data.Text as T
 
-import Data.List (nub)
+import Data.List (nub, (!!))
 import Data.List.Extra (groupOn)
+import qualified Data.Map.Lazy as LM
 
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 
@@ -28,6 +29,8 @@ import GEval.Core (GEvalSpecification(..), ResultOrdering(..))
 import GEval.LineByLine (runLineByLineGeneralized, LineRecord(..))
 import qualified Data.Conduit.List as CL
 import System.FilePath (takeFileName)
+
+import Data.SplitIntoCrossTabs
 
 rawCommitQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
 rawCommitQuery sha1Prefix =
@@ -216,12 +219,14 @@ getViewVariantR variantId = do
       error "Cannot access this submission variant"
 
 
-outputEvaluationsTable :: TableEntry -> Table.Table App (Entity Test)
-outputEvaluationsTable tableEntry = mempty
-  ++ Table.text "Metric" (formatTestEvaluationScheme . entityVal)
-  ++ Table.text "Score" (\test -> (formatTruncatedScore (testPrecision $ entityVal test)
-                                  $ extractScore (getTestReference test) tableEntry))
+crossTableDefinition :: TableWithValues Text -> Table.Table App (Text, [Text])
+crossTableDefinition (TableWithValues (headerH : headerR) _) = mempty
+  ++ Table.text headerH fst
+  ++ mconcat (map (\(ix, h) -> Table.text h ((!! ix) . snd)) $ zip [0..] headerR)
+crossTableDefinition _ = error $ "cross-tab of an unexpected size"
 
+crossTableBody :: TableWithValues Text -> [(Text, [Text])]
+crossTableBody (TableWithValues _ rows) = rows
 
 paramsTable :: Table.Table App Parameter
 paramsTable = mempty
@@ -233,7 +238,6 @@ viewOutput entry tests (outputHash, testSet) = do
   let tests'@(mainTest:_) = filter (\e -> (testName $ entityVal e) == testSet) tests
   let outputSha1AsText = fromSHA1ToText $ outputHash
 
-  mRepoDir <- handlerToWidget $ justGetSubmissionRepoDir (entityKey $ tableEntrySubmission entry)
   let variant = variantName $ entityVal $ tableEntryVariant entry
 
   let theStamp = submissionStamp $ entityVal $ tableEntrySubmission entry
@@ -245,9 +249,17 @@ viewOutput entry tests (outputHash, testSet) = do
 
   let mainMetric = testMetric $ entityVal mainTest
 
+  let testLabels = map (formatTestEvaluationScheme . entityVal) tests'
+  let mapping = LM.fromList $ map (\test -> (formatTestEvaluationScheme $ entityVal test,
+                                            (formatTruncatedScore (testPrecision $ entityVal test)
+                                             $ extractScore (getTestReference test) entry))) tests'
+  let crossTables = splitIntoTablesWithValues "Metric" "Score" mapping testLabels
+
   mResult <-
     if shouldBeShown
       then
+       do
+        mRepoDir <- handlerToWidget $ justGetSubmissionRepoDir (entityKey $ tableEntrySubmission entry)
         case mRepoDir of
                Just repoDir -> do
                  outFile' <- liftIO $ lookForCompressedFiles (repoDir </> (T.unpack variant) <.> "tsv")

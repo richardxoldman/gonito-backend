@@ -5,7 +5,8 @@
   <div class="media-body">
    <div class="media-heading">
      <div .subm-commit>#{testSet} / #{outputSha1AsText}
-     ^{Table.buildBootstrap (outputEvaluationsTable entry) tests'}
+     $forall crossTable <- crossTables
+       ^{Table.buildBootstrap (crossTableDefinition crossTable) (crossTableBody crossTable)}
      $maybe result <- mResult
         <h4>worst items
         ^{Table.buildBootstrap (lineByLineTable mainTest theStamp) result}
