@@ -251,7 +251,7 @@ getOngoingTargets challengeId = do
                         return indicator
   indicatorEntries <- mapM indicatorToEntry indicators
   theNow <- liftIO $ getCurrentTime
-  (entries, _) <- runDB $ getChallengeSubmissionInfos 1 (const True) (const True) challengeId
+  (entries, _) <- runDB $ getChallengeSubmissionInfos 1 (const True) (const True) id challengeId
   let indicatorEntries' = map (onlyWithOngoingTargets theNow entries) indicatorEntries
   return indicatorEntries'
 

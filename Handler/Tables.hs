@@ -241,12 +241,13 @@ compareVersions (aM, aN, aP) (bM, bN, bP) = (aM `compare` bM)
                                             <> (aP `compare` bP)
 
 getLeaderboardEntriesByCriterion :: (Ord a) => Int
-                                             -> Key Challenge
-                                             -> ((Entity Submission) -> Bool)
-                                             -> (TableEntry -> [a])
-                                             -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
-getLeaderboardEntriesByCriterion maxPriority challengeId condition selector = do
-  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos maxPriority condition (const True) challengeId
+                                 -> Key Challenge
+                                 -> ((Entity Submission) -> Bool)
+                                 -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
+                                 -> (TableEntry -> [a])
+                                 -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
+getLeaderboardEntriesByCriterion maxPriority challengeId condition preselector selector = do
+  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos maxPriority condition (const True) preselector challengeId
   let mainTests = getMainTests tests
   let mainTestEnt = getMainTest tests
   let mainTestRef = getTestReference mainTestEnt
@@ -320,11 +321,13 @@ getLeaderboardEntries maxPriority BySubmitter challengeId =
   getLeaderboardEntriesByCriterion maxPriority
                                    challengeId
                                    (const True)
+                                   onlyTheBestVariant
                                    (\entry -> [entityKey $ tableEntrySubmitter entry])
 getLeaderboardEntries maxPriority ByTag challengeId =
   getLeaderboardEntriesByCriterion maxPriority
                                    challengeId
                                    (const True)
+                                   onlyTheBestVariant
                                    (noEmptyList . (map (entityKey . fst)) . tableEntryTagsInfo)
   where noEmptyList [] = [Nothing]
         noEmptyList l = map Just l
@@ -335,6 +338,9 @@ compareResult _ (Just _) Nothing = GT
 compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ
 
+onlyTheBestVariant :: [(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))]
+onlyTheBestVariant = DL.nubBy (\(_, (Entity aid _, _)) (_, (Entity bid _, _)) -> aid == bid) -- assumes items sorted by rank
+
 getChallengeSubmissionInfos :: (MonadIO m,
                                PersistQueryRead backend,
                                BackendCompatible SqlBackend backend,
@@ -342,8 +348,10 @@ getChallengeSubmissionInfos :: (MonadIO m,
                               => Int
                                 -> (Entity Submission -> Bool)
                                 -> (Entity Variant -> Bool)
-                                -> Key Challenge -> ReaderT backend m ([TableEntry], [Entity Test])
-getChallengeSubmissionInfos maxMetricPriority condition variantCondition challengeId = do
+                                -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
+                                -> Key Challenge
+                                -> ReaderT backend m ([TableEntry], [Entity Test])
+getChallengeSubmissionInfos maxMetricPriority condition variantCondition preselector challengeId = do
 
   challenge <- get404 challengeId
   let commit = challengeVersion challenge
@@ -361,7 +369,8 @@ getChallengeSubmissionInfos maxMetricPriority condition variantCondition challen
   scores <- mapM (getScore (entityKey mainTest)) $ map (entityKey . snd) allSubmissionsVariants
 
   let allSubmissionsVariantsWithRanks =
-        sortBy (\(r1, (s1, _)) (r2, (s2, _)) -> (submissionStamp (entityVal s2) `compare` submissionStamp (entityVal s1))
+        preselector
+        $ sortBy (\(r1, (s1, _)) (r2, (s2, _)) -> (submissionStamp (entityVal s2) `compare` submissionStamp (entityVal s1))
                                                                                `thenCmp`
                                                                             (r2 `compare` r1))
         $ filter (\(_, (s, _)) -> condition s)

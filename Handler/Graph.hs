@@ -33,7 +33,7 @@ getChallengeParamGraphDataR challengeName testId paramName = do
   test <- runDB $ get404 testId
   let testRef = getTestReference (Entity testId test)
 
-  (entries, _) <- runDB $ getChallengeSubmissionInfos 1 (const True) (const True) challengeId
+  (entries, _) <- runDB $ getChallengeSubmissionInfos 1 (const True) (const True) id challengeId
 
   let values = map (findParamValue paramName) entries
 
@@ -85,6 +85,7 @@ submissionsToJSON condition challengeName = do
 
   (entries, _) <- getLeaderboardEntriesByCriterion 1 challengeId
                                                   condition
+                                                  onlyTheBestVariant
                                                   (\entry -> [entityKey $ tableEntrySubmission entry])
 
 
@@ -162,7 +163,7 @@ getIndicatorGraphDataR indicatorId = do
   test <- runDB $ get404 testId
   let mPrecision = testPrecision test
 
-  (entries, _) <- runDB $ getChallengeSubmissionInfos 1 (const True) (const True) (testChallenge test)
+  (entries, _) <- runDB $ getChallengeSubmissionInfos 1 (const True) (const True) id (testChallenge test)
 
   theNow <- liftIO $ getCurrentTime -- needed to draw the "now" vertical line
 

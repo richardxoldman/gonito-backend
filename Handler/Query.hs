@@ -189,6 +189,7 @@ getViewVariantR variantId = do
   ([entry], tests') <- runDB $ getChallengeSubmissionInfos 3
                                                           (\e -> entityKey e == theSubmissionId)
                                                           (\e -> entityKey e == variantId)
+                                                          id
                                                           (submissionChallenge theSubmission)
   let tests = sortBy (flip testComparator) tests'
 
@@ -299,6 +300,7 @@ resultTable (Entity submissionId submission) = do
                           $ getChallengeSubmissionInfos 2
                                                         (\s -> entityKey s == submissionId)
                                                         (const True)
+                                                        id
                                                         (submissionChallenge submission)
   let paramNames =
         nub
