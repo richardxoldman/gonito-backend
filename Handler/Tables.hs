@@ -339,8 +339,10 @@ compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ
 
 onlyTheBestVariant :: [(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))]
-onlyTheBestVariant = DL.nubBy (\(_, (Entity aid _, _)) (_, (Entity bid _, _)) -> aid == bid) -- assumes items sorted by rank
-
+onlyTheBestVariant = DL.nubBy (\(_, (Entity aid _, _)) (_, (Entity bid _, _)) -> aid == bid)
+                     . (sortBy (\(r1, (_, Entity _ va)) (r2, (_, Entity _ vb)) -> (r1 `compare` r2)
+                                                                                     `thenCmp`
+                                                                    ((variantName va) `compare` (variantName vb))))
 getChallengeSubmissionInfos :: (MonadIO m,
                                PersistQueryRead backend,
                                BackendCompatible SqlBackend backend,
@@ -369,10 +371,10 @@ getChallengeSubmissionInfos maxMetricPriority condition variantCondition presele
   scores <- mapM (getScore (entityKey mainTest)) $ map (entityKey . snd) allSubmissionsVariants
 
   let allSubmissionsVariantsWithRanks =
-        preselector
-        $ sortBy (\(r1, (s1, _)) (r2, (s2, _)) -> (submissionStamp (entityVal s2) `compare` submissionStamp (entityVal s1))
+        sortBy (\(r1, (s1, _)) (r2, (s2, _)) -> (submissionStamp (entityVal s2) `compare` submissionStamp (entityVal s1))
                                                                                `thenCmp`
                                                                             (r2 `compare` r1))
+        $ preselector
         $ filter (\(_, (s, _)) -> condition s)
         $ map (\(rank, (_, sv)) -> (rank, sv))
         $ zip [1..]
