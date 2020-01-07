@@ -61,7 +61,7 @@ processVariant dbName (variant, Entity _ submission, Entity _ out, Entity testId
                                        E.&&. (evaluation ^. EvaluationVersion E.==. E.just (E.val (submissionVersion submission))
                                               E.||. E.isNothing (evaluation ^. EvaluationVersion))
                                        E.&&. evaluation ^. EvaluationTest E.==. E.val testId)
-                             E.orderBy [E.asc (E.isNothing (evaluation ^. EvaluationVersion))]
+                             E.orderBy [E.desc (E.isNothing (evaluation ^. EvaluationVersion))]
                              return evaluation
 
   case evaluations of
