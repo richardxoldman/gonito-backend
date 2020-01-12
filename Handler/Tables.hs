@@ -408,7 +408,7 @@ getScore testId variantId = do
                             E.&&. (evaluation ^. EvaluationVersion E.==. E.just (submission ^. SubmissionVersion)
                                    E.||. E.isNothing (evaluation ^. EvaluationVersion))
                             E.&&. evaluation ^. EvaluationTest E.==. E.val testId)
-                  E.orderBy [E.desc (E.isNothing (evaluation ^. EvaluationVersion))]
+                  E.orderBy [E.asc (evaluation ^. EvaluationScore)]
                   return evaluation
   return $ case evaluations of
              (e:_) -> evaluationScore $ entityVal e
@@ -444,7 +444,7 @@ getEvaluationMap testsMap submissionsMap (rank, (s@(Entity submissionId submissi
   let tagEnts = basicSubmissionInfoTagEnts submissionInfo
   let version = basicSubmissionInfoVersion submissionInfo
 
-  outs <- selectList [OutVariant ==. variantId] []
+  outs <- selectList [OutVariant ==. variantId] [Asc OutId]
   let versionHash = submissionVersion submission
   maybeEvaluations <- mapM (\(Entity _ o) -> fetchTheEvaluation o versionHash) outs
   let evaluations = catMaybes maybeEvaluations
