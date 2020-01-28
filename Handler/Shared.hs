@@ -41,6 +41,7 @@ import Text.Regex.TDFA
 
 import GEval.Core
 import GEval.EvaluationScheme
+import GEval.Formatting (formatTheResultWithErrorBounds)
 
 import qualified Data.Vector as DV
 
@@ -449,7 +450,7 @@ formatTruncatedScore :: Maybe Int -> Maybe Evaluation -> Text
 formatTruncatedScore Nothing e = formatFullScore e
 formatTruncatedScore _ Nothing  = formatFullScore Nothing
 formatTruncatedScore (Just precision) (Just evaluation) = case evaluationScore evaluation of
-  Just score -> T.pack $ printf "%0.*f" precision score
+  Just score -> T.pack $ formatTheResultWithErrorBounds (Just precision) score (evaluationErrorBound evaluation)
   Nothing -> formatFullScore Nothing
 
 formatScore :: Maybe Int -> Double -> Text

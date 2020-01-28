@@ -122,6 +122,7 @@ Evaluation
     test TestId
     checksum SHA1
     score Double Maybe
+    errorBound Double Maybe
     errorMessage Text Maybe
     stamp UTCTime default=now()
     -- Should be just SHA1 (without Maybe) - Maybe is just a legacy

@@ -301,6 +301,7 @@ lineByLineTable (Entity testId test) theStamp = mempty
           evaluationTest = testId,
           evaluationChecksum = testChecksum test,
           evaluationScore = Just score,
+          evaluationErrorBound = Nothing,
           evaluationErrorMessage = Nothing,
           evaluationStamp = theStamp,
           evaluationVersion = Nothing }

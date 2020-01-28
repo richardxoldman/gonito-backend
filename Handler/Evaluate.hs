@@ -17,12 +17,14 @@ import qualified Data.Map.Strict as M
 
 import GEval.Core
 import GEval.EvaluationScheme
-import GEval.Common (MetricValue)
 import GEval.OptionsParser
 import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
+import GEval.Common (GEvalException, MetricResult(..), MetricValue)
+import GEval.Formatting (formatTheResult)
 
 import Options.Applicative
 import Data.Conduit.SmartSource
+import Data.Conduit.Bootstrap (defaultConfidenceLevel, getConfidenceBounds)
 
 import System.FilePath (takeFileName, dropExtensions, (-<.>))
 
@@ -222,15 +224,17 @@ checkOrInsertEvaluation repoDir chan version out = do
         Right (Left _) -> do
           err chan "Cannot parse options, check the challenge repo"
         Right (Right (_, Just [(_, [result])])) -> do
-          msg chan $ concat [ "Evaluated! Score ", (formatNonScientifically result) ]
+          msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult Nothing result) ]
           time <- liftIO getCurrentTime
-          _ <- runDB $ insert $ Evaluation {
-            evaluationTest=outTest out,
-            evaluationChecksum=outChecksum out,
-            evaluationScore=Just result,
-            evaluationErrorMessage=Nothing,
-            evaluationStamp=time,
-            evaluationVersion=Just version }
+          _ <- runDB $ insert $ let (pointResult, errorBound) = extractResult result
+                               in Evaluation {
+                                   evaluationTest=outTest out,
+                                   evaluationChecksum=outChecksum out,
+                                   evaluationScore=Just pointResult,
+                                   evaluationErrorBound=errorBound,
+                                   evaluationErrorMessage=Nothing,
+                                   evaluationStamp=time,
+                                   evaluationVersion=Just version }
           msg chan "Evaluation done"
         Right (Right (_, Just _)) -> do
           err chan "Unexpected multiple results (???)"
@@ -239,12 +243,17 @@ checkOrInsertEvaluation repoDir chan version out = do
         Left exception -> do
           err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
 
+extractResult :: MetricResult -> (MetricValue, Maybe MetricValue)
+extractResult (SimpleRun r) = (r, Nothing)
+extractResult (BootstrapResampling vals) = ((upperBound + lowerBound) / 2.0, Just ((upperBound - lowerBound) / 2.0))
+  where (lowerBound, upperBound) = getConfidenceBounds defaultConfidenceLevel vals
+
 rawEval :: FilePath
           -> EvaluationScheme
           -> FilePath
           -> Text
           -> FilePath
-          -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [(SourceSpec, [MetricValue])])))
+          -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [(SourceSpec, [MetricResult])])))
 rawEval challengeDir metric repoDir name outF = Import.try (runGEvalGetOptions [
                                                           "--alt-metric", (show metric),
                                                           "--expected-directory", challengeDir,
