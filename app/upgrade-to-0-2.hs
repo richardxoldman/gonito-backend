@@ -73,6 +73,7 @@ processVariant dbName (variant, Entity _ submission, Entity _ out, Entity testId
           _ <- runOnDb dbName $ insert $ Evaluation testId
                                                    (outChecksum out)
                                                    (evaluationScore e)
+                                                   (evaluationErrorBound e)
                                                    (evaluationErrorMessage e)
                                                    (evaluationStamp e)
                                                    (Just $ submissionVersion submission)
