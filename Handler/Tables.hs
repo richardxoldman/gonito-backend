@@ -195,7 +195,7 @@ limitedTextCell h softLimit hardLimit textFun = Table.widget h (
 
 theLimitedTextCell :: Text -> (a -> Text) -> Table site a
 theLimitedTextCell h textFun = limitedTextCell h softLimit hardLimit textFun
-  where softLimit = 80
+  where softLimit = 140
         hardLimit = 5 * softLimit
 
 
