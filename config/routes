@@ -25,6 +25,7 @@
 /challenge-discussion-rss/#Text ChallengeDiscussionFeedR GET
 /challenge-update/#ChallengeId ChallengeUpdateR GET POST
 /trigger-remotely TriggerRemotelyR POST
+/trigger-remotely-simple/#Text/#Text/#Text/#Text TriggerRemotelySimpleR GET POST
 /trigger-locally TriggerLocallyR POST
 
 /indicator-graph-data/#IndicatorId IndicatorGraphDataR GET

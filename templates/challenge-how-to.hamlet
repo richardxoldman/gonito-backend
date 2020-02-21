@@ -131,6 +131,9 @@ $maybe token <- mToken
    <p>Your webook is:
    <pre>
      wget --timeout=0 --quiet -O - '#{appRoot settings}/trigger-remotely' --post-data 'token=#{token}&branch=#{myBranch}&challenge=#{challengeName challenge}&url=URL_TO_YOUR_REPO'
+   <p>or you can just use the following URL:
+   <pre>
+     #{appRoot settings}/trigger-remotely-simple/#{token}/#{challengeName challenge}/URL_TO_YOUR_REPO/#{myBranch}
 
 <h3>Manual submission
 

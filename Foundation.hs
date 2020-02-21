@@ -181,6 +181,7 @@ instance Yesod App where
     isAuthorized (AvatarR _) _ = return Authorized
 
     isAuthorized TriggerRemotelyR _ = return Authorized
+    isAuthorized (TriggerRemotelySimpleR _ _ _ _) _ = return Authorized
     isAuthorized TriggerLocallyR _ = return Authorized
     isAuthorized (OpenViewProgressR _) _ = return Authorized
 

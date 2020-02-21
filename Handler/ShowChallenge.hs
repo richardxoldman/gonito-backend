@@ -276,6 +276,18 @@ postTriggerRemotelyR = do
   (Just token) <- lookupPostParam "token"
   mBranch <- lookupPostParam "branch"
   mGitAnnexRemote <- lookupPostParam "git-annex-remote"
+  doTrigger token challengeName url mBranch mGitAnnexRemote
+
+postTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
+postTriggerRemotelySimpleR token challengeName url branch =
+  doTrigger token challengeName url (Just branch) Nothing
+
+getTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
+getTriggerRemotelySimpleR token challengeName url branch =
+  doTrigger token challengeName url (Just branch) Nothing
+
+doTrigger :: Text -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
+doTrigger token challengeName url mBranch mGitAnnexRemote = do
   [Entity userId _] <- runDB $ selectList [UserTriggerToken ==. Just token] []
   trigger userId challengeName url mBranch mGitAnnexRemote
 
