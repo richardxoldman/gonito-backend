@@ -77,10 +77,6 @@ isTrusted :: User -> Bool
 isTrusted user =
   case userIdent user of
     "ptlen@ceti.pl" -> True
-    "hexin1989@gmail.com" -> True
-    "romang@amu.edu.pl" -> True
-    "junczys@amu.edu.pl" -> True
-    "rafalj@amu.edu.pl" -> True
     _ -> True
 
 data LayoutCustomization = LayoutCustomization {
@@ -266,6 +262,7 @@ instance YesodAuth App where
                     , userVerificationKey = Nothing
                     , userKeyExpirationDate = Nothing
                     , userTriggerToken = Nothing
+                    , userAltRepoScheme = Nothing
                     }
 
     -- You can add other plugins like BrowserID, email or OAuth here

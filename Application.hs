@@ -123,6 +123,7 @@ initAdmin (Just adminUser) (Just adminPass) = do
         , userVerificationKey = Nothing
         , userKeyExpirationDate = Nothing
         , userTriggerToken = Nothing
+        , userAltRepoScheme = Nothing
         }
       return ()
 

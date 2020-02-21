@@ -10,6 +10,7 @@ User
     verificationKey Text Maybe
     keyExpirationDate UTCTime Maybe
     triggerToken Text Maybe
+    altRepoScheme Text Maybe
     deriving Typeable
 PublicKey
     user UserId

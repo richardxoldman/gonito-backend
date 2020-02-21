@@ -73,6 +73,7 @@ createOrUse Nothing userIdentifier = do
                                  Nothing
                                  Nothing
                                  (Just triggerToken)
+                                 Nothing
   return userId
 
 createResetLinkForm :: Form (Text, Maybe CourseId)

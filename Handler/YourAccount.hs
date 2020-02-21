@@ -19,14 +19,14 @@ getYourAccountR = do
 
     keyS <- runDB $ selectFirst [PublicKeyUser ==. userId] []
     let key = publicKeyPubkey <$> entityVal <$> keyS
-    (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) key (userIsAnonymous user))
+    (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) key (userAltRepoScheme user) (userIsAnonymous user))
     defaultLayout $ do
         setTitle "Your account"
         $(widgetFile "your-account")
 
 postYourAccountR :: Handler Html
 postYourAccountR = do
-    ((result, formWidget), formEnctype) <- runFormPost (yourAccountForm Nothing Nothing Nothing False)
+    ((result, formWidget), formEnctype) <- runFormPost (yourAccountForm Nothing Nothing Nothing Nothing False)
     userId <- requireAuthId
     user <- runDB $ get404 userId
 
@@ -36,10 +36,10 @@ postYourAccountR = do
             FormSuccess res -> Just res
             _ -> Nothing
     case accountData of
-        Just (name, localId, mPassword, sshPubKey, avatarFile, anonimised) -> do
+        Just (name, localId, mPassword, sshPubKey, mAltRepoScheme, avatarFile, anonimised) -> do
           if checkPassword mPassword
             then
-              updateUserAccount userId name localId mPassword sshPubKey avatarFile anonimised
+              updateUserAccount userId name localId mPassword sshPubKey mAltRepoScheme avatarFile anonimised
             else
               tooWeakPasswordMessage
         Nothing -> do
@@ -57,21 +57,23 @@ autocompleteOff :: (RenderMessage master msg2, RenderMessage master msg1) => msg
 autocompleteOff name tooltip = setts { fsAttrs = (fsAttrs setts) ++ [("autocomplete", "nope")]}
    where setts = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }
 
-yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Bool -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo, Bool)
-yourAccountForm maybeName maybeLocalId maybeSshPubKey anonimised = renderBootstrap3 BootstrapBasicForm $ (,,,,,)
+yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Maybe Text -> Bool -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo, Bool)
+yourAccountForm maybeName maybeLocalId maybeSshPubKey maybeAltRepoScheme anonimised = renderBootstrap3 BootstrapBasicForm $ (,,,,,,)
     <$> aopt textField (fieldWithTooltip MsgAccountName MsgAccountNameTooltip) (Just maybeName)
     <*> aopt textField (autocompleteOff MsgId MsgIdTooltip) (Just maybeLocalId)
     <*> aopt passwordConfirmField (bfs MsgPassword) Nothing
     <*> aopt textField (fieldWithTooltip MsgSshPubKey MsgSshPubKeyTooltip) (Just maybeSshPubKey)
+    <*> aopt textField (fieldWithTooltip MsgAltRepoScheme MsgAltRepoSchemeTooltip) (Just maybeAltRepoScheme)
     <*> fileAFormOpt (bfs MsgAvatar)
     <*> areq checkBoxField (bfs MsgWantToBeAnonimised) (Just anonimised)
 
-updateUserAccount :: Key User -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe FileInfo -> Bool -> Handler ()
-updateUserAccount userId name maybeLocalId maybePassword maybeSshPubKey maybeAvatarFile anonimised = do
+updateUserAccount :: Key User -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe FileInfo -> Bool -> Handler ()
+updateUserAccount userId name maybeLocalId maybePassword maybeSshPubKey maybeAltRepoScheme maybeAvatarFile anonimised = do
   updateJustName userId name
   updateAvatar userId maybeAvatarFile
   updateLocalIdAndPubKey userId maybeLocalId maybeSshPubKey
   updateAnonimity userId anonimised
+  updateAltRepoScheme userId maybeAltRepoScheme
   case maybePassword of
     Nothing -> return ()
     Just "" -> return ()
@@ -116,6 +118,9 @@ updateLocalIdAndPubKey _ Nothing (Just _) = do
   setMessage $ toHtml ("SSH public key cannot be added without an ID" :: Text)
 
 updateLocalIdAndPubKey _ Nothing Nothing = return ()
+
+updateAltRepoScheme :: Key User -> Maybe Text -> Handler ()
+updateAltRepoScheme userId mAltRepoScheme = runDB $ update userId [UserAltRepoScheme =. mAltRepoScheme]
 
 updateJustName :: Key User -> Maybe Text -> Handler ()
 updateJustName userId name = runDB $ update userId [UserName =. name]
