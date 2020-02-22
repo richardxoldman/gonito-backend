@@ -186,6 +186,7 @@ getChallengeHowToR name = do
                                    (idToBeShown challenge maybeUser)
                                    isIDSet
                                    isSSHUploaded
+                                   (join $ userAltRepoScheme <$> entityVal <$> maybeUser)
                                    mToken)
 
 idToBeShown :: p -> Maybe (Entity User) -> Text
@@ -205,11 +206,12 @@ defaultBranch :: IsString a => RepoScheme -> Maybe a
 defaultBranch SelfHosted = Just "master"
 defaultBranch Branches = Nothing
 
-challengeHowTo :: (Text.Blaze.ToMarkup a1, Text.Blaze.ToMarkup a2) => Challenge -> AppSettings -> Repo -> a1 -> Bool -> Bool -> Maybe a2 -> WidgetFor App ()
-challengeHowTo challenge settings repo shownId isIDSet isSSHUploaded mToken = $(widgetFile "challenge-how-to")
-  where myBranch = case appRepoScheme settings of
-          SelfHosted -> "master" :: Text
-          _ -> "my-brilliant-branch"
+challengeHowTo :: Challenge -> AppSettings -> Repo -> Text -> Bool -> Bool -> Maybe Text -> Maybe Text -> WidgetFor App ()
+challengeHowTo challenge settings repo shownId isIDSet isSSHUploaded mAltRepoScheme mToken = $(widgetFile "challenge-how-to")
+  where myBranch = "my-brilliant-branch" :: Text
+        urlToYourRepo = case mAltRepoScheme of
+          Just altRepoScheme -> encodeSlash (altRepoScheme <> (challengeName challenge))
+          Nothing -> "URL_TO_YOUR_REPO"
 
 postArchiveR :: ChallengeId -> Handler Html
 postArchiveR challengeId = doSetArchive True challengeId
@@ -280,11 +282,11 @@ postTriggerRemotelyR = do
 
 postTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
 postTriggerRemotelySimpleR token challengeName url branch =
-  doTrigger token challengeName url (Just branch) Nothing
+  doTrigger token challengeName (decodeSlash url) (Just branch) Nothing
 
 getTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
 getTriggerRemotelySimpleR token challengeName url branch =
-  doTrigger token challengeName url (Just branch) Nothing
+  doTrigger token challengeName (decodeSlash url) (Just branch) Nothing
 
 doTrigger :: Text -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
 doTrigger token challengeName url mBranch mGitAnnexRemote = do

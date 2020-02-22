@@ -7,6 +7,8 @@ import Import
 import Crypto.PasswordStore
 import Yesod.Auth.HashDB (defaultStrength)
 
+import qualified Data.Text as T
+
 
 -- These handlers embed files in the executable at compile time to avoid a
 -- runtime dependency, and for efficiency.
@@ -67,3 +69,9 @@ checkIfCanEdit submissionId = do
 checkIfAdmin :: Maybe (Entity User) -> Bool
 checkIfAdmin (Just (Entity _ user)) = userIsAdmin user
 checkIfAdmin Nothing = False
+
+encodeSlash :: T.Text -> T.Text
+encodeSlash = T.replace "/" "SLASH"
+
+decodeSlash :: T.Text -> T.Text
+decodeSlash = T.replace "SLASH" "/"

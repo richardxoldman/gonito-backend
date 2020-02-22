@@ -35,7 +35,7 @@
 
 $case (appRepoScheme settings)
  $of SelfHosted
-  $if not isIDSet || not isSSHUploaded
+  $if (not isIDSet || not isSSHUploaded) && isNothing mAltRepoScheme
     <p>You need to
        $if not isIDSet
           \ set up your ID
@@ -45,10 +45,15 @@ $case (appRepoScheme settings)
           \ upload your SSH public key
        \ (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
 
-  <pre>
-    git clone --single-branch #{appRepoHost settings}#{shownId}/#{challengeName challenge}
+  $maybe altRepoScheme <- mAltRepoScheme
+    <p>(Depending on your setup, you might need to create the repo at your git server first.)
+    <pre>
+      git clone #{altRepoScheme}#{challengeName challenge}
+  $nothing
+    <pre>
+      git clone --single-branch #{appRepoHost settings}#{shownId}/#{challengeName challenge}
 
-  <p>(Warning about empty repository is expected, don't worry about it.)
+      <p>(Warning about empty repository is expected, don't worry about it.)
 
   <pre>
     cd #{challengeName challenge}
@@ -57,13 +62,14 @@ $case (appRepoScheme settings)
   <h4>Using an external repository
 
   $maybe serverPubKey <- (appServerSSHPublicKey settings)
-    <p>Alternatively, you can use any other Git repo, e.g. GitLab, GitHub or your own repo, make sure Gonito.net has access to your repo, either by making it public or giving read access to the SSH public key:
-    <pre>
-      #{serverPubKey}
+    $if isNothing mAltRepoScheme
+      <p>Alternatively, you can use any other Git repo, e.g. GitLab, GitHub or your own repo, make sure Gonito.net has access to your repo, either by making it public or giving read access to the SSH public key:
+    $else
+      <pre>
+        #{serverPubKey}
   $nothing
-    <p>Alternatively, you can use any other Git repo, e.g. GitLab, GitHub or your own repo, make sure Gonito.net has access to your repo.
-
-  <p>(And initiate it with #{appRepoHost settings}#{challengeName challenge}.)
+    $if isNothing mAltRepoScheme
+      <p>Alternatively, you can use any other Git repo, e.g. GitLab, GitHub or your own repo, make sure Gonito.net has access to your repo.
 
  $of Branches
     <p>Clone the repo:
@@ -77,14 +83,9 @@ $case (appRepoScheme settings)
         git annex initremote storage #{gitAnnexRemote}
         git annex get --from storage
 
-    <p>Switch to some branch, let's say <tt>my-brilliant-solution</tt>:
-
-    <pre>
-      git checkout -b my-brilliant-solution
-
 <h2>Work on your solution
 
-<p>You need to generate your solution for the test set as <tt>test-A/out.tsv</tt>. You may also generate the solution for the dev set (<tt>dev-0/out.tsv</tt>).
+<p>You need to generate your solution for the test set as <tt>test-A/out.tsv</tt>. It is also recommended to generate the output for the dev set (<tt>dev-0/out.tsv</tt>).
 
 <p>You can evaluate results for the dev set locally:
 
@@ -98,7 +99,9 @@ $case (appRepoScheme settings)
 
 <pre>
   cd #{challengeName challenge}
+  git checkout -b #{myBranch}  # switch to some other branch
   git add foo.py build.sh # add your source codes
+  git add gonito.yaml # it's a good practice to add metadata file, see below
 
 $if isJust (repoGitAnnexRemote repo)
   <pre>
@@ -117,12 +120,12 @@ $else
 $case (appRepoScheme settings)
   $of SelfHosted
     <pre>
-      git push origin master
+      git push origin #{myBranch}
     <h3>Repos hosted on Gonito.net
     <p>If you use a repo hosted here, a submission and evaluation is triggered automatically. You'll see the evaluation results in your console while pushing.
   $of Branches
     <pre>
-      git push origin my-brilliant-solution:my-brilliant-solution
+      git push origin #{myBranch}
 
 <h3>External repos
 
@@ -130,10 +133,10 @@ $case (appRepoScheme settings)
 $maybe token <- mToken
    <p>Your webook is:
    <pre>
-     wget --timeout=0 --quiet -O - '#{appRoot settings}/trigger-remotely' --post-data 'token=#{token}&branch=#{myBranch}&challenge=#{challengeName challenge}&url=URL_TO_YOUR_REPO'
+     wget --timeout=0 --quiet -O - '#{appRoot settings}/trigger-remotely' --post-data 'token=#{token}&branch=#{myBranch}&challenge=#{challengeName challenge}&url=#{urlToYourRepo}'
    <p>or you can just use the following URL:
    <pre>
-     #{appRoot settings}/trigger-remotely-simple/#{token}/#{challengeName challenge}/URL_TO_YOUR_REPO/#{myBranch}
+     #{appRoot settings}/trigger-remotely-simple/#{token}/#{challengeName challenge}/#{urlToYourRepo}/#{myBranch}
 
 <h3>Manual submission
 
