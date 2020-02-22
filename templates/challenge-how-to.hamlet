@@ -53,11 +53,11 @@ $case (appRepoScheme settings)
     <pre>
       git clone --single-branch #{appRepoHost settings}#{shownId}/#{challengeName challenge}
 
-      <p>(Warning about empty repository is expected, don't worry about it.)
+    <p>(Warning about empty repository is expected, don't worry about it.)
 
   <pre>
     cd #{challengeName challenge}
-    git pull #{appRepoHost settings}#{challengeName challenge}
+    git pull #{repoUrl repo}
 
   <h4>Using an external repository
 
