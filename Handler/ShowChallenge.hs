@@ -7,7 +7,6 @@ import qualified Data.Text.Lazy as TL
 import           Text.Markdown
 
 import qualified Data.Text as T
-import qualified Data.Map.Strict as M
 
 import qualified Yesod.Table as Table
 
@@ -33,21 +32,12 @@ import qualified Text.Read as TR
 
 import GEval.Core
 import GEval.EvaluationScheme
-import GEval.Common (MetricValue)
-import GEval.OptionsParser
-import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
 
 import PersistSHA1
 
-import Options.Applicative
-
 import System.IO (readFile)
 
-import System.FilePath (takeFileName, dropExtensions, (-<.>))
-
 import Data.Text (pack, unpack)
-
-import Data.Conduit.SmartSource
 
 import Data.List (nub)
 
@@ -92,6 +82,7 @@ getShowChallengeR name = do
                                                       tests
                                                       altTests)
 
+hasMetricsOfSecondPriority :: (PersistQueryRead backend, MonadIO m, BaseBackend backend ~ SqlBackend) => Key Challenge -> ReaderT backend m Bool
 hasMetricsOfSecondPriority challengeId = do
   tests' <- selectList [TestChallenge ==. challengeId, TestActive ==. True] []
   let tests = filter (\t -> (evaluationSchemePriority $ testMetric $ entityVal t) == 2) tests'
