@@ -280,7 +280,10 @@ viewOutput entry tests (outputHash, testSet) = do
                        gesGonitoHost = Nothing,
                        gesToken = Nothing,
                        gesGonitoGitAnnexRemote = Nothing,
-                       gesReferences = Nothing }
+                       gesReferences = Nothing,
+                       gesBootstrapResampling = Nothing,
+                       gesInHeader = Nothing,
+                       gesOutHeader = Nothing }
 
                  result <- liftIO $ runLineByLineGeneralized FirstTheWorst spec (\_ -> CL.take 20)
 
