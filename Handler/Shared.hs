@@ -553,5 +553,7 @@ fetchTheEvaluation out version = do
       case evals' of
         [eval] -> return $ Just eval
         [] -> return Nothing
-        _ -> error "More than evaluation for the same test and version!"
-    _ -> error "More than evaluation for the same test, checksum and version!"
+        _ -> error ("More than 1 evaluation for the same test and version!" ++ (show evals))
+    (eval:_) -> return $ Just eval
+
+--      -> error ("More than 1 evaluation for the same test, checksum and version!" ++ (show evals))
