@@ -1,0 +1,24 @@
+version: '3'
+services:
+  gonito:
+    image: loxygen/gonito
+    depends_on:
+      - postgres
+    environment:
+      - PGUSER=postgres
+      - PGPASS=$POSTGRES_PASSWORD
+      - PGHOST=postgres
+      - ADMINUSER=$GONITO_ADMINUSER
+      - ADMINPASS=$GONITO_ADMINPASS
+      - LOCATION=$GONITO_LOCATION
+    ports:
+      - "3000:3000"
+  postgres:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - POSTGRES_DB=gonito
+    expose:
+      - "5432"
+    volumes:
+      - "${PG_DATA_VOLUME}:/var/lib/postgresql/data"
