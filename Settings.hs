@@ -90,6 +90,8 @@ data AppSettings = AppSettings
     , appLeaderboardStyle       :: LeaderboardStyle
     , appNewBestResultSlackHook :: Maybe Text
     , appServerSSHPublicKey     :: Maybe Text
+    -- ^ Are challenges, submission, etc. visible without logging in
+    , appIsPublic :: Bool
     }
 
 instance FromJSON AppSettings where
@@ -132,6 +134,8 @@ instance FromJSON AppSettings where
         appNewBestResultSlackHook <- o .:? "new-best-result-slack-hook"
 
         appServerSSHPublicKey <- o .:? "server-ssh-public-key"
+
+        appIsPublic               <- o .:? "is-public" .!= False
 
         return AppSettings {..}
 

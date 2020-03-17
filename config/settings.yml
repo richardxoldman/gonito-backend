@@ -15,6 +15,7 @@ auto-opening:    "_env:AUTO_OPENING:false"
 leaderboard-style: "_env:LEADERBOARD_STYLE:by-submitter"
 new-best-result-slack-hook: "_env:NEW_BEST_RESULT_SLACK_HOOK:"
 server-ssh-public-key: "_env:SERVER_SSH_PUBLIC_KEY:"
+is-public:    "_env:IS_PUBLIC:true"
 
 # Optional values with the following production defaults.
 # In development, they default to the inverse.

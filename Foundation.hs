@@ -147,34 +147,34 @@ instance Yesod App where
     isAuthorized (AuthR _) _ = return Authorized
     isAuthorized FaviconR _ = return Authorized
     isAuthorized RobotsR _ = return Authorized
-    isAuthorized HomeR _ = return Authorized
+    isAuthorized HomeR _ = regularAuthorization
     isAuthorized (StaticR _) _ = return Authorized
-    isAuthorized QueryFormR _ = return Authorized
-    isAuthorized (QueryResultsR _) _ = return Authorized
-    isAuthorized ListChallengesR _ = return Authorized
-    isAuthorized (ViewVariantR _) _ = return Authorized
+    isAuthorized QueryFormR _ = regularAuthorization
+    isAuthorized (QueryResultsR _) _ = regularAuthorization
+    isAuthorized ListChallengesR _ = regularAuthorization
+    isAuthorized (ViewVariantR _) _ = regularAuthorization
 
-    isAuthorized TagsR _ = return Authorized
-    isAuthorized AchievementsR _ = return Authorized
+    isAuthorized TagsR _ = regularAuthorization
+    isAuthorized AchievementsR _ = regularAuthorization
     isAuthorized (EditAchievementR _) _ = isAdmin
     isAuthorized ExtraPointsR _ = isAdmin
 
-    isAuthorized DashboardR _ = return Authorized
+    isAuthorized DashboardR _ = regularAuthorization
 
-    isAuthorized (ShowChallengeR _) _ = return Authorized
-    isAuthorized (ChallengeHowToR _) _ = return Authorized
-    isAuthorized (ChallengeReadmeR _) _ = return Authorized
-    isAuthorized (ChallengeAllSubmissionsR _) _ = return Authorized
-    isAuthorized (ChallengeGraphDataR _) _ = return Authorized
-    isAuthorized (ChallengeDiscussionR _) _ = return Authorized
-    isAuthorized (ChallengeDiscussionFeedR _) _ = return Authorized
+    isAuthorized (ShowChallengeR _) _ = regularAuthorization
+    isAuthorized (ChallengeHowToR _) _ = regularAuthorization
+    isAuthorized (ChallengeReadmeR _) _ = regularAuthorization
+    isAuthorized (ChallengeAllSubmissionsR _) _ = regularAuthorization
+    isAuthorized (ChallengeGraphDataR _) _ = regularAuthorization
+    isAuthorized (ChallengeDiscussionR _) _ = regularAuthorization
+    isAuthorized (ChallengeDiscussionFeedR _) _ = regularAuthorization
 
-    isAuthorized Presentation4RealR _ = return Authorized
-    isAuthorized PresentationPSNC2019R _ = return Authorized
-    isAuthorized GonitoInClassR _ = return Authorized
-    isAuthorized WritingPapersWithGonitoR _ = return Authorized
+    isAuthorized Presentation4RealR _ = regularAuthorization
+    isAuthorized PresentationPSNC2019R _ = regularAuthorization
+    isAuthorized GonitoInClassR _ = regularAuthorization
+    isAuthorized WritingPapersWithGonitoR _ = regularAuthorization
 
-    isAuthorized (AvatarR _) _ = return Authorized
+    isAuthorized (AvatarR _) _ = regularAuthorization
 
     isAuthorized TriggerRemotelyR _ = return Authorized
     isAuthorized (TriggerRemotelySimpleR _ _ _ _) _ = return Authorized
@@ -189,17 +189,17 @@ instance Yesod App where
     isAuthorized (UnarchiveR _) _ = isAdmin
     isAuthorized (ChallengeUpdateR _) _ = isAdmin
 
-    isAuthorized MyScoreR _ = return Authorized
+    isAuthorized MyScoreR _ = regularAuthorization
 
     isAuthorized (ResetPasswordR _) _ = return Authorized
-    isAuthorized (ToggleSubmissionTagR _) _ = return Authorized
+    isAuthorized (ToggleSubmissionTagR _) _ = regularAuthorization
 
-    isAuthorized (ChallengeImageR _) _ = return Authorized
+    isAuthorized (ChallengeImageR _) _ = regularAuthorization
 
     isAuthorized (ApiTxtScoreR _) _ = return Authorized
 
-    isAuthorized (ChallengeParamGraphDataR _ _ _) _ = return Authorized
-    isAuthorized (IndicatorGraphDataR _) _ = return Authorized
+    isAuthorized (ChallengeParamGraphDataR _ _ _) _ = regularAuthorization
+    isAuthorized (IndicatorGraphDataR _) _ = regularAuthorization
 
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
@@ -224,6 +224,15 @@ instance Yesod App where
         genFileName lbs = "autogen-" ++ base64md5 lbs
 
     makeLogger = return . appLogger
+
+regularAuthorization = do
+  app <- getYesod
+  mauth <- maybeAuth
+  return $ defaultStatus mauth $ appIsPublic (appSettings app)
+  where defaultStatus _ True = Authorized
+        defaultStatus mauth False = case mauth of
+          Just _ -> Authorized
+          Nothing -> AuthenticationRequired
 
 -- How to run database actions.
 instance YesodPersist App where
