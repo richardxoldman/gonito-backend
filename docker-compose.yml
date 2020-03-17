@@ -24,6 +24,7 @@ services:
       - APPROOT=$GONITO_APPROOT
       - LEADERBOARD_STYLE=${GONITO_LEADERBOARD_STYLE:-by-tag}
       - AUTO_OPENING=${GONITO_AUTO_OPENING:-false}
+      - IS_PUBLIC=${GONITO_IS_PUBLIC:-true}
     expose:
       - "3000"
     volumes:
