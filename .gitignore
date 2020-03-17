@@ -22,3 +22,4 @@ arena/t*
 arena/r*
 gonito-*.tar.gz
 stack.yaml.lock
+.env
