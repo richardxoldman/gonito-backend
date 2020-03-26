@@ -11,7 +11,7 @@ services:
     depends_on:
       - gonito
   gonito:
-    image: loxygen/gonito:0.3.0
+    image: loxygen/gonito:latest
     depends_on:
       - postgres
     environment:
@@ -29,7 +29,7 @@ services:
       - "3000"
     volumes:
       - "${GONITO_ARENA_VOLUME}:/gonito/arena"
-      - "${GONITO_SSH_DIRECTORY}:/gonito/.ssh"
+      - "${GONITO_SSH_DIRECTORY}:/root/.ssh"
   postgres:
     image: postgres
     environment:
