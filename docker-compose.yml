@@ -29,6 +29,7 @@ services:
       - "3000"
     volumes:
       - "${GONITO_ARENA_VOLUME}:/gonito/arena"
+      - "${GONITO_SSH_DIRECTORY}:/gonito/.ssh"
   postgres:
     image: postgres
     environment:
