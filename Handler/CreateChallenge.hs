@@ -30,6 +30,19 @@ import qualified Data.ByteString.Lazy as L
 
 import Data.Conduit.Binary (sinkLbs, sourceFile)
 
+data ChallengeCreationData = ChallengeCreationData {
+  challengeCreationDataName :: Text,
+
+  challengeCreationDataPublicUrl :: Text,
+  challengeCreationDataPublicBranch :: Text,
+  challengeCreationDataPublicGitAnnexRemote :: Maybe Text,
+
+  challengeCreationDataPrivateUrl :: Text,
+  challengeCreationDataPrivateBranch :: Text,
+  challengeCreationDataPrivateGitAnnexRemote :: Maybe Text,
+
+  challengeCreationDataDeadline :: Maybe UTCTime }
+
 getCreateChallengeR :: Handler Html
 getCreateChallengeR = do
     (formWidget, formEnctype) <- generateFormPost createChallengeForm
@@ -40,39 +53,40 @@ getCreateChallengeR = do
 postCreateChallengeR :: Handler TypedContent
 postCreateChallengeR = do
     ((result, _), _) <- runFormPost createChallengeForm
-    let challengeData = case result of
+    let challengeData' = case result of
             FormSuccess res -> Just res
             _ -> Nothing
-        Just (name, publicUrl, publicBranch, publicGitAnnexRemote,
-                    privateUrl, privateBranch, privateGitAnnexRemote,
-                    mDeadlineDay, mDeadlineTime) = challengeData
-
-    let mDeadline = combineMaybeDayAndTime mDeadlineDay mDeadlineTime
+        Just challengeData = challengeData'
 
     userId <- requireAuthId
     user <- runDB $ get404 userId
     if userIsAdmin user
       then
        do
-        let name' = T.strip name
+        let name = challengeCreationDataName challengeData
 
-        if isLocalIdAcceptable name'
+        if isLocalIdAcceptable name
           then
-            runViewProgress $ doCreateChallenge name'
-                                                (T.strip publicUrl)
-                                                (T.strip publicBranch)
-                                                (T.strip <$> publicGitAnnexRemote)
-                                                (T.strip privateUrl)
-                                                (T.strip privateBranch)
-                                                (T.strip <$> privateGitAnnexRemote)
-                                                mDeadline
+            runViewProgress $ doCreateChallenge challengeData
           else
             runViewProgress $ (flip err) "unexpected challenge ID (use only lower-case letters, digits and hyphens, start with a letter)"
       else
         runViewProgress $ (flip err) "MUST BE AN ADMIN TO CREATE A CHALLENGE"
 
-doCreateChallenge :: Text -> Text -> Text -> Maybe Text -> Text -> Text -> Maybe Text -> Maybe UTCTime -> Channel -> Handler ()
-doCreateChallenge name publicUrl publicBranch publicGitAnnexRemote privateUrl privateBranch privateGitAnnexRemote mDeadline chan = do
+doCreateChallenge :: ChallengeCreationData -> Channel -> Handler ()
+doCreateChallenge creationData chan = do
+  let name = challengeCreationDataName creationData
+
+  let publicUrl = challengeCreationDataPublicUrl creationData
+  let publicBranch = challengeCreationDataPublicBranch creationData
+  let publicGitAnnexRemote = challengeCreationDataPublicGitAnnexRemote creationData
+
+  let privateUrl = challengeCreationDataPrivateUrl creationData
+  let privateBranch = challengeCreationDataPrivateBranch creationData
+  let privateGitAnnexRemote = challengeCreationDataPrivateGitAnnexRemote creationData
+
+  let mDeadline = challengeCreationDataDeadline creationData
+
   maybePublicRepoId <- cloneRepo (RepoCloningSpec {
                                     cloningSpecRepo = RepoSpec {
                                         repoSpecUrl = publicUrl,
@@ -411,17 +425,17 @@ never = depth ==? 0
 testDirFilter :: FindClause Bool
 testDirFilter = (fileType ==? Directory) &&? (SFF.fileName ~~? "dev-*" ||? SFF.fileName ~~? "test-*")
 
-createChallengeForm :: Form (Text, Text, Text, Maybe Text, Text, Text, Maybe Text, Maybe Day, Maybe TimeOfDay)
-createChallengeForm = renderBootstrap3 BootstrapBasicForm $ (,,,,,,,,)
-    <$> areq textField (fieldWithTooltip MsgChallengeName MsgChallengeNameTooltip) Nothing
-    <*> areq textField (bfs MsgPublicUrl) Nothing
-    <*> areq textField (bfs MsgBranch) (Just "master")
-    <*> aopt textField (bfs MsgGitAnnexRemote) Nothing
-    <*> areq textField (bfs MsgPrivateUrl) Nothing
-    <*> areq textField (bfs MsgBranch) (Just "dont-peek")
-    <*> aopt textField (bfs MsgGitAnnexRemote) Nothing
-    <*> aopt dayField (bfs MsgChallengeDeadlineDay) Nothing
-    <*> aopt timeFieldTypeTime (fieldWithTooltip MsgChallengeDeadlineTime MsgChallengeDeadlineTooltip) Nothing
+createChallengeForm :: Form ChallengeCreationData
+createChallengeForm = renderBootstrap3 BootstrapBasicForm $ ChallengeCreationData
+    <$> (T.strip <$> areq textField (fieldWithTooltip MsgChallengeName MsgChallengeNameTooltip) Nothing)
+    <*> (T.strip <$> areq textField (bfs MsgPublicUrl) Nothing)
+    <*> (T.strip <$> areq textField (bfs MsgBranch) (Just "master"))
+    <*> (fmap T.strip <$> aopt textField (bfs MsgGitAnnexRemote) Nothing)
+    <*> (T.strip <$> areq textField (bfs MsgPrivateUrl) Nothing)
+    <*> (T.strip <$> areq textField (bfs MsgBranch) (Just "dont-peek"))
+    <*> (fmap T.strip <$> aopt textField (bfs MsgGitAnnexRemote) Nothing)
+    <*> (combineMaybeDayAndTime <$> aopt dayField (bfs MsgChallengeDeadlineDay) Nothing
+                                <*> aopt timeFieldTypeTime (fieldWithTooltip MsgChallengeDeadlineTime MsgChallengeDeadlineTooltip) Nothing)
 
 
 updateChallengeForm :: Repo -> Repo -> Maybe UTCTime -> Form (ChallengeUpdateType,
