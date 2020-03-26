@@ -32,16 +32,18 @@ import Data.Conduit.Binary (sinkLbs, sourceFile)
 
 data ChallengeCreationData = ChallengeCreationData {
   challengeCreationDataName :: Text,
+  challengeCreationMetadata :: ChallengeMetadata }
 
-  challengeCreationDataPublicUrl :: Text,
-  challengeCreationDataPublicBranch :: Text,
-  challengeCreationDataPublicGitAnnexRemote :: Maybe Text,
+data ChallengeMetadata = ChallengeMetadata {
+  challengeMetadataPublicUrl :: Text,
+  challengeMetadataPublicBranch :: Text,
+  challengeMetadataPublicGitAnnexRemote :: Maybe Text,
 
-  challengeCreationDataPrivateUrl :: Text,
-  challengeCreationDataPrivateBranch :: Text,
-  challengeCreationDataPrivateGitAnnexRemote :: Maybe Text,
+  challengeMetadataPrivateUrl :: Text,
+  challengeMetadataPrivateBranch :: Text,
+  challengeMetadataPrivateGitAnnexRemote :: Maybe Text,
 
-  challengeCreationDataDeadline :: Maybe UTCTime }
+  challengeMetadataDeadline :: Maybe UTCTime }
 
 getCreateChallengeR :: Handler Html
 getCreateChallengeR = do
@@ -77,15 +79,16 @@ doCreateChallenge :: ChallengeCreationData -> Channel -> Handler ()
 doCreateChallenge creationData chan = do
   let name = challengeCreationDataName creationData
 
-  let publicUrl = challengeCreationDataPublicUrl creationData
-  let publicBranch = challengeCreationDataPublicBranch creationData
-  let publicGitAnnexRemote = challengeCreationDataPublicGitAnnexRemote creationData
+  let challengeMetadata = challengeCreationMetadata creationData
+  let publicUrl = challengeMetadataPublicUrl challengeMetadata
+  let publicBranch = challengeMetadataPublicBranch challengeMetadata
+  let publicGitAnnexRemote = challengeMetadataPublicGitAnnexRemote challengeMetadata
 
-  let privateUrl = challengeCreationDataPrivateUrl creationData
-  let privateBranch = challengeCreationDataPrivateBranch creationData
-  let privateGitAnnexRemote = challengeCreationDataPrivateGitAnnexRemote creationData
+  let privateUrl = challengeMetadataPrivateUrl challengeMetadata
+  let privateBranch = challengeMetadataPrivateBranch challengeMetadata
+  let privateGitAnnexRemote = challengeMetadataPrivateGitAnnexRemote challengeMetadata
 
-  let mDeadline = challengeCreationDataDeadline creationData
+  let mDeadline = challengeMetadataDeadline challengeMetadata
 
   maybePublicRepoId <- cloneRepo (RepoCloningSpec {
                                     cloningSpecRepo = RepoSpec {
@@ -119,6 +122,10 @@ doCreateChallenge creationData chan = do
 data ChallengeUpdateType = MajorChange | MinorChange | ChallengePatch
                            deriving (Eq, Enum, Bounded)
 
+data ChallengeUpdateData = ChallengeUpdateData {
+  challengeUpdateDataType :: ChallengeUpdateType,
+  challengeUpdateDataMetadata :: ChallengeMetadata }
+
 instance Show ChallengeUpdateType where
   show MajorChange = "major change"
   show MinorChange = "minor change"
@@ -145,29 +152,17 @@ postChallengeUpdateR :: ChallengeId -> Handler TypedContent
 postChallengeUpdateR challengeId = do
     (publicRepo, privateRepo, mDeadline) <- runDB $ fetchChallengeData challengeId
     ((result, _), _) <- runFormPost $ updateChallengeForm publicRepo privateRepo mDeadline
-    let challengeData = case result of
+    let challengeData' = case result of
             FormSuccess res -> Just res
             _ -> Nothing
-        Just (updateType, publicUrl, publicBranch, publicGitAnnexRemote,
-                          privateUrl, privateBranch, privateGitAnnexRemote,
-                          mDeadlineDay, mDeadlineTime) = challengeData
-
-    let mNewDeadline = combineMaybeDayAndTime mDeadlineDay mDeadlineTime
+        Just challengeData = challengeData'
 
     userId <- requireAuthId
     user <- runDB $ get404 userId
     if userIsAdmin user
       then
        do
-         runViewProgress $ doChallengeUpdate challengeId
-                                             updateType
-                                             mNewDeadline
-                                             publicUrl
-                                             publicBranch
-                                             publicGitAnnexRemote
-                                             privateUrl
-                                             privateBranch
-                                             privateGitAnnexRemote
+         runViewProgress $ doChallengeUpdate challengeId challengeData
       else
         runViewProgress $ (flip err) "MUST BE AN ADMIN TO UPDATE A CHALLENGE"
 
@@ -179,20 +174,21 @@ combineMaybeDayAndTime mDeadlineDay mDeadlineTime =
       utctDayTime = fromMaybe (secondsToDiffTime 24 * 60 * 60 - 1) $ timeOfDayToTime <$> mDeadlineTime }
     Nothing -> Nothing
 
-doChallengeUpdate :: ChallengeId -> ChallengeUpdateType -> Maybe UTCTime
-                    -> Text -> Text -> Maybe Text
-                    -> Text -> Text -> Maybe Text
-                    -> Channel -> Handler ()
-doChallengeUpdate challengeId
-                  updateType
-                  newDeadline
-                  publicUrl
-                  publicBranch
-                  publicGitAnnexRemote
-                  privateUrl
-                  privateBranch
-                  privateGitAnnexRemote
-                  chan = do
+doChallengeUpdate :: ChallengeId -> ChallengeUpdateData -> Channel -> Handler ()
+doChallengeUpdate challengeId challengeData chan = do
+  let updateType = challengeUpdateDataType challengeData
+
+  let metadata = challengeUpdateDataMetadata challengeData
+
+  let publicUrl = challengeMetadataPublicUrl metadata
+  let publicBranch = challengeMetadataPublicBranch metadata
+  let publicGitAnnexRemote = challengeMetadataPublicGitAnnexRemote metadata
+
+  let privateUrl = challengeMetadataPrivateUrl metadata
+  let privateBranch = challengeMetadataPrivateBranch metadata
+  let privateGitAnnexRemote = challengeMetadataPrivateGitAnnexRemote metadata
+
+  let newDeadline = challengeMetadataDeadline metadata
 
   challenge <- runDB $ get404 challengeId
   (Entity _ version) <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
@@ -427,32 +423,25 @@ testDirFilter = (fileType ==? Directory) &&? (SFF.fileName ~~? "dev-*" ||? SFF.f
 
 createChallengeForm :: Form ChallengeCreationData
 createChallengeForm = renderBootstrap3 BootstrapBasicForm $ ChallengeCreationData
-    <$> (T.strip <$> areq textField (fieldWithTooltip MsgChallengeName MsgChallengeNameTooltip) Nothing)
-    <*> (T.strip <$> areq textField (bfs MsgPublicUrl) Nothing)
-    <*> (T.strip <$> areq textField (bfs MsgBranch) (Just "master"))
-    <*> (fmap T.strip <$> aopt textField (bfs MsgGitAnnexRemote) Nothing)
-    <*> (T.strip <$> areq textField (bfs MsgPrivateUrl) Nothing)
-    <*> (T.strip <$> areq textField (bfs MsgBranch) (Just "dont-peek"))
-    <*> (fmap T.strip <$> aopt textField (bfs MsgGitAnnexRemote) Nothing)
-    <*> (combineMaybeDayAndTime <$> aopt dayField (bfs MsgChallengeDeadlineDay) Nothing
-                                <*> aopt timeFieldTypeTime (fieldWithTooltip MsgChallengeDeadlineTime MsgChallengeDeadlineTooltip) Nothing)
+  <$> (T.strip <$> areq textField (fieldWithTooltip MsgChallengeName MsgChallengeNameTooltip) Nothing)
+  <*> challengeMetadataInputs Nothing Nothing Nothing
 
+challengeMetadataInputs :: (MonadHandler m, RenderMessage (HandlerSite m) FormMessage, RenderMessage (HandlerSite m) AppMessage)
+                          => Maybe Repo -> Maybe Repo -> Maybe UTCTime -> AForm m ChallengeMetadata
+challengeMetadataInputs mPublicRepo mPrivateRepo mDeadline =
+  ChallengeMetadata <$> (T.strip <$> areq textField (bfs MsgPublicUrl) (repoUrl <$> mPublicRepo))
+                    <*> (T.strip <$> areq textField (bfs MsgBranch) (Just $ maybe "master" repoBranch mPublicRepo))
+                    <*> (fmap T.strip <$> aopt textField (bfs MsgGitAnnexRemote) (repoGitAnnexRemote <$> mPublicRepo))
+                    <*> (T.strip <$> areq textField (bfs MsgPrivateUrl) (repoUrl <$> mPrivateRepo))
+                    <*> (T.strip <$> areq textField (bfs MsgBranch) (Just $ maybe "dont-peek" repoBranch mPrivateRepo))
+                    <*> (fmap T.strip <$> aopt textField (bfs MsgGitAnnexRemote) (repoGitAnnexRemote <$> mPrivateRepo))
+                    <*> (combineMaybeDayAndTime <$> aopt dayField (bfs MsgChallengeDeadlineDay) (Just $ utctDay <$> mDeadline)
+                                                <*> aopt timeFieldTypeTime (fieldWithTooltip MsgChallengeDeadlineTime MsgChallengeDeadlineTooltip) (Just $ timeToTimeOfDay <$> utctDayTime <$> mDeadline))
 
-updateChallengeForm :: Repo -> Repo -> Maybe UTCTime -> Form (ChallengeUpdateType,
-                                                          Text, Text, Maybe Text,
-                                                          Text, Text, Maybe Text,
-                                                          Maybe Day, Maybe TimeOfDay)
-updateChallengeForm publicRepo privateRepo mDeadline = renderBootstrap3 BootstrapBasicForm $ (,,,,,,,,)
+updateChallengeForm :: Repo -> Repo -> Maybe UTCTime -> Form ChallengeUpdateData
+updateChallengeForm publicRepo privateRepo mDeadline = renderBootstrap3 BootstrapBasicForm $ ChallengeUpdateData
     <$> areq (radioField optionsEnum) "change type" (Just ChallengePatch)
-    <*> areq textField (bfs MsgPublicUrl) (Just $ repoUrl publicRepo)
-    <*> areq textField (bfs MsgBranch) (Just $ repoBranch publicRepo)
-    <*> aopt textField (bfs MsgGitAnnexRemote) (Just $ repoGitAnnexRemote publicRepo)
-    <*> areq textField (bfs MsgPrivateUrl) (Just $ repoUrl privateRepo)
-    <*> areq textField (bfs MsgBranch) (Just $ repoBranch privateRepo)
-    <*> aopt textField (bfs MsgGitAnnexRemote) (Just $ repoGitAnnexRemote privateRepo)
-    <*> aopt dayField (bfs MsgChallengeDeadlineDay) (Just $ utctDay <$> mDeadline)
-    <*> aopt timeFieldTypeTime (fieldWithTooltip MsgChallengeDeadlineTime MsgChallengeDeadlineTooltip)
-                               (Just $ timeToTimeOfDay <$> utctDayTime <$> mDeadline)
+    <*> challengeMetadataInputs (Just publicRepo) (Just privateRepo) mDeadline
 
 -- Validate whether a challenge is correct.
 -- Contrary to `GEval.Validate.validationChallenge` do not
