@@ -11,7 +11,7 @@ services:
     depends_on:
       - gonito
   gonito:
-    image: loxygen/gonito
+    image: loxygen/gonito:0.3.0
     depends_on:
       - postgres
     environment:

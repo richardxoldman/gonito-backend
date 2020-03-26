@@ -27,4 +27,6 @@ COPY --from=gonito-build /root/gonito/static static
 
 COPY --from=gonito-build /root/gonito/config config
 
+RUN apt-get -y update && apt-get -y install git && apt-get clean && rm -rf /var/lib/apt/lists/*
+
 CMD ./gonito-bin
