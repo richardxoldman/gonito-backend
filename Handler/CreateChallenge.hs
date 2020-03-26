@@ -43,7 +43,8 @@ data ChallengeMetadata = ChallengeMetadata {
   challengeMetadataPrivateBranch :: Text,
   challengeMetadataPrivateGitAnnexRemote :: Maybe Text,
 
-  challengeMetadataDeadline :: Maybe UTCTime }
+  challengeMetadataDeadline :: Maybe UTCTime,
+  challengeMetadataValidate :: Bool }
 
 getCreateChallengeR :: Handler Html
 getCreateChallengeR = do
@@ -89,6 +90,7 @@ doCreateChallenge creationData chan = do
   let privateGitAnnexRemote = challengeMetadataPrivateGitAnnexRemote challengeMetadata
 
   let mDeadline = challengeMetadataDeadline challengeMetadata
+  let shouldBeValidated = challengeMetadataValidate challengeMetadata
 
   maybePublicRepoId <- cloneRepo (RepoCloningSpec {
                                     cloningSpecRepo = RepoSpec {
@@ -114,7 +116,7 @@ doCreateChallenge creationData chan = do
                                              repoSpecGitAnnexRemote = (repoGitAnnexRemote publicRepo)}}) chan
       case maybePrivateRepoId of
         Just privateRepoId -> do
-          isValidated <- validateChallenge privateRepoId chan
+          isValidated <- validateChallenge shouldBeValidated privateRepoId chan
           when isValidated $ addChallenge name publicRepoId privateRepoId mDeadline chan
         Nothing -> return ()
     Nothing -> return ()
@@ -189,6 +191,7 @@ doChallengeUpdate challengeId challengeData chan = do
   let privateGitAnnexRemote = challengeMetadataPrivateGitAnnexRemote metadata
 
   let newDeadline = challengeMetadataDeadline metadata
+  let shouldBeValidated = challengeMetadataValidate metadata
 
   challenge <- runDB $ get404 challengeId
   (Entity _ version) <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
@@ -217,7 +220,7 @@ doChallengeUpdate challengeId challengeData chan = do
                                                    repoSpecGitAnnexRemote = privateGitAnnexRemote}
                                                  chan
 
-  isValidated <- validateChallenge privateRepoId chan
+  isValidated <- validateChallenge shouldBeValidated privateRepoId chan
 
   when isValidated $
      do
@@ -437,6 +440,7 @@ challengeMetadataInputs mPublicRepo mPrivateRepo mDeadline =
                     <*> (fmap T.strip <$> aopt textField (bfs MsgGitAnnexRemote) (repoGitAnnexRemote <$> mPrivateRepo))
                     <*> (combineMaybeDayAndTime <$> aopt dayField (bfs MsgChallengeDeadlineDay) (Just $ utctDay <$> mDeadline)
                                                 <*> aopt timeFieldTypeTime (fieldWithTooltip MsgChallengeDeadlineTime MsgChallengeDeadlineTooltip) (Just $ timeToTimeOfDay <$> utctDayTime <$> mDeadline))
+                    <*> areq checkBoxField (bfs MsgShouldChallengeBeValidated) (Just True)
 
 updateChallengeForm :: Repo -> Repo -> Maybe UTCTime -> Form ChallengeUpdateData
 updateChallengeForm publicRepo privateRepo mDeadline = renderBootstrap3 BootstrapBasicForm $ ChallengeUpdateData
@@ -446,10 +450,14 @@ updateChallengeForm publicRepo privateRepo mDeadline = renderBootstrap3 Bootstra
 -- Validate whether a challenge is correct.
 -- Contrary to `GEval.Validate.validationChallenge` do not
 -- throw an exception (just return `False`)
-validateChallenge :: RepoId  -- ID of the private repository
+validateChallenge :: Bool -- switch whether really validate
+                    -> RepoId  -- ID of the private repository
                     -> Channel
                     -> Handler Bool -- returns false if not validated
-validateChallenge repoId chan = do
+validateChallenge False _ chan = do
+  msg chan "SKIPPING CHALLENGE VALIDATION"
+  return True
+validateChallenge True repoId chan = do
   msg chan "Validating the challenge..."
 
   repoDir <- getRepoDir repoId
