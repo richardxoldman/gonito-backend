@@ -237,16 +237,13 @@ postChallengeSubmissionR :: Text -> Handler TypedContent
 postChallengeSubmissionR name = do
     (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
     ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
-    let submissionData = case result of
+    let submissionData' = case result of
           FormSuccess res -> Just res
           _ -> Nothing
-        Just (mDescription, mTags, submissionUrl, submissionBranch, submissionGitAnnexRemote) = submissionData
+        Just submissionData = submissionData'
 
     userId <- requireAuthId
-    runViewProgress $ doCreateSubmission userId challengeId mDescription mTags RepoSpec {
-                                                                                  repoSpecUrl=submissionUrl,
-                                                                                  repoSpecBranch=submissionBranch,
-                                                                                  repoSpecGitAnnexRemote=submissionGitAnnexRemote}
+    runViewProgress $ doCreateSubmission userId challengeId submissionData
 
 postTriggerLocallyR :: Handler TypedContent
 postTriggerLocallyR = do
@@ -288,20 +285,26 @@ trigger :: UserId -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedCo
 trigger userId challengeName url mBranch mGitAnnexRemote = do
   let branch = fromMaybe "master" mBranch
   mChallengeEnt <- runDB $ getBy $ UniqueName challengeName
+
+  let defSubmission = ChallengeSubmissionData {
+        challengeSubmissionDataDescription = Nothing,
+        challengeSubmissionDataTags = Nothing,
+        challengeSubmissionDataRepo = RepoSpec {
+            repoSpecUrl=url,
+            repoSpecBranch=branch,
+            repoSpecGitAnnexRemote=mGitAnnexRemote}
+        }
+
   case mChallengeEnt of
-    Just (Entity challengeId _) -> runOpenViewProgress $ doCreateSubmission userId challengeId
-                                                                           Nothing Nothing
-                                                                           RepoSpec {repoSpecUrl=url,
-                                                                           repoSpecBranch=branch,
-                                                                           repoSpecGitAnnexRemote=mGitAnnexRemote}
+    Just (Entity challengeId _) -> runOpenViewProgress $ doCreateSubmission userId challengeId defSubmission
     Nothing -> return $ toTypedContent (("Unknown challenge `" ++ (Data.Text.unpack challengeName) ++ "`. Cannot be triggered, must be submitted manually at Gonito.net!\n") :: String)
 
 isBefore :: UTCTime -> Maybe UTCTime -> Bool
 isBefore _ Nothing = True
 isBefore moment (Just deadline) = moment <= deadline
 
-doCreateSubmission :: UserId -> Key Challenge -> Maybe Text -> Maybe Text -> RepoSpec -> Channel -> Handler ()
-doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
+doCreateSubmission :: UserId -> Key Challenge -> ChallengeSubmissionData-> Channel -> Handler ()
+doCreateSubmission userId challengeId challengeSubmissionData chan = do
   challenge <- runDB $ get404 challengeId
 
   version <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
@@ -309,15 +312,19 @@ doCreateSubmission userId challengeId mDescription mTags repoSpec chan = do
 
   if theNow `isBefore` (versionDeadline $ entityVal version)
     then
-      doCreateSubmission' (challengeArchived challenge) userId challengeId mDescription mTags repoSpec chan
+      doCreateSubmission' (challengeArchived challenge) userId challengeId challengeSubmissionData chan
     else
       msg chan "Submission is past the deadline, no submission will be accepted from now on."
 
-doCreateSubmission' :: Maybe Bool -> UserId -> Key Challenge -> Maybe Text -> Maybe Text -> RepoSpec -> Channel -> Handler ()
-doCreateSubmission' (Just True) _ _ _ _ _ chan = msg chan "This challenge is archived, you cannot submit to it. Ask the site admin to unarchive it."
-doCreateSubmission' _ userId challengeId mDescription mTags repoSpec chan = do
-   maybeRepoKey <- getSubmissionRepo userId challengeId repoSpec chan
-   case maybeRepoKey of
+doCreateSubmission' :: Maybe Bool -> UserId -> Key Challenge -> ChallengeSubmissionData -> Channel -> Handler ()
+doCreateSubmission' (Just True) _ _ _ chan = msg chan "This challenge is archived, you cannot submit to it. Ask the site admin to unarchive it."
+doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
+  let mDescription = challengeSubmissionDataDescription challengeSubmissionData
+  let mTags = challengeSubmissionDataTags challengeSubmissionData
+  let repoSpec = challengeSubmissionDataRepo challengeSubmissionData
+
+  maybeRepoKey <- getSubmissionRepo userId challengeId repoSpec chan
+  case maybeRepoKey of
     Just repoId -> do
 
       challenge <- runDB $ get404 challengeId
@@ -545,13 +552,19 @@ checkRepoAvailibility challengeId repoId chan = do
 challengeSubmissionWidget :: (ToMarkup a1, ToWidget App a2) => a2 -> a1 -> Challenge -> WidgetFor App ()
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
-submissionForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form (Maybe Text, Maybe Text, Text, Text, Maybe Text)
-submissionForm defaultUrl defBranch defaultGitAnnexRemote = renderBootstrap3 BootstrapBasicForm $ (,,,,)
+data ChallengeSubmissionData = ChallengeSubmissionData {
+  challengeSubmissionDataDescription :: Maybe Text,
+  challengeSubmissionDataTags :: Maybe Text,
+  challengeSubmissionDataRepo :: RepoSpec }
+
+
+submissionForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form ChallengeSubmissionData
+submissionForm defaultUrl defBranch defaultGitAnnexRemote = renderBootstrap3 BootstrapBasicForm $ ChallengeSubmissionData
     <$> aopt textField (fieldWithTooltip MsgSubmissionDescription MsgSubmissionDescriptionTooltip) Nothing
     <*> aopt textField (tagsfs MsgSubmissionTags) Nothing
-    <*> areq textField (bfs MsgSubmissionUrl) defaultUrl
-    <*> areq textField (bfs MsgSubmissionBranch) defBranch
-    <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) (Just defaultGitAnnexRemote)
+    <*> (RepoSpec <$> areq textField (bfs MsgSubmissionUrl) defaultUrl
+                  <*> areq textField (bfs MsgSubmissionBranch) defBranch
+                  <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) (Just defaultGitAnnexRemote))
 
 getChallengeMySubmissionsR :: Text -> Handler Html
 getChallengeMySubmissionsR name = do
