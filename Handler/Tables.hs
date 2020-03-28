@@ -72,7 +72,6 @@ submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
                                                                        entityVal $ tableEntrySubmission tableEntry,
                                                                        entityKey $ tableEntryVariant tableEntry,
                                                                        entityVal $ tableEntryVariant tableEntry,
-                                                                       entityKey $ tableEntrySubmitter tableEntry,
                                                                        mauthId))
 
 variantTable :: [Text] -> [Entity Test] -> Table App TableEntry
@@ -99,7 +98,7 @@ descriptionCell :: Maybe UserId -> Table App TableEntry
 descriptionCell mauthId = Table.widget "description" (
   \(TableEntry (Entity _ s) (Entity _ v) (Entity u _) _ tagEnts paramEnts _ _) -> fragmentWithSubmissionTags
                                                                                  (descriptionToBeShown s v (map entityVal paramEnts))
-                                                                                 (getInfoLink s u mauthId)
+                                                                                 (getInfoLink s mauthId)
                                                                                  tagEnts)
 
 
@@ -126,11 +125,10 @@ leaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScoreFromLeaderboardEntry (getTestReference e) . snd)) tests)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
   ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
-                                       leaderboardBestSubmission e,
-                                       leaderboardBestVariantId e,
-                                       leaderboardBestVariant e,
-                                       leaderboardUserId e,
-                                       mauthId))
+                                                                   leaderboardBestSubmission e,
+                                                                   leaderboardBestVariantId e,
+                                                                   leaderboardBestVariant e,
+                                                                   mauthId))
 
 altLeaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Int, LeaderboardEntry)
 altLeaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
@@ -138,11 +136,10 @@ altLeaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempt
   ++ leaderboardOnlyTagsCell mauthId
   ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScoreFromLeaderboardEntry (getTestReference e) . snd)) tests)
   ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
-                                       leaderboardBestSubmission e,
-                                       leaderboardBestVariantId e,
-                                       leaderboardBestVariant e,
-                                       leaderboardUserId e,
-                                       mauthId))
+                                                                   leaderboardBestSubmission e,
+                                                                   leaderboardBestVariantId e,
+                                                                   leaderboardBestVariant e,
+                                                                   mauthId))
 
 
 extractScoreFromLeaderboardEntry :: TestReference -> LeaderboardEntry -> Maybe Evaluation
@@ -154,7 +151,6 @@ leaderboardDescriptionCell mauthId = Table.widget "description" (
                                                                 (leaderboardBestVariant entry)
                                                                 (leaderboardParams entry))
                                           (getInfoLink (leaderboardBestSubmission entry)
-                                                       (leaderboardUserId entry)
                                                        mauthId)
                                           (leaderboardTags entry)
   )
@@ -163,7 +159,6 @@ leaderboardOnlyTagsCell :: Maybe UserId -> Table App (a, LeaderboardEntry)
 leaderboardOnlyTagsCell mauthId = Table.widget "tags" (
   \(_,entry) -> fragmentWithSubmissionTags ("" :: Text)
                                           (getInfoLink (leaderboardBestSubmission entry)
-                                                       (leaderboardUserId entry)
                                                        mauthId)
                                           (leaderboardTags entry)
   )
@@ -177,7 +172,7 @@ timestampCell :: Text -> (a -> UTCTime) -> Table site a
 timestampCell h timestampFun = hoverTextCell h (Data.Text.pack . shorterFormat . timestampFun) (Data.Text.pack . show . timestampFun)
    where shorterFormat = formatTime defaultTimeLocale "%Y-%m-%d %H:%M"
 
-statusCell :: Text -> RepoScheme -> Repo -> (a -> (SubmissionId, Submission, VariantId, Variant, UserId, Maybe UserId)) -> Table App a
+statusCell :: Text -> RepoScheme -> Repo -> (a -> (SubmissionId, Submission, VariantId, Variant, Maybe UserId)) -> Table App a
 statusCell challengeName repoScheme challengeRepo fun = Table.widget "" (statusCellWidget challengeName repoScheme challengeRepo . fun)
 
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
@@ -199,14 +194,14 @@ theLimitedTextCell h textFun = limitedTextCell h softLimit hardLimit textFun
         hardLimit = 5 * softLimit
 
 
-statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, UserId, Maybe UserId) -> WidgetFor App ()
-statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, userId, mauthId) = do
+statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, Maybe UserId) -> WidgetFor App ()
+statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, mauthId) = do
   isReevaluable <- handlerToWidget $ runDB $ canBeReevaluated submissionId
-  isVisible <- handlerToWidget $ runDB $ checkWhetherVisible submission userId mauthId
+  isVisible <- handlerToWidget $ runDB $ checkWhetherVisible submission mauthId
   $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
-          isOwner = (mauthId == Just userId)
+          isOwner = (mauthId == Just (submissionSubmitter submission))
           publicSubmissionBranch = getPublicSubmissionBranch submissionId
           maybeBrowsableUrl = if isPublic
                                 then
@@ -214,23 +209,24 @@ statusCellWidget challengeName repoScheme challengeRepo (submissionId, submissio
                                 else
                                   Nothing
 
-getInfoLink :: Submission -> UserId -> Maybe UserId -> Maybe (Route App)
-getInfoLink submission userId mauthId = if checkSimpleVisibility submission userId mauthId
-                                        then Just $ QueryResultsR commitHash
-                                        else Nothing
+getInfoLink :: Submission -> Maybe UserId -> Maybe (Route App)
+getInfoLink submission mauthId = if checkSimpleVisibility submission mauthId
+                                 then Just $ QueryResultsR commitHash
+                                 else Nothing
    where commitHash = fromSHA1ToText $ submissionCommit submission
 
 -- sometimes we checker whether we got a teacher, but sometimes
 -- fall back to a simpler check...
-checkSimpleVisibility :: Submission -> UserId -> Maybe UserId -> Bool
-checkSimpleVisibility submission userId mauthId = isPublic || isOwner
+checkSimpleVisibility :: Submission -> Maybe UserId -> Bool
+checkSimpleVisibility submission mauthId = isPublic || isOwner
    where isPublic = submissionIsPublic submission
          isOwner = (mauthId == Just userId)
+         userId = submissionSubmitter submission
 
 checkWhetherVisible :: (MonadIO m, BackendCompatible SqlBackend backend, PersistQueryRead backend, PersistUniqueRead backend)
-                      => Submission -> Key User -> Maybe (Key User) -> ReaderT backend m Bool
-checkWhetherVisible submission _ Nothing = return $ submissionIsPublic submission
-checkWhetherVisible submission userId (Just seerId) = do
+                      => Submission -> Maybe (Key User) -> ReaderT backend m Bool
+checkWhetherVisible submission Nothing = return $ submissionIsPublic submission
+checkWhetherVisible submission (Just seerId) = do
   let challengeId = submissionChallenge submission
   achvs <- E.select $ E.from $ \(achievement, course, participant, teacher) -> do
      E.where_ (achievement ^. AchievementChallenge E.==. E.val challengeId
@@ -247,6 +243,7 @@ checkWhetherVisible submission userId (Just seerId) = do
   return (isPublic || isOwner || isTeacher)
   where isPublic = submissionIsPublic submission
         isOwner = (seerId == userId)
+        userId = submissionSubmitter submission
 
 getAuxSubmissionEnts :: TestReference -> [TableEntry] -> [(Key User, (User, [(Entity Submission, Entity Variant, Evaluation)]))]
 getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluationMaps
