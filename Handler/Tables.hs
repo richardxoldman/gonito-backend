@@ -202,11 +202,11 @@ theLimitedTextCell h textFun = limitedTextCell h softLimit hardLimit textFun
 statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, UserId, Maybe UserId) -> WidgetFor App ()
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, userId, mauthId) = do
   isReevaluable <- handlerToWidget $ runDB $ canBeReevaluated submissionId
+  isVisible <- handlerToWidget $ runDB $ checkWhetherVisible submission userId mauthId
   $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
           isOwner = (mauthId == Just userId)
-          isVisible = checkWhetherVisible submission userId mauthId
           publicSubmissionBranch = getPublicSubmissionBranch submissionId
           maybeBrowsableUrl = if isPublic
                                 then
@@ -215,15 +215,38 @@ statusCellWidget challengeName repoScheme challengeRepo (submissionId, submissio
                                   Nothing
 
 getInfoLink :: Submission -> UserId -> Maybe UserId -> Maybe (Route App)
-getInfoLink submission userId mauthId = if checkWhetherVisible submission userId mauthId
+getInfoLink submission userId mauthId = if checkSimpleVisibility submission userId mauthId
                                         then Just $ QueryResultsR commitHash
                                         else Nothing
    where commitHash = fromSHA1ToText $ submissionCommit submission
 
-checkWhetherVisible :: Submission -> UserId -> Maybe UserId -> Bool
-checkWhetherVisible submission userId mauthId = isPublic || isOwner
+-- sometimes we checker whether we got a teacher, but sometimes
+-- fall back to a simpler check...
+checkSimpleVisibility :: Submission -> UserId -> Maybe UserId -> Bool
+checkSimpleVisibility submission userId mauthId = isPublic || isOwner
+   where isPublic = submissionIsPublic submission
+         isOwner = (mauthId == Just userId)
+
+checkWhetherVisible :: (MonadIO m, BackendCompatible SqlBackend backend, PersistQueryRead backend, PersistUniqueRead backend)
+                      => Submission -> Key User -> Maybe (Key User) -> ReaderT backend m Bool
+checkWhetherVisible submission _ Nothing = return $ submissionIsPublic submission
+checkWhetherVisible submission userId (Just seerId) = do
+  let challengeId = submissionChallenge submission
+  achvs <- E.select $ E.from $ \(achievement, course, participant, teacher) -> do
+     E.where_ (achievement ^. AchievementChallenge E.==. E.val challengeId
+               E.&&. achievement ^. AchievementCourse E.==. course ^. CourseId
+               E.&&. participant ^. ParticipantUser E.==. E.val userId
+               E.&&. participant ^. ParticipantCourse E.==. course ^. CourseId
+               E.&&. teacher ^. TeacherUser E.==. E.val seerId
+               E.&&. teacher ^. TeacherCourse E.==. course ^. CourseId)
+     E.limit 2
+     return ()
+  let isTeacher = case achvs of
+        [] -> False
+        _  -> True
+  return (isPublic || isOwner || isTeacher)
   where isPublic = submissionIsPublic submission
-        isOwner = (mauthId == Just userId)
+        isOwner = (seerId == userId)
 
 getAuxSubmissionEnts :: TestReference -> [TableEntry] -> [(Key User, (User, [(Entity Submission, Entity Variant, Evaluation)]))]
 getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluationMaps
