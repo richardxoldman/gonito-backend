@@ -230,7 +230,10 @@ getChallengeSubmissionR name = do
    let scheme = appRepoScheme $ appSettings app
    let repoHost = appRepoHost $ appSettings app
 
-   (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just $ defaultRepo scheme repoHost challenge repo maybeUser) (defaultBranch scheme) (repoGitAnnexRemote repo)
+   let defaultUrl = fromMaybe (defaultRepo scheme repoHost challenge repo maybeUser)
+                              ((<> name) <$> (join $ userAltRepoScheme <$> entityVal <$> maybeUser))
+
+   (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
