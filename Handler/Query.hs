@@ -34,7 +34,7 @@ import Data.SplitIntoCrossTabs
 
 rawCommitQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
 rawCommitQuery sha1Prefix =
-  rawSql "SELECT ?? FROM submission WHERE is_public AND cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
+  rawSql "SELECT ?? FROM submission WHERE cast(commit as text) like ?" [PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
 
 rawOutQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
 rawOutQuery sha1Prefix =
@@ -48,9 +48,8 @@ groupBySecond lst = map putOut $ groupOn (fsiSubmissionId . fst) lst
 findSubmissions :: Text -> Handler [(FullSubmissionInfo, [SHA1])]
 findSubmissions sha1Prefix = do
   mauthId <- maybeAuth
-  submissions <- runDB $ case mauthId of
-    Just (Entity authId _) -> rawSql "SELECT ?? FROM submission WHERE (is_public OR submitter = ?) AND cast(commit as text) like ?" [toPersistValue authId, PersistText $ "\\\\x" ++ sha1Prefix ++ "%"]
-    Nothing -> rawCommitQuery sha1Prefix
+  allSubmissions <- runDB $ rawCommitQuery sha1Prefix
+  submissions <- filterM (\sub -> runDB $ checkWhetherVisible (entityVal sub) (entityKey <$> mauthId)) allSubmissions
   justSubmissions' <- mapM getFullInfo submissions
   let justSubmissions = map (\s -> (s, [])) justSubmissions'
 
@@ -196,7 +195,9 @@ getViewVariantR variantId = do
                                                           (submissionChallenge theSubmission)
   let tests = sortBy (flip testComparator) tests'
 
-  if submissionIsPublic theSubmission || Just (submissionSubmitter theSubmission) == (entityKey <$> mauthId)
+  isViewable <- runDB $ checkWhetherVisible theSubmission (entityKey <$> mauthId)
+
+  if isViewable
     then
      do
       fullSubmissionInfo <- getFullInfo (Entity theSubmissionId theSubmission)
@@ -236,17 +237,19 @@ paramsTable = mempty
 
 viewOutput :: TableEntry -> [Entity Test] -> (SHA1, Text) -> WidgetFor App ()
 viewOutput entry tests (outputHash, testSet) = do
+  mauthId <- maybeAuthId
+
   let tests'@(mainTest:_) = filter (\e -> (testName $ entityVal e) == testSet) tests
   let outputSha1AsText = fromSHA1ToText $ outputHash
 
   let variant = variantName $ entityVal $ tableEntryVariant entry
 
   let theStamp = submissionStamp $ entityVal $ tableEntrySubmission entry
-  let isPublic = submissionIsPublic $ entityVal $ tableEntrySubmission entry
+  isViewable <- handlerToWidget $ runDB $ checkWhetherVisible (entityVal $ tableEntrySubmission entry) mauthId
   challenge <- handlerToWidget $ runDB $ get404 $ submissionChallenge $ entityVal $ tableEntrySubmission entry
   let isNonSensitive = challengeSensitive challenge == Just False
 
-  let shouldBeShown = not ("test-" `isInfixOf` testSet) && isPublic && isNonSensitive
+  let shouldBeShown = not ("test-" `isInfixOf` testSet) && isViewable && isNonSensitive
 
   let mainMetric = testMetric $ entityVal mainTest
 
@@ -272,6 +275,7 @@ viewOutput entry tests (outputHash, testSet) = do
                        gesTestName = (T.unpack testSet),
                        gesSelector = Nothing,
                        gesOutFile = outFile,
+                       gesAltOutFiles = Nothing,
                        gesExpectedFile = "expected.tsv",
                        gesInputFile = "in.tsv",
                        gesMetrics = [mainMetric],
