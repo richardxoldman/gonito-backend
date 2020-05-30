@@ -306,7 +306,14 @@ isBefore :: UTCTime -> Maybe UTCTime -> Bool
 isBefore _ Nothing = True
 isBefore moment (Just deadline) = moment <= deadline
 
-doCreateSubmission :: UserId -> Key Challenge -> ChallengeSubmissionData-> Channel -> Handler ()
+-- | An attempt to filtre out mistaken/unwanted submissions (without cloning
+-- the submission repo, just by looking at the metadata)
+willClone :: Challenge -> ChallengeSubmissionData -> Bool
+willClone challenge submissionData = (challengeName challenge) `isInfixOf` url
+  where url = repoSpecUrl $ challengeSubmissionDataRepo submissionData
+
+-- | Main place where submission is done (whether manually or by trigger)
+doCreateSubmission :: UserId -> Key Challenge -> ChallengeSubmissionData -> Channel -> Handler ()
 doCreateSubmission userId challengeId challengeSubmissionData chan = do
   challenge <- runDB $ get404 challengeId
 
@@ -315,7 +322,13 @@ doCreateSubmission userId challengeId challengeSubmissionData chan = do
 
   if theNow `isBefore` (versionDeadline $ entityVal version)
     then
-      doCreateSubmission' (challengeArchived challenge) userId challengeId challengeSubmissionData chan
+     do
+      let wanted = willClone challenge challengeSubmissionData
+      if wanted
+        then
+          doCreateSubmission' (challengeArchived challenge) userId challengeId challengeSubmissionData chan
+        else
+          msg chan "Refusing to clone the submission from this URL"
     else
       msg chan "Submission is past the deadline, no submission will be accepted from now on."
 
