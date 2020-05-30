@@ -309,8 +309,12 @@ isBefore moment (Just deadline) = moment <= deadline
 -- | An attempt to filtre out mistaken/unwanted submissions (without cloning
 -- the submission repo, just by looking at the metadata)
 willClone :: Challenge -> ChallengeSubmissionData -> Bool
-willClone challenge submissionData = (challengeName challenge) `isInfixOf` url
+willClone challenge submissionData =
+  (challengeName challenge) `isInfixOf` url && branch /= dontPeek && not (dontPeek `isInfixOf` url)
   where url = repoSpecUrl $ challengeSubmissionDataRepo submissionData
+        branch = repoSpecBranch $ challengeSubmissionDataRepo submissionData
+        dontPeek = "dont-peek"
+
 
 -- | Main place where submission is done (whether manually or by trigger)
 doCreateSubmission :: UserId -> Key Challenge -> ChallengeSubmissionData -> Channel -> Handler ()
