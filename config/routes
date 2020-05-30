@@ -27,6 +27,8 @@
 /trigger-remotely TriggerRemotelyR POST
 /trigger-remotely-simple/#Text/#Text/#Text/#Text TriggerRemotelySimpleR GET POST
 /trigger-locally TriggerLocallyR POST
+-- trigger by JSON payload (from e.g. GitLab or Gogs)
+/trigger-by-webhook/#Text/#Text TriggerByWebhookR POST
 
 /indicator-graph-data/#IndicatorId IndicatorGraphDataR GET
 

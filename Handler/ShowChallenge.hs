@@ -20,7 +20,11 @@ import Handler.Dashboard
 import Handler.Common
 import Handler.Evaluate
 
+import Data.Maybe (fromJust)
+
 import Text.Blaze
+
+import Data.Aeson
 
 import Gonito.ExtractMetadata (ExtractionOptions(..),
                                extractMetadataFromRepoDir,
@@ -278,6 +282,38 @@ postTriggerRemotelySimpleR token challengeName url branch =
 getTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
 getTriggerRemotelySimpleR token challengeName url branch =
   doTrigger token challengeName (decodeSlash url) (Just branch) Nothing
+
+data GitServerPayload = GitServerPayload {
+  gitServerPayloadRef :: Text,
+  -- Unfortunately, the URL is given in "ssh_url" field
+  -- for Gogs and "git_ssh_url" for GitLab, hence two
+  -- fields here
+  gitServerPayloadSshUrl :: Maybe Text,
+  gitServerPayloadGitSshUrl :: Maybe Text
+  }
+  deriving (Show, Eq)
+
+instance FromJSON GitServerPayload where
+    parseJSON (Object o) = GitServerPayload
+      <$> o .: "ref"
+      <*> ((o .: "repository") >>= (.:? "ssh_url"))
+      <*> ((o .: "repository") >>= (.:? "git_ssh_url"))
+
+postTriggerByWebhookR :: Text -> Text -> Handler TypedContent
+postTriggerByWebhookR token challengeName = do
+  payload <- requireJsonBody :: Handler GitServerPayload
+  let ref = gitServerPayloadRef payload
+  let refPrefix = "refs/heads/"
+  if refPrefix `isPrefixOf` ref
+    then
+      do
+        let branch = T.replace refPrefix "" ref
+        let url = fromMaybe (fromJust $ gitServerPayloadGitSshUrl payload)
+                            (gitServerPayloadSshUrl payload)
+        doTrigger token challengeName url (Just branch) Nothing
+    else
+      error $ "unexpected ref `" ++ (T.unpack ref) ++ "`"
+
 
 doTrigger :: Text -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
 doTrigger token challengeName url mBranch mGitAnnexRemote = do
