@@ -11,7 +11,11 @@
   <dt>submitted
   <dd>#{stamp}
   <dt>original repo
-  <dd><code>#{repoUrl $ fsiRepo submission}</code> / branch <code>#{repoBranch $ fsiRepo submission}</code>
+  <dd>
+    $maybe (url, branchPart) <- getHttpLink (fsiRepo submission)
+      <code><a href="#{url}">#{repoUrl $ fsiRepo submission}</code></a> / branch <a href="#{url <> branchPart}"><code>#{repoBranch $ fsiRepo submission}</code></a>
+    $nothing
+      <code>#{repoUrl $ fsiRepo submission}</code> / branch <code>#{repoBranch $ fsiRepo submission}</code>
   $if submissionIsPublic $ fsiSubmission submission
     <dt>publicly available at
     <dd><code>#{publicSubmissionRepo}</code> / branch <code>#{publicSubmissionBranch}</code>
