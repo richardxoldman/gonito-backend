@@ -198,4 +198,39 @@ Target
     deadline UTCTime
     value Double
     name Text Maybe
+-- for doing manual annotation or human baselines
+-- A specific annotation task, related to a specific challenge
+AnnotationTask
+    challenge ChallengeId
+    added UTCTime default=now()
+    name Text
+    UniqueAnnotationTaskName name
+-- A possible label that an annotator can use.
+-- The labels will be shown as buttons to click for an annotator
+AnnotationLabel
+    annotationTask AnnotationTaskId
+    -- name to be shown (e.g. as the button label)
+    name Text
+    -- value represented by the label (when evaluating the results)
+    value Text
+    -- for sorting labels when showing to a user
+    order Int
+    UniqueAnnotationLabelName annotationTask name
+-- A single item to be annotated.
+-- It corresponds to a single line in the in.tsv file. Note that
+-- only a subset of lines can be considered here (and covering
+-- various test sets)
+AnnotationItem
+    annotationTask AnnotationTaskId
+    -- the line content (possibly including TABs)
+    content Text
+    -- to specify the order in which the items are shown to a user
+    order Int
+-- A decision (annotation) made by a user for a specific item
+AnnotationDecision
+    annotationItem AnnotationItemId
+    user UserId
+    -- value selected by the user (cf. value in AnnotationLabel)
+    value Text
+    stamp UTCTime default=now()
 -- By default this file is used in Model.hs (which is imported by Foundation.hs)
