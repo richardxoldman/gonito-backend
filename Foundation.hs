@@ -169,6 +169,11 @@ instance Yesod App where
     isAuthorized (ChallengeDiscussionR _) _ = regularAuthorization
     isAuthorized (ChallengeDiscussionFeedR _) _ = regularAuthorization
 
+    isAuthorized ListAnnotationsR _ = isAdmin
+    isAuthorized (AnnotationTaskR _) _ = regularAuthorization
+    isAuthorized (AnnotationTaskDecisionR _ _ _) _ = regularAuthorization
+    isAuthorized (AnnotationTaskResultsR _) _ = isAdmin
+
     isAuthorized Presentation4RealR _ = regularAuthorization
     isAuthorized PresentationPSNC2019R _ = regularAuthorization
     isAuthorized GonitoInClassR _ = regularAuthorization
