@@ -53,6 +53,7 @@ import Handler.AccountReset
 import Handler.Presentation
 import Handler.Tags
 import Handler.EditSubmission
+import Handler.Annotations
 import Handler.Achievements
 import Handler.Score
 import Handler.ExtraPoints

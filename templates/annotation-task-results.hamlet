@@ -1,0 +1,9 @@
+$if null results
+  <h2> No results found!
+
+$else
+  <h2> #{length results} results:
+  ^{Table.buildBootstrap annotationResultsTable results}
+
+  <h3> Value of Answers:
+  ^{Table.buildBootstrap annotationLabelsTable labels}

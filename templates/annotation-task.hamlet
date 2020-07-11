@@ -1,0 +1,19 @@
+$maybe task <- annotationTask
+  <h2> Annotation: #{annotationTaskName task}
+
+  $maybe (Entity itemId itemData) <- maybeItem
+    <h5> Progress: #{decisionLength} / #{taskItemsLength}
+    <h3> #{annotationItemContent itemData}
+
+    $forall (Entity labelId labelData) <- labels
+      <form method=post action=@{AnnotationTaskDecisionR annotationTaskId itemId labelId}>
+        <button .btn .btn-primary type="submit">#{annotationLabelName labelData}
+
+  $nothing
+    $if allDone
+      <h3> You've done all (#{decisionLength}) the annotations, congratulations!
+    $else
+      <h3> Annotation is not ready yet, come back later!
+
+$nothing
+  <h2> Nothing to do!

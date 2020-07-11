@@ -47,6 +47,7 @@ library
                      Handler.Tags
                      Handler.EditSubmission
                      Handler.SubmissionView
+                     Handler.Annotations
                      Handler.Achievements
                      Handler.TagUtils
                      Handler.Score

@@ -30,6 +30,11 @@
 -- trigger by JSON payload (from e.g. GitLab or Gogs)
 /trigger-by-webhook/#Text/#Text TriggerByWebhookR POST
 
+/list-anotations ListAnnotationsR GET
+/annotation/#{AnnotationTaskId} AnnotationTaskR GET
+/annotation/decision/#{AnnotationTaskId}/#{AnnotationItemId}/#{AnnotationLabelId} AnnotationTaskDecisionR POST
+/annotation/results/#{AnnotationTaskId} AnnotationTaskResultsR GET
+
 /indicator-graph-data/#IndicatorId IndicatorGraphDataR GET
 
 /q QueryFormR GET POST

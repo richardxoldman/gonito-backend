@@ -91,3 +91,4 @@ UserIdentifier: user login/identifier
 AltRepoScheme: alternative git repo scheme (URL without the challenge name pointing to some external server)
 AltRepoSchemeTooltip: set this if you want to use an alternative git server for all your submissions
 ShouldChallengeBeValidated: validate challenge (do not switch off unless you have a good reason)
+ShowAnnotations: show annotations
