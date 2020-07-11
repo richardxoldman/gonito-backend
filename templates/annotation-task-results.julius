@@ -1,0 +1,11 @@
+  $(document).ready(function() {
+     $("table").DataTable({
+       'pageLength': 50,
+       'dom': 'Bfrtlip',
+       'buttons': [
+            'copy',
+            'csv',
+            'excel'
+        ]
+       })
+  });
