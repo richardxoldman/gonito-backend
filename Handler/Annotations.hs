@@ -84,6 +84,7 @@ getAnnotationTaskResultsR annotationTaskId = do
                                 E.asc (annotationDecision E.^. AnnotationDecisionUser)]
                      return (annotationItem E.^. AnnotationItemContent,
                              annotationItem E.^. AnnotationItemOrder,
+                             annotationDecision E.^. AnnotationDecisionUser,
                              annotationDecision E.^. AnnotationDecisionValue)
 
   labels <- runDB $ selectList [AnnotationLabelAnnotationTask ==. annotationTaskId] [Asc AnnotationLabelOrder]
@@ -101,11 +102,12 @@ annotationListTable = mempty
   ++ timestampCell "Date added" (annotationTaskAdded . entityVal)
 
 
-annotationResultsTable :: Table.Table App (E.Value Text, E.Value Int, E.Value Text)
+annotationResultsTable :: Table.Table App (E.Value Text, E.Value Int, E.Value (Key User), E.Value Text)
 annotationResultsTable = mempty
-  ++ Table.int "ID" (\(_, order, _) -> E.unValue order)
-  ++ Table.text "Answer value" (\(_, _, answer) -> E.unValue answer)
-  ++ Table.text "Text" (\(content, _, _) -> E.unValue content)
+  ++ Table.int "ID" (\(_, order, _, _) -> E.unValue order)
+  ++ Table.int "UserID" (\(_, _, userId, _) -> fromIntegral $ E.fromSqlKey $ E.unValue userId)
+  ++ Table.text "Answer value" (\(_, _, _, answer) -> E.unValue answer)
+  ++ Table.text "Text" (\(content, _, _, _) -> E.unValue content)
 
 
 annotationLabelsTable :: Table.Table App (Entity AnnotationLabel)
