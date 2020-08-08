@@ -1,5 +1,5 @@
 name:              gonito
-version:           0.1.0
+version:           0.1.1
 cabal-version:     >= 1.8
 build-type:        Simple
 homepage:          http://gonito.net
@@ -129,7 +129,7 @@ library
                  , filemanip
                  , cryptohash
                  , markdown
-                 , geval >= 1.32 && < 1.37
+                 , geval >= 1.37 && < 1.38
                  , filepath
                  , yesod-table
                  , regex-tdfa

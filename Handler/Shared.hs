@@ -40,6 +40,7 @@ import System.IO.Unsafe (unsafePerformIO)
 import Text.Regex.TDFA
 
 import GEval.Core
+import GEval.Common
 import GEval.EvaluationScheme
 import GEval.Formatting (formatTheResultWithErrorBounds)
 
@@ -450,8 +451,13 @@ formatTruncatedScore :: Maybe Int -> Maybe Evaluation -> Text
 formatTruncatedScore Nothing e = formatFullScore e
 formatTruncatedScore _ Nothing  = formatFullScore Nothing
 formatTruncatedScore (Just precision) (Just evaluation) = case evaluationScore evaluation of
-  Just score -> T.pack $ formatTheResultWithErrorBounds (Just precision) score (evaluationErrorBound evaluation)
+  Just score -> T.pack $ formatTheResultWithErrorBounds formattingOpts score (evaluationErrorBound evaluation)
   Nothing -> formatFullScore Nothing
+ where formattingOpts = FormattingOptions {
+         decimalPlaces = Just precision,
+         asPercentage = False
+      }
+
 
 formatScore :: Maybe Int -> Double -> Text
 formatScore Nothing = T.pack . show

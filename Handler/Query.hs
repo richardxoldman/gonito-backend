@@ -27,6 +27,7 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 import Data.Conduit.SmartSource (lookForCompressedFiles)
 import GEval.Core (GEvalSpecification(..), ResultOrdering(..))
 import GEval.LineByLine (runLineByLineGeneralized, LineRecord(..))
+import GEval.Common (FormattingOptions(..))
 import qualified Data.Conduit.List as CL
 import System.FilePath (takeFileName)
 
@@ -279,7 +280,9 @@ viewOutput entry tests (outputHash, testSet) = do
                        gesExpectedFile = "expected.tsv",
                        gesInputFile = "in.tsv",
                        gesMetrics = [mainMetric],
-                       gesPrecision = Nothing,
+                       gesFormatting = FormattingOptions {
+                           decimalPlaces = Nothing,
+                           asPercentage = False },
                        gesTokenizer = Nothing,
                        gesGonitoHost = Nothing,
                        gesToken = Nothing,
@@ -287,7 +290,8 @@ viewOutput entry tests (outputHash, testSet) = do
                        gesReferences = Nothing,
                        gesBootstrapResampling = Nothing,
                        gesInHeader = Nothing,
-                       gesOutHeader = Nothing }
+                       gesOutHeader = Nothing,
+                       gesShowPreprocessed = True }
 
                  result <- liftIO $ runLineByLineGeneralized FirstTheWorst spec (\_ -> CL.take 20)
 

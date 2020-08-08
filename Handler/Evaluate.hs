@@ -16,6 +16,7 @@ import qualified Data.Text as T
 import qualified Data.Map.Strict as M
 
 import GEval.Core
+import GEval.Common
 import GEval.EvaluationScheme
 import GEval.OptionsParser
 import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
@@ -224,7 +225,10 @@ checkOrInsertEvaluation repoDir chan version out = do
         Right (Left _) -> do
           err chan "Cannot parse options, check the challenge repo"
         Right (Right (_, Just [(_, [result])])) -> do
-          msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult Nothing result) ]
+          let defaultFormattingOpts = FormattingOptions {
+                decimalPlaces = Nothing,
+                asPercentage = False }
+          msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult defaultFormattingOpts result) ]
           time <- liftIO getCurrentTime
           _ <- runDB $ insert $ let (pointResult, errorBound) = extractResult result
                                in Evaluation {

@@ -12,6 +12,7 @@ import GEval.Core
 import GEval.OptionsParser
 import GEval.EvaluationScheme
 import GEval.Validation
+import GEval.Common (FormattingOptions(..))
 
 import Gonito.ExtractMetadata (getLastCommitMessage)
 
@@ -392,7 +393,7 @@ insertOrUpdateTest testDir challengeId checksum commit opts (priority, metric) =
   mAlreadyExistingTest <- getBy $ UniqueChallengeNameMetricChecksum challengeId name metric checksum
   case mAlreadyExistingTest of
     Just (Entity testId _) -> update testId [TestCommit=.commit,
-                                            TestPrecision=.(gesPrecision $ geoSpec opts),
+                                            TestPrecision=. (decimalPlaces $ gesFormatting $ geoSpec opts),
                                             TestPriority=.Just priority]
     Nothing -> do
                 _ <- insert $ Test {
@@ -402,7 +403,7 @@ insertOrUpdateTest testDir challengeId checksum commit opts (priority, metric) =
                   testChecksum=checksum,
                   testCommit=commit,
                   testActive=True,
-                  testPrecision=gesPrecision $ geoSpec opts,
+                  testPrecision=decimalPlaces $ gesFormatting $ geoSpec opts,
                   testPriority=Just priority}
                 return ()
 
