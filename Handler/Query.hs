@@ -181,13 +181,15 @@ processQuery query = do
     setTitle "query results"
     $(widgetFile "query-results")
 
-
-getViewVariantR :: VariantId -> Handler Html
-getViewVariantR variantId = do
+getViewVariantTestR :: VariantId -> TestId -> Handler Html
+getViewVariantTestR variantId testId = do
   mauthId <- maybeAuth
   variant <- runDB $ get404 variantId
   let theSubmissionId = variantSubmission variant
   theSubmission <- runDB $ get404 theSubmissionId
+
+  testSelected <- runDB $ get404 testId
+  let testSelectedEnt = Entity testId testSelected
 
   ([entry], tests') <- runDB $ getChallengeSubmissionInfos 3
                                                           (\e -> entityKey e == theSubmissionId)
@@ -222,13 +224,28 @@ getViewVariantR variantId = do
       error "Cannot access this submission variant"
 
 
-crossTableDefinition :: TableWithValues Text -> Table.Table App (Text, [Text])
-crossTableDefinition (TableWithValues (headerH : headerR) _) = mempty
-  ++ Table.text headerH fst
-  ++ mconcat (map (\(ix, h) -> Table.text h ((!! ix) . snd)) $ zip [0..] headerR)
-crossTableDefinition _ = error $ "cross-tab of an unexpected size"
+getViewVariantR :: VariantId -> Handler Html
+getViewVariantR variantId = do
+  variant <- runDB $ get404 variantId
+  let theSubmissionId = variantSubmission variant
+  theSubmission <- runDB $ get404 theSubmissionId
 
-crossTableBody :: TableWithValues Text -> [(Text, [Text])]
+  (_, tests') <- runDB $ getChallengeSubmissionInfos 3
+                                                    (\e -> entityKey e == theSubmissionId)
+                                                    (\e -> entityKey e == variantId)
+                                                    id
+                                                    (submissionChallenge theSubmission)
+  let (mainTest:_) = sortBy (flip testComparator) tests'
+  getViewVariantTestR variantId (entityKey mainTest)
+
+
+crossTableDefinition :: VariantId -> TableWithValues (Entity Test, Text) -> Table.Table App (Text, [(Entity Test, Text)])
+crossTableDefinition variantId (TableWithValues (headerH : headerR) _) = mempty
+  ++ Table.text headerH fst
+  ++ mconcat (map (\(ix, h) -> Table.linked h (snd . (!! ix) . snd) ((\(e, _) -> ViewVariantTestR variantId (entityKey e)) . (!! ix) . snd)) $ zip [0..] headerR)
+crossTableDefinition _ _ = error $ "cross-tab of an unexpected size"
+
+crossTableBody :: TableWithValues (Entity Test, Text) -> [(Text, [(Entity Test, Text)])]
 crossTableBody (TableWithValues _ rows) = rows
 
 paramsTable :: Table.Table App Parameter
@@ -238,12 +255,19 @@ paramsTable = mempty
 
 viewOutput :: TableEntry -> [Entity Test] -> (SHA1, Text) -> WidgetFor App ()
 viewOutput entry tests (outputHash, testSet) = do
+  let (mainTest:_) = filter (\e -> (testName $ entityVal e) == testSet) tests
+  viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet)
+
+viewOutputWithNonDefaultTestSelected :: TableEntry -> [Entity Test] -> Entity Test -> (SHA1, Text) -> WidgetFor App ()
+viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) = do
+  let tests' = filter (\e -> (testName $ entityVal e) == testSet) tests
+
   mauthId <- maybeAuthId
 
-  let tests'@(mainTest:_) = filter (\e -> (testName $ entityVal e) == testSet) tests
   let outputSha1AsText = fromSHA1ToText $ outputHash
 
   let variant = variantName $ entityVal $ tableEntryVariant entry
+  let variantId = entityKey $ tableEntryVariant entry
 
   let theStamp = submissionStamp $ entityVal $ tableEntrySubmission entry
   isViewable <- handlerToWidget $ runDB $ checkWhetherVisible (entityVal $ tableEntrySubmission entry) mauthId
@@ -256,8 +280,9 @@ viewOutput entry tests (outputHash, testSet) = do
 
   let testLabels = map (formatTestEvaluationScheme . entityVal) tests'
   let mapping = LM.fromList $ map (\test -> (formatTestEvaluationScheme $ entityVal test,
-                                            (formatTruncatedScore (testPrecision $ entityVal test)
-                                             $ extractScore (getTestReference test) entry))) tests'
+                                            (test,
+                                             (formatTruncatedScore (testPrecision $ entityVal test)
+                                              $ extractScore (getTestReference test) entry)))) tests'
   let crossTables = splitIntoTablesWithValues "Metric" "Score" mapping testLabels
 
   mResult <-

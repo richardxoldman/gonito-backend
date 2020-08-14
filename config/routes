@@ -41,6 +41,7 @@
 /q/#Text QueryResultsR  GET
 
 /view-variant/#VariantId ViewVariantR GET
+/view-variant-test/#VariantId/#TestId ViewVariantTestR GET
 
 /api/txt/score/#Text ApiTxtScoreR GET
 

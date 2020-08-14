@@ -11,4 +11,4 @@
       ^{Table.buildBootstrap paramsTable (map entityVal $ tableEntryParams entry)}
 
   $forall output <- outputs
-    ^{viewOutput entry tests output}
+    ^{viewOutputWithNonDefaultTestSelected entry tests testSelectedEnt output}

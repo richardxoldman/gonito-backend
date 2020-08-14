@@ -77,6 +77,7 @@ Test
     precision Int Maybe
     priority Int Maybe
     UniqueChallengeNameMetricChecksum challenge name metric checksum
+    deriving Show
 Submission
     repo RepoId
     commit SHA1

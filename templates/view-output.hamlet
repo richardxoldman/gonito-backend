@@ -6,7 +6,7 @@
    <div class="media-heading">
      <div .subm-commit>#{testSet} / #{outputSha1AsText}
      $forall crossTable <- crossTables
-       ^{Table.buildBootstrap (crossTableDefinition crossTable) (crossTableBody crossTable)}
+       ^{Table.buildBootstrap (crossTableDefinition variantId crossTable) (crossTableBody crossTable)}
      $maybe result <- mResult
         <h4>worst items
         ^{Table.buildBootstrap (lineByLineTable mainTest theStamp) result}
