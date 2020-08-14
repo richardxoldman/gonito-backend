@@ -247,8 +247,9 @@ crossTableDefinition variantId (TableWithValues (headerH : headerR) _) = mempty
   ++ Table.text headerH fst
   ++ mconcat (map (\(ix, h) -> linkedWithAnchor h
                                                (snd . (!! ix) . snd)
-                                               ((\(e, _) -> ViewVariantTestR variantId (entityKey e)) . (!! ix) . snd)) $ zip [0..] headerR)
-                                               fst
+                                               ((\(e, _) -> ViewVariantTestR variantId (entityKey e)) . (!! ix) . snd)
+                                               (("worst-items-" <>) . testName . entityVal . fst . (!! ix) . snd))
+               $ zip [0..] headerR)
 crossTableDefinition _ _ = error $ "cross-tab of an unexpected size"
 
 crossTableBody :: TableWithValues (Entity Test, Text) -> [(Text, [(Entity Test, Text)])]
