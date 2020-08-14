@@ -238,11 +238,17 @@ getViewVariantR variantId = do
   let (mainTest:_) = sortBy (flip testComparator) tests'
   getViewVariantTestR variantId (entityKey mainTest)
 
+linkedWithAnchor h propFunc routeFunc anchorFunc =
+  Table.widget h (
+    \v -> [whamlet|<a href=@{routeFunc v}\\##{anchorFunc v}>#{propFunc v}|])
 
 crossTableDefinition :: VariantId -> TableWithValues (Entity Test, Text) -> Table.Table App (Text, [(Entity Test, Text)])
 crossTableDefinition variantId (TableWithValues (headerH : headerR) _) = mempty
   ++ Table.text headerH fst
-  ++ mconcat (map (\(ix, h) -> Table.linked h (snd . (!! ix) . snd) ((\(e, _) -> ViewVariantTestR variantId (entityKey e)) . (!! ix) . snd)) $ zip [0..] headerR)
+  ++ mconcat (map (\(ix, h) -> linkedWithAnchor h
+                                               (snd . (!! ix) . snd)
+                                               ((\(e, _) -> ViewVariantTestR variantId (entityKey e)) . (!! ix) . snd)) $ zip [0..] headerR)
+                                               fst
 crossTableDefinition _ _ = error $ "cross-tab of an unexpected size"
 
 crossTableBody :: TableWithValues (Entity Test, Text) -> [(Text, [(Entity Test, Text)])]

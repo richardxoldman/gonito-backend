@@ -8,6 +8,7 @@
      $forall crossTable <- crossTables
        ^{Table.buildBootstrap (crossTableDefinition variantId crossTable) (crossTableBody crossTable)}
      $maybe result <- mResult
+        <a name="worst-items-#{testSet}">
         <h4>worst items
         ^{Table.buildBootstrap (lineByLineTable mainTest theStamp) result}
      $nothing
