@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Handler.Query where
 
 import Import
@@ -6,6 +8,8 @@ import Handler.SubmissionView
 import Handler.Shared
 import Handler.TagUtils
 import PersistSHA1
+
+import Data.Diff
 
 import Handler.Tables
 
@@ -18,6 +22,8 @@ import Database.Persist.Sql
 import qualified Database.Esqueleto      as E
 import           Database.Esqueleto      ((^.))
 
+import Data.Maybe (fromJust)
+
 import qualified Data.Text as T
 
 import Data.List (nub, (!!))
@@ -28,10 +34,11 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 
 import Data.Conduit.SmartSource (lookForCompressedFiles)
 import GEval.Core (GEvalSpecification(..), ResultOrdering(..))
-import GEval.LineByLine (runLineByLineGeneralized, LineRecord(..))
-import GEval.Common (FormattingOptions(..))
+import GEval.LineByLine (runLineByLineGeneralized, runDiffGeneralized, LineRecord(..))
+import GEval.Common (FormattingOptions(..), MetricValue)
 import qualified Data.Conduit.List as CL
-import System.FilePath (takeFileName)
+import System.FilePath (takeFileName, makeRelative)
+import System.Directory (makeAbsolute)
 
 import Data.SplitIntoCrossTabs
 
@@ -186,15 +193,27 @@ processQuery query = do
 priorityLimitForViewVariant :: Int
 priorityLimitForViewVariant = 4
 
+getViewVariantDiffR :: VariantId -> VariantId -> TestId -> Handler Html
+getViewVariantDiffR oldVariantId newVariantId testId = do
+  doViewVariantTestR (TwoThings oldVariantId newVariantId) testId
+
 getViewVariantTestR :: VariantId -> TestId -> Handler Html
 getViewVariantTestR variantId testId = do
+  doViewVariantTestR (OneThing variantId) testId
+
+data ViewVariantData = ViewVariantData {
+  viewVariantDataFullSubmissionInfo :: (FullSubmissionInfo, Maybe Text),
+  viewVariantDataTableEntry :: TableEntry,
+  viewVariantDataTests :: [Entity Test],
+  viewVariantDataOuts :: [(SHA1, Text)]
+  }
+
+fetchViewVariantData :: VariantId -> Handler ViewVariantData
+fetchViewVariantData variantId = do
   mauthId <- maybeAuth
   variant <- runDB $ get404 variantId
   let theSubmissionId = variantSubmission variant
   theSubmission <- runDB $ get404 theSubmissionId
-
-  testSelected <- runDB $ get404 testId
-  let testSelectedEnt = Entity testId testSelected
 
   ([entry], tests') <- runDB $ getChallengeSubmissionInfos priorityLimitForViewVariant
                                                           (\e -> entityKey e == theSubmissionId)
@@ -222,12 +241,51 @@ getViewVariantTestR variantId testId = do
             $ nub
             $ map (\(out, test) -> (outChecksum $ entityVal out, testName $ entityVal test)) testOutputs
 
-      defaultLayout $ do
-        setTitle "Variant"
-        $(widgetFile "view-variant")
+      return $ ViewVariantData (fullSubmissionInfo, Just $ variantName variant) entry tests outputs
     else
       error "Cannot access this submission variant"
 
+
+instance Diffable SHA1 where
+  type DiffSettings SHA1 = ()
+  type DiffResult SHA1 = Diff SHA1
+  single u = OneThing u
+  diff _ old new
+    | old == new = OneThing new
+    | otherwise = TwoThings old new
+
+nullSHA1 :: SHA1
+nullSHA1 = fromTextToSHA1 "da39a3ee5e6b4b0d3255bfef95601890afd80709"
+
+doViewVariantTestR :: Diff VariantId -> TestId -> Handler Html
+doViewVariantTestR variantId testId = do
+  testSelected <- runDB $ get404 testId
+  let testSelectedEnt = Entity testId testSelected
+
+  variantInfos <- mapM (fetchViewVariantData) variantId
+  let fullSubmissionInfo = viewVariantDataFullSubmissionInfo <$> variantInfos
+  let entry = viewVariantDataTableEntry <$> variantInfos
+  let tests' = viewVariantDataTests <$> variantInfos
+  let outputs' = viewVariantDataOuts <$> variantInfos
+
+
+  let testIds = map fst $ runDiff () $ fmap (map entityKey) tests'
+  testEnts <- mapM (runDB . get404) testIds
+  let tests = map (\(i,e) -> Entity i e) $ zip testIds testEnts
+  let outputs :: [(Diff SHA1, Text)] =
+        sortBy (\a b -> ((snd b) `compare` (snd a)))
+        $ map swap $ LM.toList $ runDiff (nullSHA1, ()) $ fmap (LM.fromList . map swap) outputs'
+
+  defaultLayout $ do
+    setTitle "Variant"
+    $(widgetFile "view-variant")
+
+mergeEntryParams :: Diff [Parameter] -> [(Text, Diff Text)]
+mergeEntryParams (OneThing u) = map (\(Parameter _ name val) -> (name, OneThing val)) u
+mergeEntryParams (TwoThings old new) = LM.toList $ diff ("", ()) oldMap newMap
+   where oldMap = mapify old
+         newMap = mapify new
+         mapify l = LM.fromList $ map (\(Parameter _ name val) -> (name, val)) l
 
 getViewVariantR :: VariantId -> Handler Html
 getViewVariantR variantId = do
@@ -249,49 +307,94 @@ linkedWithAnchor h propFunc routeFunc anchorFunc =
   Table.widget h (
     \v -> [whamlet|<a href=@{routeFunc v}\\##{anchorFunc v}>#{propFunc v}|])
 
-crossTableDefinition :: VariantId -> TableWithValues (Entity Test, Text) -> Table.Table App (Text, [(Entity Test, Text)])
+getVariantTestLink :: Diff VariantId -> TestId -> Route App
+getVariantTestLink (OneThing u) testId = ViewVariantTestR u testId
+getVariantTestLink (TwoThings old new) testId = ViewVariantDiffR old new testId
+
+crossTableDefinition :: Diff VariantId -> TableWithValues (Entity Test, Diff Text) -> Table.Table App (Text, [(Entity Test, Diff Text)])
 crossTableDefinition variantId (TableWithValues (headerH : headerR) _) = mempty
   ++ Table.text headerH fst
   ++ mconcat (map (\(ix, h) -> linkedWithAnchor h
                                                (snd . (!! ix) . snd)
-                                               ((\(e, _) -> ViewVariantTestR variantId (entityKey e)) . (!! ix) . snd)
+                                               ((\(e, _) -> getVariantTestLink variantId (entityKey e)) . (!! ix) . snd)
                                                (("worst-items-" <>) . testName . entityVal . fst . (!! ix) . snd))
                $ zip [0..] headerR)
 crossTableDefinition _ _ = error $ "cross-tab of an unexpected size"
 
-crossTableBody :: TableWithValues (Entity Test, Text) -> [(Text, [(Entity Test, Text)])]
+crossTableBody :: TableWithValues (Entity Test, Diff Text) -> [(Text, [(Entity Test, Diff Text)])]
 crossTableBody (TableWithValues _ rows) = rows
 
-paramsTable :: Table.Table App Parameter
+paramsTable :: Table.Table App (Text, Diff Text)
 paramsTable = mempty
-  ++ Table.text "Parameter" parameterName
-  ++ Table.text "Value" parameterValue
+  ++ Table.text "Parameter" fst
+  ++ Table.widget "Value" ((\t -> [whamlet|#{t}|]) . snd)
 
-viewOutput :: TableEntry -> [Entity Test] -> (SHA1, Text) -> WidgetFor App ()
+viewOutput :: Diff TableEntry -> [Entity Test] -> (SHA1, Text) -> WidgetFor App ()
 viewOutput entry tests (outputHash, testSet) = do
   let (mainTest:_) = filter (\e -> (testName $ entityVal e) == testSet) tests
-  viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet)
+  viewOutputWithNonDefaultTestSelected entry tests mainTest (OneThing outputHash, testSet)
 
 maximumNumberOfItemsToBeShown :: Int
 maximumNumberOfItemsToBeShown = 40
 
-viewOutputWithNonDefaultTestSelected :: TableEntry -> [Entity Test] -> Entity Test -> (SHA1, Text) -> WidgetFor App ()
+getOut :: Maybe UserId -> TableEntry -> WidgetFor App (Maybe (FilePath, FilePath))
+getOut mauthId entry = do
+  let variant = variantName $ entityVal $ tableEntryVariant entry
+
+  isViewable <- handlerToWidget $ runDB $ checkWhetherVisible (entityVal $ tableEntrySubmission entry) mauthId
+  if isViewable
+   then
+    do
+     mRepoDir <- handlerToWidget $ justGetSubmissionRepoDir $ entityKey $ tableEntrySubmission entry
+     case mRepoDir of
+       Just repoDir -> do
+         outFilePath <- liftIO $ lookForCompressedFiles (repoDir </> (T.unpack variant) <.> "tsv")
+         return $ Just (repoDir, outFilePath)
+       Nothing -> return Nothing
+   else
+    do
+     return Nothing
+
+data DiffLineRecord = DiffLineRecord Text Text (Diff (Text, MetricValue)) Word32
+                      deriving (Show)
+
+getUniLineRecord :: LineRecord -> DiffLineRecord
+getUniLineRecord (LineRecord inp exp out lineNo val) = DiffLineRecord inp exp (OneThing (out, val)) lineNo
+
+getBiLineRecord :: (LineRecord, LineRecord) -> DiffLineRecord
+getBiLineRecord ((LineRecord oldInp oldExp oldOut oldLineNo oldVal), (LineRecord newInp newExp newOut newLineNo newVal))
+  | oldInp == newInp && oldExp == newExp && oldLineNo == newLineNo =  DiffLineRecord newInp
+                                                                                newExp
+                                                                                (TwoThings (oldOut, oldVal)
+                                                                                           (newOut, newVal))
+                                                                                newLineNo
+  | otherwise = error "inconsistent line records when diffing"
+
+
+getScoreFromDiff :: DiffLineRecord -> MetricValue
+getScoreFromDiff (DiffLineRecord _ _ (OneThing (_, s)) _) = s
+getScoreFromDiff (DiffLineRecord _ _ (TwoThings (_, oldS) (_, newS)) _) = newS - oldS
+
+
+viewOutputWithNonDefaultTestSelected :: Diff TableEntry
+                                       -> [Entity Test]
+                                       -> Entity Test
+                                       -> (Diff SHA1, Text)
+                                       -> WidgetFor App ()
 viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) = do
   let tests' = filter (\e -> (testName $ entityVal e) == testSet) tests
 
   mauthId <- maybeAuthId
 
-  let outputSha1AsText = fromSHA1ToText $ outputHash
+  let outputSha1AsText = fromSHA1ToText $ current outputHash
 
-  let variant = variantName $ entityVal $ tableEntryVariant entry
-  let variantId = entityKey $ tableEntryVariant entry
+  let variantId = entityKey <$> tableEntryVariant <$> entry
 
-  let theStamp = submissionStamp $ entityVal $ tableEntrySubmission entry
-  isViewable <- handlerToWidget $ runDB $ checkWhetherVisible (entityVal $ tableEntrySubmission entry) mauthId
-  challenge <- handlerToWidget $ runDB $ get404 $ submissionChallenge $ entityVal $ tableEntrySubmission entry
+  let theStamp = submissionStamp $ entityVal $ tableEntrySubmission $ current entry
+  challenge <- handlerToWidget $ runDB $ get404 $ submissionChallenge $ entityVal $ tableEntrySubmission $ current entry
   let isNonSensitive = challengeSensitive challenge == Just False
 
-  let shouldBeShown = not ("test-" `isInfixOf` testSet) && isViewable && isNonSensitive
+  let shouldBeShown = not ("test-" `isInfixOf` testSet) && isNonSensitive
 
   let mainMetric = testMetric $ entityVal mainTest
 
@@ -299,56 +402,70 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
   let mapping = LM.fromList $ map (\test -> (formatTestEvaluationScheme $ entityVal test,
                                             (test,
                                              (formatTruncatedScore (getTestFormattingOpts $ entityVal test)
-                                              $ extractScore (getTestReference test) entry)))) tests'
+                                              <$> extractScore (getTestReference test) <$> entry)))) tests'
   let crossTables = splitIntoTablesWithValues "Metric" "Score" mapping testLabels
 
   mResult <-
     if shouldBeShown
       then
        do
-        mRepoDir <- handlerToWidget $ justGetSubmissionRepoDir (entityKey $ tableEntrySubmission entry)
-        case mRepoDir of
-               Just repoDir -> do
-                 outFile' <- liftIO $ lookForCompressedFiles (repoDir </> (T.unpack variant) <.> "tsv")
-                 let outFile = takeFileName outFile'
+        outPaths <- mapM (getOut mauthId) entry
+        case current outPaths of
+          Just _ -> do
+            let repoDir = fst <$> fromJust <$> outPaths
+            let outFilePath = snd <$> fromJust <$> outPaths
+            let outFile = takeFileName $ current outFilePath
 
-                 let spec = GEvalSpecification {
-                       gesOutDirectory = repoDir,
-                       gesExpectedDirectory = Nothing,
-                       gesTestName = (T.unpack testSet),
-                       gesSelector = Nothing,
-                       gesOutFile = outFile,
-                       gesAltOutFiles = Nothing,
-                       gesExpectedFile = "expected.tsv",
-                       gesInputFile = "in.tsv",
-                       gesMetrics = [mainMetric],
-                       gesFormatting = FormattingOptions {
-                           decimalPlaces = Nothing,
-                           asPercentage = False },
-                       gesTokenizer = Nothing,
-                       gesGonitoHost = Nothing,
-                       gesToken = Nothing,
-                       gesGonitoGitAnnexRemote = Nothing,
-                       gesReferences = Nothing,
-                       gesBootstrapResampling = Nothing,
-                       gesInHeader = Nothing,
-                       gesOutHeader = Nothing,
-                       gesShowPreprocessed = True }
+            let testName = T.unpack testSet
 
-                 result <- liftIO $ runLineByLineGeneralized FirstTheWorst spec (\_ -> CL.take maximumNumberOfItemsToBeShown)
-                 return $ Just $ zip [1..] result
-               Nothing -> return Nothing
+            let spec = GEvalSpecification {
+                  gesOutDirectory = current repoDir,
+                  gesExpectedDirectory = Nothing,
+                  gesTestName = testName,
+                  gesSelector = Nothing,
+                  gesOutFile = outFile,
+                  gesAltOutFiles = Nothing,
+                  gesExpectedFile = "expected.tsv",
+                  gesInputFile = "in.tsv",
+                  gesMetrics = [mainMetric],
+                  gesFormatting = FormattingOptions {
+                      decimalPlaces = Nothing,
+                      asPercentage = False },
+                  gesTokenizer = Nothing,
+                  gesGonitoHost = Nothing,
+                  gesToken = Nothing,
+                  gesGonitoGitAnnexRemote = Nothing,
+                  gesReferences = Nothing,
+                  gesBootstrapResampling = Nothing,
+                  gesInHeader = Nothing,
+                  gesOutHeader = Nothing,
+                  gesShowPreprocessed = True }
+
+            case outPaths of
+              OneThing _ -> do
+                result <- liftIO $ runLineByLineGeneralized FirstTheWorst
+                                                       spec
+                                                       (\_ -> CL.take maximumNumberOfItemsToBeShown)
+                return $ Just $ zip [1..] $ map getUniLineRecord result
+              TwoThings (Just (oldRepoDir, oldOutFilePath)) _ -> do
+                absOldOutFilePath <- liftIO $ makeAbsolute (oldRepoDir </> testName </> (takeFileName oldOutFilePath))
+                result <- liftIO $ runDiffGeneralized FirstTheWorst
+                                                     absOldOutFilePath
+                                                     spec
+                                                     (\_ -> CL.take maximumNumberOfItemsToBeShown)
+                return $ Just $ zip [1..] $ map getBiLineRecord result
+          Nothing -> return Nothing
       else
         return Nothing
   $(widgetFile "view-output")
 
-lineByLineTable :: Entity Test -> UTCTime -> Table.Table App (Int, LineRecord)
+lineByLineTable :: Entity Test -> UTCTime -> Table.Table App (Int, DiffLineRecord)
 lineByLineTable (Entity testId test) theStamp = mempty
   ++ Table.int "#" fst
-  ++ theLimitedTextCell "input" (((\(LineRecord inp _ _ _ _) -> inp) . snd))
-  ++ theLimitedTextCell "expected output" ((\(LineRecord _ expected _ _ _) -> expected) . snd)
-  ++ theLimitedTextCell "actual output" ((\(LineRecord _ _ out _ _) -> out) . snd)
-  ++ resultCell test (fakeEvaluation . (\(LineRecord _ _ _ _ score) -> score) . snd)
+  ++ theLimitedTextCell "input" (((\(DiffLineRecord inp _ _ _) -> inp) . snd))
+  ++ theLimitedTextCell "expected output" ((\(DiffLineRecord _ expected _ _) -> expected) . snd)
+  ++ theLimitedDiffTextCell "actual output" (fmap fst . (\(DiffLineRecord _ _ out _) -> out) . snd)
+  ++ resultCell test (fakeEvaluation . getScoreFromDiff . snd)
   where fakeEvaluation score = Just $ Evaluation {
           evaluationTest = testId,
           evaluationChecksum = testChecksum test,
@@ -420,15 +537,22 @@ getHttpLink repo = case guessGitServer bareUrl of
         branch = repoBranch repo
         convertToHttpLink = ("https://" <>) . (T.replace ":" "/") . (T.replace ".git" "")
 
-submissionHeader :: FullSubmissionInfo -> Maybe Text -> WidgetFor App ()
-submissionHeader submission mVariantName =
+submissionHeader :: Diff (FullSubmissionInfo, Maybe Text) -> WidgetFor App ()
+submissionHeader param =
   $(widgetFile "submission-header")
-    where commitSha1AsText = fromSHA1ToText $ submissionCommit $ fsiSubmission submission
-          submitter = formatSubmitter $ fsiUser submission
-          publicSubmissionBranch = getPublicSubmissionBranch $ fsiSubmissionId submission
-          publicSubmissionRepo = getReadOnlySubmissionUrl (fsiScheme submission) (fsiChallengeRepo submission) $ challengeName $ fsiChallenge submission
-          browsableUrl = browsableGitRepoBranch (fsiScheme submission) (fsiChallengeRepo submission) (challengeName $ fsiChallenge submission) publicSubmissionBranch
-          stamp = T.pack $ show $ submissionStamp $ fsiSubmission submission
+    where variantSettings = ("out", ())
+          submission = fst <$> param
+          mVariantName = snd <$> param
+          commitSha1AsText = fromSHA1ToText <$> submissionCommit <$> fsiSubmission <$> submission
+          submitter = formatSubmitter <$> fsiUser <$> submission
+          publicSubmissionBranch = getPublicSubmissionBranch <$> fsiSubmissionId <$> submission
+          publicSubmissionRepo = submissionToSubmissionUrl <$> submission
+          browsableUrl = submissionToBrowsableUrl <$> submission
+          stamp = T.pack <$> show <$> submissionStamp <$> fsiSubmission <$> submission
+
+          submissionToSubmissionUrl submission' = getReadOnlySubmissionUrl (fsiScheme submission') (fsiChallengeRepo submission') $ challengeName $ fsiChallenge submission'
+          submissionToBrowsableUrl submission' = browsableGitRepoBranch (fsiScheme submission') (fsiChallengeRepo submission') (challengeName $ fsiChallenge submission') (getPublicSubmissionBranch $ fsiSubmissionId submission')
+
 
 queryResult :: FullSubmissionInfo -> WidgetFor App ()
 queryResult submission = do

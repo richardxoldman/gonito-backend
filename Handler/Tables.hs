@@ -8,6 +8,8 @@ import Handler.Evaluate
 import Handler.SubmissionView
 import Handler.TagUtils
 
+import Data.Diff
+
 import qualified Yesod.Table as Table
 import Yesod.Table (Table)
 
@@ -185,15 +187,24 @@ textLimited limit t
   | otherwise = (Data.Text.take limit t) <> "…"
   where l = length t
 
+textCellSoftLimit = 140
+textCellHardLimit = 5 * textCellSoftLimit
+
+limitedWidget softLimit hardLimit v =
+  [whamlet|<span title="#{textLimited hardLimit v}"><tt>#{textLimited softLimit v}</tt>|]
+
 limitedTextCell :: Text -> Int -> Int -> (a -> Text) -> Table site a
 limitedTextCell h softLimit hardLimit textFun = Table.widget h (
-  \v -> [whamlet|<span title="#{textLimited hardLimit $ textFun v}"><tt>#{textLimited softLimit $ textFun v}</tt>|])
+  \v -> limitedWidget softLimit hardLimit (textFun v))
 
 theLimitedTextCell :: Text -> (a -> Text) -> Table site a
-theLimitedTextCell h textFun = limitedTextCell h softLimit hardLimit textFun
-  where softLimit = 140
-        hardLimit = 5 * softLimit
+theLimitedTextCell h textFun = limitedTextCell h textCellSoftLimit textCellHardLimit textFun
 
+theLimitedDiffTextCell :: Text -> (a -> Diff Text) -> Table site a
+theLimitedDiffTextCell h textFun = Table.widget h (
+  \v -> case textFun v of
+         OneThing u -> limitedWidget textCellSoftLimit textCellHardLimit u
+         d@(TwoThings _ _) -> [whamlet|#{d}|])
 
 statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, Maybe UserId) -> WidgetFor App ()
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, mauthId) = do

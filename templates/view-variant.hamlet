@@ -3,12 +3,13 @@
    <p class="media-object">
      <span class="glyphicon glyphicon-asterisk" aria-hidden="hidden">
  <div class="media-body">
-  ^{submissionHeader fullSubmissionInfo (Just $ variantName variant)}
+  ^{submissionHeader fullSubmissionInfo}
 
-  $case tableEntryParams entry
-    $of []
+  $case tableEntryParams <$> entry
+    $of OneThing []
+    $of TwoThings [] []
     $of _
-      ^{Table.buildBootstrap paramsTable (map entityVal $ tableEntryParams entry)}
+      ^{Table.buildBootstrap paramsTable (mergeEntryParams $ map entityVal <$> (tableEntryParams <$> entry))}
 
   $forall output <- outputs
     ^{viewOutputWithNonDefaultTestSelected entry tests testSelectedEnt output}

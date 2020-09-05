@@ -58,6 +58,7 @@ library
                      Handler.Evaluate
                      Data.SubmissionConditions
                      Gonito.ExtractMetadata
+                     Data.Diff
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
