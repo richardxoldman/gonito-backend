@@ -358,18 +358,23 @@ lineByLineTable (Entity testId test) theStamp = mempty
 
 resultTable :: Entity Submission -> WidgetFor App ()
 resultTable (Entity submissionId submission) = do
-  (tableEntries, tests) <- handlerToWidget
+  (tableEntries, tests') <- handlerToWidget
                           $ runDB
                           $ getChallengeSubmissionInfos 2
                                                         (\s -> entityKey s == submissionId)
                                                         (const True)
                                                         id
                                                         (submissionChallenge submission)
+
   let paramNames =
         nub
         $ map (parameterName . entityVal)
         $ concat
         $ map tableEntryParams tableEntries
+
+  let maximumNumberOfColumns = 10
+
+  let tests = adjustNumberOfColumnsShown (maximumNumberOfColumns - length paramNames) tests'
 
   let resultId = show $ fromSqlKey submissionId
   let jsSelector = String $ T.pack ("#t" ++ resultId ++ " > table")
@@ -379,6 +384,19 @@ resultTable (Entity submissionId submission) = do
 
   $(widgetFile "result-table")
 
+adjustNumberOfColumnsShown :: Int -> [Entity Test] -> [Entity Test]
+adjustNumberOfColumnsShown maximumNumberOfColumns tests = adjustNumberOfColumnsShown' (max maximumNumberOfColumns minimumNumberOfTests) tests
+  where adjustNumberOfColumnsShown' maximumNumberOfColumns' tests'
+          | length tests <= maximumNumberOfColumns' = tests'
+          | otherwise = let filteredTests = filter (\t -> not ("dev" `isInfixOf` (testName $ entityVal t))) tests'
+                        in if null filteredTests
+                            then tests'
+                            else
+                             if length filteredTests <= maximumNumberOfColumns'
+                             then filteredTests
+                             else take maximumNumberOfColumns' filteredTests
+
+        minimumNumberOfTests = 2
 
 data GitServer = Gogs | GitLab
   deriving (Eq, Show)

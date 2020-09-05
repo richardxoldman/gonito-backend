@@ -62,7 +62,7 @@ getShowChallengeR name = do
   (altLeaderboard, altTests) <- if showAltLeaderboard
                                then
                                 do
-                                 (leaderboard', (_, tests')) <- getLeaderboardEntries 2 ByTag challengeId
+                                 (leaderboard', (_, tests')) <- getLeaderboardEntries 3 ByTag challengeId
                                  return $ (Just leaderboard', Just tests')
                                else
                                  return (Nothing, Nothing)
