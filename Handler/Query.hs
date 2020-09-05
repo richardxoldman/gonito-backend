@@ -9,6 +9,8 @@ import PersistSHA1
 
 import Handler.Tables
 
+import Text.Blaze
+
 import qualified Yesod.Table as Table
 
 import Database.Persist.Sql
@@ -181,6 +183,9 @@ processQuery query = do
     setTitle "query results"
     $(widgetFile "query-results")
 
+priorityLimitForViewVariant :: Int
+priorityLimitForViewVariant = 4
+
 getViewVariantTestR :: VariantId -> TestId -> Handler Html
 getViewVariantTestR variantId testId = do
   mauthId <- maybeAuth
@@ -191,7 +196,7 @@ getViewVariantTestR variantId testId = do
   testSelected <- runDB $ get404 testId
   let testSelectedEnt = Entity testId testSelected
 
-  ([entry], tests') <- runDB $ getChallengeSubmissionInfos 3
+  ([entry], tests') <- runDB $ getChallengeSubmissionInfos priorityLimitForViewVariant
                                                           (\e -> entityKey e == theSubmissionId)
                                                           (\e -> entityKey e == variantId)
                                                           id
@@ -230,7 +235,7 @@ getViewVariantR variantId = do
   let theSubmissionId = variantSubmission variant
   theSubmission <- runDB $ get404 theSubmissionId
 
-  (_, tests') <- runDB $ getChallengeSubmissionInfos 3
+  (_, tests') <- runDB $ getChallengeSubmissionInfos priorityLimitForViewVariant
                                                     (\e -> entityKey e == theSubmissionId)
                                                     (\e -> entityKey e == variantId)
                                                     id
@@ -238,6 +243,8 @@ getViewVariantR variantId = do
   let (mainTest:_) = sortBy (flip testComparator) tests'
   getViewVariantTestR variantId (entityKey mainTest)
 
+linkedWithAnchor :: (Text.Blaze.ToMarkup a1, Text.Blaze.ToMarkup a2)
+                   => Text -> (t -> a2) -> (t -> Route site) -> (t -> a1) -> Table.Table site t
 linkedWithAnchor h propFunc routeFunc anchorFunc =
   Table.widget h (
     \v -> [whamlet|<a href=@{routeFunc v}\\##{anchorFunc v}>#{propFunc v}|])
