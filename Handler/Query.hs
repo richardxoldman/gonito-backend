@@ -272,6 +272,9 @@ viewOutput entry tests (outputHash, testSet) = do
   let (mainTest:_) = filter (\e -> (testName $ entityVal e) == testSet) tests
   viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet)
 
+maximumNumberOfItemsToBeShown :: Int
+maximumNumberOfItemsToBeShown = 40
+
 viewOutputWithNonDefaultTestSelected :: TableEntry -> [Entity Test] -> Entity Test -> (SHA1, Text) -> WidgetFor App ()
 viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) = do
   let tests' = filter (\e -> (testName $ entityVal e) == testSet) tests
@@ -332,8 +335,7 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
                        gesOutHeader = Nothing,
                        gesShowPreprocessed = True }
 
-                 result <- liftIO $ runLineByLineGeneralized FirstTheWorst spec (\_ -> CL.take 20)
-
+                 result <- liftIO $ runLineByLineGeneralized FirstTheWorst spec (\_ -> CL.take maximumNumberOfItemsToBeShown)
                  return $ Just $ zip [1..] result
                Nothing -> return Nothing
       else
