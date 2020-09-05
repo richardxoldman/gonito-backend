@@ -61,8 +61,8 @@ canBeReevaluated submissionId = do
          return  ((isOwner || isSuperuser)
                   &&
                   ((versionMajor submissionVer) == (versionMajor chalengeVer)
-                  || (versionMinor submissionVer) == (versionMinor chalengeVer)
-                  || (versionPatch submissionVer) < (versionPatch chalengeVer)))
+                   && (versionMinor submissionVer) == (versionMinor chalengeVer)
+                   && (versionPatch submissionVer) < (versionPatch chalengeVer)))
 
 
     Nothing -> return False
