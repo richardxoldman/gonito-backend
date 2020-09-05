@@ -176,7 +176,8 @@ statusCell :: Text -> RepoScheme -> Repo -> (a -> (SubmissionId, Submission, Var
 statusCell challengeName repoScheme challengeRepo fun = Table.widget "" (statusCellWidget challengeName repoScheme challengeRepo . fun)
 
 resultCell :: Test -> (a -> Maybe Evaluation) -> Table App a
-resultCell test fun = hoverTextCell (formatTestForHtml test) (formatTruncatedScore (testPrecision test) . fun) (formatFullScore . fun)
+resultCell test fun = hoverTextCell (formatTestForHtml test) (formatTruncatedScore formattingOpts . fun) (formatFullScore . fun)
+  where formattingOpts = getTestFormattingOpts test
 
 textLimited :: Int -> Text -> Text
 textLimited limit t

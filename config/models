@@ -75,6 +75,7 @@ Test
     commit SHA1
     active Bool default=True
     precision Int Maybe
+    asPercentage Bool Maybe
     priority Int Maybe
     UniqueChallengeNameMetricChecksum challenge name metric checksum
     deriving Show

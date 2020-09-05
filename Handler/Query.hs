@@ -119,7 +119,7 @@ doGetScore mMetricName submission = do
                       return (evaluation)
 
       case evals of
-        [eval] -> return $ formatTruncatedScore (testPrecision $ entityVal testEnt) (Just $ entityVal eval)
+        [eval] -> return $ formatTruncatedScore (getTestFormattingOpts $ entityVal testEnt) (Just $ entityVal eval)
         _ -> return "NONE"
     Nothing -> return "NONE"
 
@@ -149,7 +149,7 @@ doGetScoreForOut mMetricName submission sha1code = do
                               Just mn -> find (\(_, t) -> formatTestEvaluationScheme (entityVal t) == mn) evals
   case evalSelected of
     Nothing -> return "None"
-    Just (eval, testEnt) -> return $ formatTruncatedScore (testPrecision $ entityVal testEnt)
+    Just (eval, testEnt) -> return $ formatTruncatedScore (getTestFormattingOpts $ entityVal testEnt)
                                                          (Just $ entityVal eval)
 
 
@@ -295,7 +295,7 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
   let testLabels = map (formatTestEvaluationScheme . entityVal) tests'
   let mapping = LM.fromList $ map (\test -> (formatTestEvaluationScheme $ entityVal test,
                                             (test,
-                                             (formatTruncatedScore (testPrecision $ entityVal test)
+                                             (formatTruncatedScore (getTestFormattingOpts $ entityVal test)
                                               $ extractScore (getTestReference test) entry)))) tests'
   let crossTables = splitIntoTablesWithValues "Metric" "Score" mapping testLabels
 

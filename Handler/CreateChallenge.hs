@@ -393,7 +393,8 @@ insertOrUpdateTest testDir challengeId checksum commit opts (priority, metric) =
   mAlreadyExistingTest <- getBy $ UniqueChallengeNameMetricChecksum challengeId name metric checksum
   case mAlreadyExistingTest of
     Just (Entity testId _) -> update testId [TestCommit=.commit,
-                                            TestPrecision=. (decimalPlaces $ gesFormatting $ geoSpec opts),
+                                            TestPrecision=.(decimalPlaces $ gesFormatting $ geoSpec opts),
+                                            TestAsPercentage=.(Just $ asPercentage $ gesFormatting $ geoSpec opts),
                                             TestPriority=.Just priority]
     Nothing -> do
                 _ <- insert $ Test {
@@ -404,6 +405,7 @@ insertOrUpdateTest testDir challengeId checksum commit opts (priority, metric) =
                   testCommit=commit,
                   testActive=True,
                   testPrecision=decimalPlaces $ gesFormatting $ geoSpec opts,
+                  testAsPercentage=Just $ asPercentage $ gesFormatting $ geoSpec opts,
                   testPriority=Just priority}
                 return ()
 

@@ -491,17 +491,19 @@ formatFullScore :: Maybe Evaluation -> Text
 formatFullScore (Just evaluation) = fromMaybe "???" (formatNonScientifically <$> evaluationScore evaluation)
 formatFullScore Nothing = "N/A"
 
-formatTruncatedScore :: Maybe Int -> Maybe Evaluation -> Text
-formatTruncatedScore Nothing e = formatFullScore e
+formatTruncatedScore :: FormattingOptions -> Maybe Evaluation -> Text
 formatTruncatedScore _ Nothing  = formatFullScore Nothing
-formatTruncatedScore (Just precision) (Just evaluation) = case evaluationScore evaluation of
+formatTruncatedScore formattingOpts (Just evaluation) = case evaluationScore evaluation of
   Just score -> T.pack $ formatTheResultWithErrorBounds formattingOpts score (evaluationErrorBound evaluation)
   Nothing -> formatFullScore Nothing
- where formattingOpts = FormattingOptions {
-         decimalPlaces = Just precision,
-         asPercentage = False
-      }
 
+
+getTestFormattingOpts :: Test -> FormattingOptions
+getTestFormattingOpts test =
+  FormattingOptions {
+     decimalPlaces = testPrecision test,
+     asPercentage = fromMaybe False $ testAsPercentage test
+  }
 
 formatScore :: Maybe Int -> Double -> Text
 formatScore Nothing = T.pack . show
