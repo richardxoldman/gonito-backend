@@ -453,7 +453,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                                   dependencySubRepoCommit = s,
                                                   dependencySuperRepoCommit = (repoCurrentCommit repo) }) $ gonitoMetadataDependencies gonitoMetadata
 
-      outs <- getOuts chan submissionId (gonitoMetadataGeneralParams gonitoMetadata)
+      outs <- getOuts False chan submissionId (gonitoMetadataGeneralParams gonitoMetadata)
 
       currentTagIds <- runDB $ selectList [SubmissionTagSubmission ==. submissionId] []
 

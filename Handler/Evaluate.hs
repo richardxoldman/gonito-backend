@@ -99,7 +99,7 @@ doReevaluateSubmission submissionId chan = do
 
           runDB $ update submissionId [SubmissionVersion =. currentChallengeVersion]
 
-          catch (getOuts chan submissionId (gonitoMetadataGeneralParams gonitoMetadata) >> return ()) $ \(_::SomeException) -> do
+          catch (getOuts True chan submissionId (gonitoMetadataGeneralParams gonitoMetadata) >> return ()) $ \(_::SomeException) -> do
             err chan "SOMETHING WENT WRONG!!! REVERTING TO THE PREVIOUS VERSION"
             runDB $ update submissionId [SubmissionVersion =. previousVersion]
 
@@ -111,8 +111,8 @@ doReevaluateSubmission submissionId chan = do
       msg chan "Won't re-evaluate!"
 
 -- | Does the evaluation for a submission. Inserts Out, Variant and Evaluation records.
-getOuts :: Channel -> Key Submission -> M.Map Text Text -> Handler ([Out])
-getOuts chan submissionId generalParams = do
+getOuts :: Bool -> Channel -> Key Submission -> M.Map Text Text -> Handler ([Out])
+getOuts forceEvaluation chan submissionId generalParams = do
   submission <- runDB $ get404 submissionId
   let challengeId = submissionChallenge submission
   let version = submissionVersion submission
@@ -125,7 +125,7 @@ getOuts chan submissionId generalParams = do
   let outs = concat outs'
 
   mapM_ checkOrInsertOut outs
-  mapM_ (checkOrInsertEvaluation repoDir chan version) outs
+  mapM_ (checkOrInsertEvaluation repoDir forceEvaluation chan version) outs
   return outs
 
 outFileName :: FilePath
@@ -201,8 +201,8 @@ checkOrInsertOut out = do
     Just _ -> return ()
     Nothing -> (runDB $ insert out) >> return ()
 
-checkOrInsertEvaluation :: FilePath -> Channel -> SHA1 -> Out -> Handler ()
-checkOrInsertEvaluation repoDir chan version out = do
+checkOrInsertEvaluation :: FilePath -> Bool -> Channel -> SHA1 -> Out -> Handler ()
+checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
   test <- runDB $ get404 $ outTest out
   challenge <- runDB $ get404 $ testChallenge test
   maybeEvaluation' <- runDB $ fetchTheEvaluation out version
@@ -213,10 +213,13 @@ checkOrInsertEvaluation repoDir chan version out = do
           Nothing -> Nothing
         Nothing -> Nothing
 
-  case maybeEvaluation of
-    Just (Entity _ evaluation) -> do
+  if not forceEvaluation && isJust maybeEvaluation
+   then
+    do
+      let Just (Entity _ evaluation) = maybeEvaluation
       msg chan $ concat ["Already evaluated with score ", (fromMaybe "???" $ formatNonScientifically <$> evaluationScore evaluation)]
-    Nothing -> do
+   else
+    do
       msg chan $ "Start evaluation..."
       challengeDir <- getRepoDirOrClone (challengePrivateRepo challenge) chan
       variant <- runDB $ get404 $ outVariant out
@@ -230,6 +233,14 @@ checkOrInsertEvaluation repoDir chan version out = do
                 asPercentage = False }
           msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult defaultFormattingOpts result) ]
           time <- liftIO getCurrentTime
+          if forceEvaluation
+           then
+            runDB $ deleteWhere [
+              EvaluationTest ==. outTest out,
+              EvaluationChecksum ==. outChecksum out,
+              EvaluationVersion ==. Just version ]
+           else
+            return ()
           _ <- runDB $ insert $ let (pointResult, errorBound) = extractResult result
                                in Evaluation {
                                    evaluationTest=outTest out,
