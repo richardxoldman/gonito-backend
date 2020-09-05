@@ -241,17 +241,22 @@ getPossiblyExistingRepo checkRepo userId challengeId repoSpec chan = do
         }
       cloneRepo' userId repoCloningSpec chan
 
+cloneRepoToTempDir :: RepoCloningSpec -> Channel -> Handler (ExitCode, FilePath)
+cloneRepoToTempDir repoCloningSpec chan = do
+  let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
+  msg chan $ concat ["Preparing to clone repo ", url]
+  msg chan "Cloning..."
+  r <- randomInt
+  arenaDir <- arena
+  let tmpRepoDir = arenaDir </> ("t" ++ show r)
+  exitCode <- rawClone tmpRepoDir repoCloningSpec chan
+  return (exitCode, tmpRepoDir)
 
 cloneRepo' :: UserId -> RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
 cloneRepo' userId repoCloningSpec chan = do
-      let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
-      msg chan $ concat ["Preparing to clone repo ", url]
-      msg chan "Cloning..."
-      r <- randomInt
-      arenaDir <- arena
-      let tmpRepoDir = arenaDir </> ("t" ++ show r)
-      exitCode <- rawClone tmpRepoDir repoCloningSpec chan
-      case exitCode of
+  let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
+  (exitCode, tmpRepoDir) <- cloneRepoToTempDir repoCloningSpec chan
+  case exitCode of
           ExitSuccess -> do
             maybeHeadCommit <- getHeadCommit tmpRepoDir chan
             case maybeHeadCommit of
