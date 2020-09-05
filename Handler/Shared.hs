@@ -24,7 +24,7 @@ import qualified Data.List as DL
 
 import System.Random
 
-import System.Directory (doesFileExist, renameDirectory)
+import System.Directory (doesFileExist, renameDirectory, doesDirectoryExist)
 
 import PersistSHA1
 
@@ -145,7 +145,7 @@ cloneRepo repoCloningSpec chan = do
 updateRepo :: Key Repo -> Channel -> Handler Bool
 updateRepo repoId chan = do
   repo <- runDB $ get404 repoId
-  repoDir <- getRepoDir repoId
+  repoDir <- getRepoDirOrClone repoId chan
   let branch = repoBranch repo
   exitCode <- runWithChannel chan $ do
      runProg (Just repoDir) gitPath ["fetch",
@@ -172,7 +172,7 @@ updateRepo repoId chan = do
 getSubmissionRepoDir :: SubmissionId -> Channel -> Handler (Maybe FilePath)
 getSubmissionRepoDir submissionId chan = do
   submission <- runDB $ get404 submissionId
-  repoDir <- getRepoDir $ submissionRepo submission
+  repoDir <- getRepoDirOrClone (submissionRepo submission) chan
   let sha1Code = submissionCommit submission
   -- this is not right... it should be fixed in the future
   -- 1. All kinds of mayhem may ensue in case of concurrency
@@ -230,7 +230,7 @@ getPossiblyExistingRepo checkRepo userId challengeId repoSpec chan = do
       challenge <- runDB $ get404 challengeId
       let repoId = challengePublicRepo challenge
       repo <- runDB $ get404 repoId
-      repoDir <- getRepoDir repoId
+      repoDir <- getRepoDirOrClone repoId chan
       let repoCloningSpec = RepoCloningSpec {
         cloningSpecRepo = repoSpec,
         cloningSpecReferenceRepo = RepoSpec {
@@ -329,6 +329,45 @@ getStuffUsingGitAnnex tmpRepoDir (Just gitAnnexRemote) = do
 
 runGitAnnex :: FilePath -> [String] -> Runner ()
 runGitAnnex tmpRepoDir args = runProg (Just tmpRepoDir) gitPath ("annex":args)
+
+-- Gets a directory for an already cloned repo (e.g. arena/r1234). If,
+-- for some reason, the directory does not exist (e.g. the database
+-- was recovered on a new computer), it will re-clone the repository.
+getRepoDirOrClone :: RepoId -> Channel -> Handler FilePath
+getRepoDirOrClone repoId chan = do
+  repoDir <- getRepoDir repoId
+  repoDirExists <- liftIO $ doesDirectoryExist repoDir
+  if repoDirExists
+    then
+      return ()
+    else
+     do
+      repo <- runDB $ get404 repoId
+      let repoSpec = RepoSpec {
+        repoSpecUrl = repoUrl repo,
+        repoSpecBranch = repoBranch repo,
+        repoSpecGitAnnexRemote = repoGitAnnexRemote repo }
+      let repoCloningSpec = RepoCloningSpec {
+        cloningSpecRepo = repoSpec,
+        cloningSpecReferenceRepo = repoSpec }
+      (exitCode, tmpRepoDir) <- cloneRepoToTempDir repoCloningSpec chan
+      case exitCode of
+        ExitSuccess -> do
+          let commitHash = fromSHA1ToText $ repoCurrentCommit repo
+          (exitCode', _) <- runProgram (Just tmpRepoDir) gitPath ["reset",
+                                                                 "--hard",
+                                                                 T.unpack commitHash] chan
+          case exitCode' of
+            ExitSuccess -> do
+              liftIO $ renameDirectory tmpRepoDir repoDir
+              return ()
+            ExitFailure _ -> do
+              err chan $ "cannot reset to commit" ++ commitHash
+              return ()
+        ExitFailure _ -> do
+          err chan "git failed"
+          return ()
+  return repoDir
 
 getRepoDir :: Key Repo -> Handler FilePath
 getRepoDir repoId = do

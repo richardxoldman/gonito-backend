@@ -424,7 +424,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
 
       repo <- runDB $ get404 repoId
 
-      repoDir <- getRepoDir repoId
+      repoDir <- getRepoDirOrClone repoId chan
 
       gonitoMetadata <- liftIO
                        $ extractMetadataFromRepoDir repoDir (ExtractionOptions {

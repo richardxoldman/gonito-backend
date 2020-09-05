@@ -28,7 +28,7 @@ doMakePublic userId submissionId chan = do
     challenge <- runDB $ get404 $ submissionChallenge submission
     repo <- runDB $ get404 $ challengePublicRepo challenge
     let submissionRepoId = submissionRepo submission
-    submissionRepoDir <- getRepoDir submissionRepoId
+    submissionRepoDir <- getRepoDirOrClone submissionRepoId chan
 
     app <- getYesod
     let scheme = appRepoScheme $ appSettings app

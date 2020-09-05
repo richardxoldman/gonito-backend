@@ -105,7 +105,7 @@ doCreateChallenge creationData chan = do
   case maybePublicRepoId of
     Just publicRepoId -> do
       publicRepo <- runDB $ get404 publicRepoId
-      publicRepoDir <- getRepoDir publicRepoId
+      publicRepoDir <- getRepoDirOrClone publicRepoId chan
       maybePrivateRepoId <- cloneRepo (RepoCloningSpec {
                                          cloningSpecRepo = RepoSpec {
                                              repoSpecUrl = privateUrl,
@@ -226,7 +226,7 @@ doChallengeUpdate challengeId challengeData chan = do
   when isValidated $
      do
         privateRepo <- runDB $ get404 $ privateRepoId
-        repoDir <- getRepoDir privateRepoId
+        repoDir <- getRepoDirOrClone privateRepoId chan
         (Just versionDescription) <- liftIO $ getLastCommitMessage repoDir
         theNow <- liftIO getCurrentTime
         let commit = (repoCurrentCommit privateRepo)
@@ -286,7 +286,7 @@ defaultInitialDescription = "initial version"
 
 extractChallengeMetadata :: Key Repo -> Channel -> Handler (Text, Text, Maybe ByteString)
 extractChallengeMetadata publicRepoId chan = do
-  publicRepoDir <- getRepoDir publicRepoId
+  publicRepoDir <- getRepoDirOrClone publicRepoId chan
   let readmeFilePath = publicRepoDir </> readmeFile
   doesReadmeExist <- liftIO $ doesFileExist readmeFilePath
   (title, description) <- if doesReadmeExist
@@ -349,7 +349,7 @@ updateTests :: (Key Challenge) -> Channel -> Handler ()
 updateTests challengeId chan = do
   challenge <- runDB $ get404 challengeId
   let repoId = challengePrivateRepo challenge
-  repoDir <- getRepoDir repoId
+  repoDir <- getRepoDirOrClone repoId chan
   repo <- runDB $ get404 repoId
   let commit = repoCurrentCommit repo
   testDirs <- liftIO $ findTestDirs repoDir
@@ -372,7 +372,7 @@ checkTestDir chan challengeId challenge commit testDir = do
     then do
       msg chan $ concat ["Test dir ", (T.pack testDir), " found."]
       checksum <- liftIO $ gatherSHA1 testDir
-      challengeRepoDir <- getRepoDir $ challengePrivateRepo challenge
+      challengeRepoDir <- getRepoDirOrClone (challengePrivateRepo challenge) chan
       optionsParsingResult <- liftIO $ getOptions [
         "--expected-directory", challengeRepoDir,
         "--test-name", takeFileName testDir]
@@ -461,7 +461,7 @@ validateChallenge False _ chan = do
 validateChallenge True repoId chan = do
   msg chan "Validating the challenge..."
 
-  repoDir <- getRepoDir repoId
+  repoDir <- getRepoDirOrClone repoId chan
 
   optionsParsingResult <- liftIO $ getOptions [
     "--expected-directory", repoDir]

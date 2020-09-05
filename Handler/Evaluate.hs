@@ -116,7 +116,7 @@ getOuts chan submissionId generalParams = do
   submission <- runDB $ get404 submissionId
   let challengeId = submissionChallenge submission
   let version = submissionVersion submission
-  repoDir <- getRepoDir $ submissionRepo submission
+  repoDir <- getRepoDirOrClone (submissionRepo submission) chan
   activeTests <- runDB $ selectList [TestChallenge ==. challengeId,
                                     TestActive ==. True,
                                     TestCommit ==. submissionVersion submission] []
@@ -218,7 +218,7 @@ checkOrInsertEvaluation repoDir chan version out = do
       msg chan $ concat ["Already evaluated with score ", (fromMaybe "???" $ formatNonScientifically <$> evaluationScore evaluation)]
     Nothing -> do
       msg chan $ "Start evaluation..."
-      challengeDir <- getRepoDir $ challengePrivateRepo challenge
+      challengeDir <- getRepoDirOrClone (challengePrivateRepo challenge) chan
       variant <- runDB $ get404 $ outVariant out
       resultOrException <- liftIO $ rawEval challengeDir (testMetric test) repoDir (testName test) ((T.unpack $ variantName variant) <.> "tsv")
       case resultOrException of
