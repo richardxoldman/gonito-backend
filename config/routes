@@ -40,6 +40,8 @@
 /q QueryFormR GET POST
 /q/#Text QueryResultsR  GET
 
+/compare/#VariantId/#TestId CompareFormR POST
+
 /view-variant/#VariantId ViewVariantR GET
 /view-variant-test/#VariantId/#TestId ViewVariantTestR GET
 /view-variant-diff/#VariantId/#VariantId/#TestId ViewVariantDiffR GET

@@ -13,3 +13,11 @@
 
   $forall output <- outputs
     ^{viewOutputWithNonDefaultTestSelected entry tests testSelectedEnt output}
+
+ <h3>Compare with other submission
+
+ <p>
+  <form method=post action=@{CompareFormR (current variantId) testId}#form enctype=#{formEnctype}>
+    ^{formWidget}
+    <button .btn .btn-primary type="submit">
+       _{MsgCompare} <span class="glyphicon glyphicon-upload"></span>

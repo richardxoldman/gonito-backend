@@ -37,7 +37,7 @@ import GEval.Core (GEvalSpecification(..), ResultOrdering(..))
 import GEval.LineByLine (runLineByLineGeneralized, runDiffGeneralized, LineRecord(..))
 import GEval.Common (FormattingOptions(..), MetricValue)
 import qualified Data.Conduit.List as CL
-import System.FilePath (takeFileName, makeRelative)
+import System.FilePath (takeFileName)
 import System.Directory (makeAbsolute)
 
 import Data.SplitIntoCrossTabs
@@ -254,6 +254,15 @@ instance Diffable SHA1 where
     | old == new = OneThing new
     | otherwise = TwoThings old new
 
+postCompareFormR :: VariantId -> TestId -> Handler Html
+postCompareFormR variantId testId = do
+    ((result, formWidget), formEnctype) <- runFormPost outQueryForm
+    case result of
+      FormSuccess outQuery -> do
+        (out:_) <- runDB $ rawOutQuery outQuery
+        let otherVariantId = outVariant $ entityVal out
+        doViewVariantTestR (TwoThings otherVariantId variantId) testId
+
 nullSHA1 :: SHA1
 nullSHA1 = fromTextToSHA1 "da39a3ee5e6b4b0d3255bfef95601890afd80709"
 
@@ -275,6 +284,8 @@ doViewVariantTestR variantId testId = do
   let outputs :: [(Diff SHA1, Text)] =
         sortBy (\a b -> ((snd b) `compare` (snd a)))
         $ map swap $ LM.toList $ runDiff (nullSHA1, ()) $ fmap (LM.fromList . map swap) outputs'
+
+  (formWidget, formEnctype) <- generateFormPost outQueryForm
 
   defaultLayout $ do
     setTitle "Variant"
@@ -560,3 +571,6 @@ queryResult submission = do
 
 queryForm :: Form Text
 queryForm = renderBootstrap3 BootstrapBasicForm $ areq textField (fieldSettingsLabel MsgGitCommitSha1) Nothing
+
+outQueryForm :: Form Text
+outQueryForm = renderBootstrap3 BootstrapBasicForm $ areq textField (fieldSettingsLabel MsgOutSha1) Nothing

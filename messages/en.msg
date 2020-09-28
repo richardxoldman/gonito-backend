@@ -92,3 +92,5 @@ AltRepoScheme: alternative git repo scheme (URL without the challenge name point
 AltRepoSchemeTooltip: set this if you want to use an alternative git server for all your submissions
 ShouldChallengeBeValidated: validate challenge (do not switch off unless you have a good reason)
 ShowAnnotations: show annotations
+Compare: Compare
+OutSha1: Output Sha1 hash

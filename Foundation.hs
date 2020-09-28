@@ -208,6 +208,8 @@ instance Yesod App where
     isAuthorized (ChallengeParamGraphDataR _ _ _) _ = regularAuthorization
     isAuthorized (IndicatorGraphDataR _) _ = regularAuthorization
 
+    isAuthorized (CompareFormR _ _) _ = regularAuthorization
+
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
 
