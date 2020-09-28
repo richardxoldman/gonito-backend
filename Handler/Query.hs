@@ -33,9 +33,10 @@ import qualified Data.Map.Lazy as LM
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3)
 
 import Data.Conduit.SmartSource (lookForCompressedFiles)
-import GEval.Core (GEvalSpecification(..), ResultOrdering(..))
+import GEval.Core (GEvalSpecification(..), GEvalOptions(..), ResultOrdering(..))
 import GEval.LineByLine (runLineByLineGeneralized, runDiffGeneralized, LineRecord(..))
 import GEval.Common (FormattingOptions(..), MetricValue)
+import GEval.OptionsParser (readOptsFromConfigFile)
 import qualified Data.Conduit.List as CL
 import System.FilePath (takeFileName)
 import System.Directory (makeAbsolute)
@@ -256,7 +257,7 @@ instance Diffable SHA1 where
 
 postCompareFormR :: VariantId -> TestId -> Handler Html
 postCompareFormR variantId testId = do
-    ((result, formWidget), formEnctype) <- runFormPost outQueryForm
+    ((result, _), _) <- runFormPost outQueryForm
     case result of
       FormSuccess outQuery -> do
         (out:_) <- runDB $ rawOutQuery outQuery
@@ -370,7 +371,7 @@ data DiffLineRecord = DiffLineRecord Text Text (Diff (Text, MetricValue)) Word32
                       deriving (Show)
 
 getUniLineRecord :: LineRecord -> DiffLineRecord
-getUniLineRecord (LineRecord inp exp out lineNo val) = DiffLineRecord inp exp (OneThing (out, val)) lineNo
+getUniLineRecord (LineRecord inp expect out lineNo val) = DiffLineRecord inp expect (OneThing (out, val)) lineNo
 
 getBiLineRecord :: (LineRecord, LineRecord) -> DiffLineRecord
 getBiLineRecord ((LineRecord oldInp oldExp oldOut oldLineNo oldVal), (LineRecord newInp newExp newOut newLineNo newVal))
@@ -429,6 +430,8 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
 
             let testName = T.unpack testSet
 
+            Right opts <- liftIO $ readOptsFromConfigFile [] (current repoDir </> "config.txt")
+
             let spec = GEvalSpecification {
                   gesOutDirectory = current repoDir,
                   gesExpectedDirectory = Nothing,
@@ -448,8 +451,8 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
                   gesGonitoGitAnnexRemote = Nothing,
                   gesReferences = Nothing,
                   gesBootstrapResampling = Nothing,
-                  gesInHeader = Nothing,
-                  gesOutHeader = Nothing,
+                  gesInHeader = gesInHeader $ geoSpec opts,
+                  gesOutHeader = gesOutHeader $ geoSpec opts,
                   gesShowPreprocessed = True }
 
             case outPaths of
