@@ -2,11 +2,29 @@ module Handler.ListChallenges where
 
 import Import
 
+mainCondition :: [Filter Challenge]
+mainCondition = [ChallengeArchived !=. Just True]
+
 getListChallengesR :: Handler Html
-getListChallengesR = generalListChallenges [ChallengeArchived !=. Just True]
+getListChallengesR = generalListChallenges mainCondition
+
+getListChallengesJsonR :: Handler Value
+getListChallengesJsonR = generalListChallengesJson mainCondition
 
 getListArchivedChallengesR :: Handler Html
 getListArchivedChallengesR = generalListChallenges [ChallengeArchived ==. Just True]
+
+instance ToJSON (Entity Challenge) where
+    toJSON (Entity _ ch) = object
+        [ "link"  .= ("/challenge/" <> (challengeName ch))
+        , "title" .= challengeTitle ch
+        , "description" .= challengeDescription ch
+        ]
+
+generalListChallengesJson :: [Filter Challenge] -> Handler Value
+generalListChallengesJson filterExpr = do
+  challenges <- getChallenges filterExpr
+  return $ toJSON challenges
 
 generalListChallenges :: [Filter Challenge] -> Handler Html
 generalListChallenges filterExpr = do
