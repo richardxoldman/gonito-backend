@@ -8,12 +8,17 @@ getListChallengesR = generalListChallenges [ChallengeArchived !=. Just True]
 getListArchivedChallengesR :: Handler Html
 getListArchivedChallengesR = generalListChallenges [ChallengeArchived ==. Just True]
 
+generalListChallenges :: [Filter Challenge] -> Handler Html
 generalListChallenges filterExpr = do
-  challenges <- runDB $ selectList filterExpr [Desc ChallengeStarred, Desc ChallengeStamp]
+  challenges <- getChallenges filterExpr
   defaultLayout $ do
     setTitle "List challenges"
     $(widgetFile "list-challenges")
 
+getChallenges :: [Filter Challenge] -> Handler [Entity Challenge]
+getChallenges filterExpr = runDB $ selectList filterExpr [Desc ChallengeStarred, Desc ChallengeStamp]
+
+listChallengesCore :: [Entity Challenge] -> Widget
 listChallengesCore challenges = $(widgetFile "list-challenges-core")
 
 getChallengeImageR :: ChallengeId -> Handler Html
