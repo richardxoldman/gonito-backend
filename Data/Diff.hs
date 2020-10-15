@@ -36,8 +36,8 @@ instance (Eq a, Show a) => Show (Diff a) where
 
 instance (Eq a, ToMarkup a) => ToMarkup (Diff a) where
   toMarkup d = presentDiff toMarkup
-                           (Text.Blaze.Html4.Strict.span ! (Text.Blaze.Html4.Strict.Attributes.style "color:red;text-decoration: line-through;"))
-                           (Text.Blaze.Html4.Strict.span ! (Text.Blaze.Html4.Strict.Attributes.style "color:green;text-decoration: underline;"))
+                           (Text.Blaze.Html4.Strict.span ! (Text.Blaze.Html4.Strict.Attributes.style "color:red;"))
+                           (Text.Blaze.Html4.Strict.span ! (Text.Blaze.Html4.Strict.Attributes.style "color:green;"))
                            d
 
   -- toMarkup (OneThing u) = toMarkup u
