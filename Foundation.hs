@@ -153,6 +153,7 @@ instance Yesod App where
     isAuthorized (QueryResultsR _) _ = regularAuthorization
     isAuthorized ListChallengesR _ = regularAuthorization
     isAuthorized ListChallengesJsonR _ = regularAuthorization
+    isAuthorized (LeaderboardJsonR _) _ = regularAuthorization
     isAuthorized (ViewVariantR _ ) _ = regularAuthorization
     isAuthorized (ViewVariantTestR _ _) _ = regularAuthorization
 

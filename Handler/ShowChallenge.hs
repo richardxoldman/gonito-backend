@@ -48,6 +48,33 @@ import Data.List (nub)
 import qualified Database.Esqueleto      as E
 import           Database.Esqueleto      ((^.))
 
+instance ToJSON LeaderboardEntry where
+    toJSON entry = object
+        [ "submitter" .= (formatSubmitter $ leaderboardUser entry)
+        , "when" .= (submissionStamp $ leaderboardBestSubmission entry)
+        , "version" .= (formatVersion $ leaderboardVersion entry)
+        , "description" .= descriptionToBeShown (leaderboardBestSubmission entry)
+                                                (leaderboardBestVariant entry)
+                                                (leaderboardParams entry)
+        , "times" .= leaderboardNumberOfSubmissions entry
+        ]
+
+getLeaderboardJsonR :: Text -> Handler Value
+getLeaderboardJsonR name = do
+  app <- getYesod
+  let leaderboardStyle = appLeaderboardStyle $ appSettings app
+
+  Entity challengeId _ <- runDB $ getBy404 $ UniqueName name
+  (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
+  return $ array $ map (leaderboardEntryJson tests) leaderboard
+
+leaderboardEntryJson tests entry = object [
+  "metadata" .= entry,
+  "metrics" .=
+    map (\e@(Entity _ t) -> object [
+            "metric" .= testName t,
+            "score" .= (formatTruncatedScore (getTestFormattingOpts t) $ extractScoreFromLeaderboardEntry (getTestReference e) entry)]) tests]
+
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR name = do
   app <- getYesod

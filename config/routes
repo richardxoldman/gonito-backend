@@ -11,6 +11,7 @@
 /open-view-progress/#Int OpenViewProgressR GET
 /list-challenges ListChallengesR GET
 /api/list-challenges ListChallengesJsonR GET
+/api/leaderboard/#Text LeaderboardJsonR GET
 /list-archived-challenges ListArchivedChallengesR GET
 /challenge-image/#ChallengeId ChallengeImageR GET
 

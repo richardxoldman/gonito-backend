@@ -16,9 +16,11 @@ getListArchivedChallengesR = generalListChallenges [ChallengeArchived ==. Just T
 
 instance ToJSON (Entity Challenge) where
     toJSON (Entity _ ch) = object
-        [ "link"  .= ("/challenge/" <> (challengeName ch))
+        [ "name"  .= challengeName ch
         , "title" .= challengeTitle ch
         , "description" .= challengeDescription ch
+        , "starred" .= challengeStarred ch
+        , "archived" .= challengeArchived ch
         ]
 
 generalListChallengesJson :: [Filter Challenge] -> Handler Value
