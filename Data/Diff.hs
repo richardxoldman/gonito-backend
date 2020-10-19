@@ -60,6 +60,10 @@ current :: Diff a -> a
 current (OneThing u) = u
 current (TwoThings _ new) = new
 
+older :: Diff a -> a
+older (OneThing u) = u
+older (TwoThings old _) = old
+
 class Diffable t where
   type DiffSettings t
   type DiffResult t
