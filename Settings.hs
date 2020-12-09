@@ -18,6 +18,9 @@ import Yesod.Default.Config2       (applyEnvValue, configSettingsYml)
 import Yesod.Default.Util          (WidgetFileSettings, widgetFileNoReload,
                                     widgetFileReload)
 
+import qualified Jose.Jwk as JWK
+import Data.Aeson
+
 data RepoScheme = SelfHosted | Branches
                   deriving (Eq, Show)
 
@@ -92,6 +95,7 @@ data AppSettings = AppSettings
     , appServerSSHPublicKey     :: Maybe Text
     -- ^ Are challenges, submission, etc. visible without logging in
     , appIsPublic :: Bool
+    , appJSONWebKey :: Maybe JWK.Jwk
     }
 
 instance FromJSON AppSettings where
@@ -136,6 +140,8 @@ instance FromJSON AppSettings where
         appServerSSHPublicKey <- o .:? "server-ssh-public-key"
 
         appIsPublic               <- o .:? "is-public" .!= False
+
+        appJSONWebKey             <- o .:? "json-web-key"
 
         return AppSettings {..}
 

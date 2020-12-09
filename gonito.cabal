@@ -152,6 +152,8 @@ library
                  , Glob
                  , req
                  , wai-cors
+                 , word8
+                 , jose-jwt
 
 executable         gonito
     if flag(library-only)

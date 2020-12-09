@@ -20,6 +20,13 @@ import Handler.Dashboard
 import Handler.Common
 import Handler.Evaluate
 
+import qualified Data.ByteString as BS
+import           Data.Word8 (isSpace, toLower)
+import           Network.Wai (Request, requestHeaders)
+import qualified Jose.Jwt as JWT
+import qualified Jose.Jwa as JWA
+import qualified Jose.Jwk as JWK
+
 import Data.Maybe (fromJust)
 
 import Text.Blaze
@@ -648,6 +655,23 @@ submissionForm defaultUrl defBranch defaultGitAnnexRemote = renderBootstrap3 Boo
     <*> (RepoSpec <$> areq textField (bfs MsgSubmissionUrl) defaultUrl
                   <*> areq textField (bfs MsgSubmissionBranch) defBranch
                   <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) (Just defaultGitAnnexRemote))
+
+getChallengeMySubmissionsJsonR :: Text -> Handler Value
+getChallengeMySubmissionsJsonR name = do
+  req <- waiRequest
+  let mToken = case lookup "Authorization" (Network.Wai.requestHeaders req) of
+                 Nothing -> Nothing
+                 Just authHead -> case BS.break isSpace authHead of
+                   (strategy, token)
+                     | BS.map Data.Word8.toLower strategy == "bearer" -> (Just $ BS.filter (/= 32) token)
+                     | otherwise -> Nothing
+  mUserEnt <- maybeAuth
+
+  app <- getYesod
+  let jwk = fromJust $ appJSONWebKey $ appSettings app
+
+  dtoken <- liftIO $ JWT.decode [jwk] (Just (JWT.JwsEncoding JWA.RS256)) $ fromJust mToken
+  return $ array [show dtoken]
 
 getChallengeMySubmissionsR :: Text -> Handler Html
 getChallengeMySubmissionsR name = do

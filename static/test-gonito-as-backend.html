@@ -1,0 +1,54 @@
+
+<html>
+<head>
+    <script src="/static/js/keycloak.js"></script>
+    <script>
+      var keycloak;
+      function initKeycloak() {
+            keycloak = new Keycloak({
+                url: 'http://127.0.0.1:8080/auth',
+                realm: 'master',
+                clientId: 'myapp',
+                "enable-cors": true
+            })
+            keycloak.init({
+                onLoad: 'login-required'
+            }).then(function(authenticated) {
+                // alert(authenticated ? 'authenticated' : 'not authenticated');
+            }).catch(function() {
+                alert('failed to initialize');
+            });
+
+        }
+
+            var loadData = function () {
+
+                var url = 'http://127.0.0.1:3000/api/challenge-my-submissions/retroc2';
+
+                var req = new XMLHttpRequest();
+                req.open('GET', url, true);
+                req.setRequestHeader('Accept', 'application/json');
+                req.setRequestHeader('Authorization', 'Bearer ' + keycloak.token);
+
+                req.onreadystatechange = function () {
+                    if (req.readyState == 4) {
+                        if (req.status == 200) {
+                            alert(req.response);
+                        } else if (req.status == 403) {
+                            alert('Forbidden');
+                        }
+                    }
+                }
+
+                req.send();
+            };
+
+
+    </script>
+</head>
+<body onload="initKeycloak()">
+  <h1>This is a simple web page to test Gonito as a backend with authorization by JWT tokens.</h1>
+
+  <p><button onclick="loadData()">Test</button></p>
+</body>
+</html>

@@ -12,6 +12,7 @@
 /list-challenges ListChallengesR GET
 /api/list-challenges ListChallengesJsonR GET
 /api/leaderboard/#Text LeaderboardJsonR GET
+/api/challenge-my-submissions/#Text ChallengeMySubmissionsJsonR GET
 /list-archived-challenges ListArchivedChallengesR GET
 /challenge-image/#ChallengeId ChallengeImageR GET
 

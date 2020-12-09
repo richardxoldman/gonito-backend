@@ -41,4 +41,25 @@ admin-user: "_env:ADMINUSER:"
 admin-password: "_env:ADMINPASS:"
 location: "_env:LOCATION:"
 
+# If set, the key given, in the JWK format, will be used to verify and
+# trust JWT tokens sent by the client as Authorization/Bearer.
+# The JWT token will be checked first for a given request, if not provided
+# the standard auth procedure will used.
+#
+# If unset, the Authorization will NOT be checked at all (only the standard
+# auth procedure will be applied).
+#
+# A JWK key is something like:
+#
+#    {"kty":"RSA", alg:"RS256", "use":"sig", "kid":"h01jmt_bD-1Di8i_GYbEV2a4NxhptzySHO-R8VuNHVA", "e":"AQAB", "n": "qG1elE6KPW3BYMxNpgK73MoksvbrUSfpRY4z9hU5iMsJREyD5Ar6XpjM1xAr6G7xglnOoumPC9o6FqhDHihm6QdJ5s5MA9ZyGkbi--kvy9Qc2d_VIGU-UR4vwyk3hAwXOFLhoknpQrJBJmMQvGFdas1Yr-m9EIWwT1zN7neHZkRUYZSVyQw_XghtMIWAUsLnhr6mM7nstHLafgxe5Qamzuc4K5EC_qipFXu4ugYkMDnaknlhkT43m7tcduVDnv5GV_4dBesF7FRII8tgUQWyw3Ty_FIoq43SInUPU_9cxA-qPGQz5C50th2aJl1z1snpLWS_1Zfsa8lnFsMj8_oh6w"}
+#
+# If you use Keycloak, it can be retrived via:
+#
+#    https://<HOST>/auth/realms/<REALM>/protocol/openid-connect/certs
+#
+# (key/0 element).
+#
+# Note: at the moment, only RS256 is handled.
+json-web-key: "_env:JSON_WEB_KEY"
+
 #analytics: UA-YOURCODE
