@@ -688,6 +688,47 @@ authorizationTokenAuth = do
              | otherwise -> return Nothing
     Nothing -> return Nothing
 
+requireAuthPossiblyByToken :: Handler (Entity User)
+requireAuthPossiblyByToken = do
+  mInfo <- authorizationTokenAuth
+  case mInfo of
+    Just info -> do
+      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent info
+      case x of
+        Just entUser -> return entUser
+        Nothing -> requireAuth
+    Nothing -> requireAuth
+
+getUserInfoR :: Handler Value
+getUserInfoR = do
+  (Entity _ user) <- requireAuthPossiblyByToken
+  return $ String $ userIdent user
+
+getAddUserR :: Handler Value
+getAddUserR = do
+  mInfo <- authorizationTokenAuth
+  case mInfo of
+    Just info -> do
+      let ident = jwtAuthInfoIdent info
+      x <- runDB $ getBy $ UniqueUser ident
+      case x of
+        Just _ -> return $ Bool False
+        Nothing -> do
+          _ <- runDB $ insert User
+            { userIdent = ident
+            , userPassword = Nothing
+            , userName = Nothing
+            , userIsAdmin = False
+            , userLocalId = Nothing
+            , userIsAnonymous = False
+            , userAvatar = Nothing
+            , userVerificationKey = Nothing
+            , userKeyExpirationDate = Nothing
+            , userTriggerToken = Nothing
+            , userAltRepoScheme = Nothing
+            }
+          return $ Bool True
+    Nothing -> return $ Bool False
 
 getChallengeMySubmissionsJsonR :: Text -> Handler Value
 getChallengeMySubmissionsJsonR name = do

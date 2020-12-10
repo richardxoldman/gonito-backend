@@ -21,9 +21,9 @@
 
         }
 
-            var loadData = function () {
+            var loadData = function (target) {
 
-                var url = 'http://127.0.0.1:3000/api/challenge-my-submissions/retroc2';
+                var url = 'http://127.0.0.1:3000/api/' + target;
 
                 var req = new XMLHttpRequest();
                 req.open('GET', url, true);
@@ -49,6 +49,11 @@
 <body onload="initKeycloak()">
   <h1>This is a simple web page to test Gonito as a backend with authorization by JWT tokens.</h1>
 
-  <p><button onclick="loadData()">Test</button></p>
+  <p><button onclick="loadData('add-user')">Add user</button></p>
+
+  <p><button onclick="loadData('user-info')">Check user</button></p>
+
+  <p><button onclick="loadData('challenge-my-submissions/retroc2')">Other test</button></p>
+
 </body>
 </html>
