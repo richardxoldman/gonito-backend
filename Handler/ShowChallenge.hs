@@ -656,22 +656,43 @@ submissionForm defaultUrl defBranch defaultGitAnnexRemote = renderBootstrap3 Boo
                   <*> areq textField (bfs MsgSubmissionBranch) defBranch
                   <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) (Just defaultGitAnnexRemote))
 
+data JwtAuthInfo = JwtAuthInfo Text
+  deriving (Show, Eq)
+
+instance FromJSON JwtAuthInfo where
+ parseJSON (Object v) =
+    JwtAuthInfo <$> v .: "preferred_username"
+ parseJSON _ = mzero
+
+jwtAuthInfoIdent :: JwtAuthInfo -> Text
+jwtAuthInfoIdent (JwtAuthInfo ident) = ident
+
+authorizationTokenAuth :: Handler (Maybe JwtAuthInfo)
+authorizationTokenAuth = do
+  app <- getYesod
+  let mJwk = appJSONWebKey $ appSettings app
+
+  case mJwk of
+    Just jwk -> do
+      req <- waiRequest
+      case lookup "Authorization" (Network.Wai.requestHeaders req) of
+        Nothing -> return Nothing
+        Just authHead -> case BS.break isSpace authHead of
+           (strategy, token')
+             | BS.map Data.Word8.toLower strategy == "bearer" -> do
+                let token = BS.filter (/= 32) token'
+                einfo <- liftIO $ JWT.decode [jwk] (Just (JWT.JwsEncoding JWA.RS256)) token
+                return $ case einfo of
+                           Right (JWT.Jws (_, info)) -> decode $ fromStrict info
+                           _ -> Nothing
+             | otherwise -> return Nothing
+    Nothing -> return Nothing
+
+
 getChallengeMySubmissionsJsonR :: Text -> Handler Value
 getChallengeMySubmissionsJsonR name = do
-  req <- waiRequest
-  let mToken = case lookup "Authorization" (Network.Wai.requestHeaders req) of
-                 Nothing -> Nothing
-                 Just authHead -> case BS.break isSpace authHead of
-                   (strategy, token)
-                     | BS.map Data.Word8.toLower strategy == "bearer" -> (Just $ BS.filter (/= 32) token)
-                     | otherwise -> Nothing
-  mUserEnt <- maybeAuth
-
-  app <- getYesod
-  let jwk = fromJust $ appJSONWebKey $ appSettings app
-
-  dtoken <- liftIO $ JWT.decode [jwk] (Just (JWT.JwsEncoding JWA.RS256)) $ fromJust mToken
-  return $ array [show dtoken]
+  info <- authorizationTokenAuth
+  return $ array [show info]
 
 getChallengeMySubmissionsR :: Text -> Handler Html
 getChallengeMySubmissionsR name = do
