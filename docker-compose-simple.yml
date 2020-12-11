@@ -15,6 +15,7 @@ services:
       - LEADERBOARD_STYLE=${GONITO_LEADERBOARD_STYLE:-by-tag}
       - AUTO_OPENING=${GONITO_AUTO_OPENING:-false}
       - IS_PUBLIC=${GONITO_IS_PUBLIC:-true}
+      - JSON_WEB_KEY=${JSON_WEB_KEY}
     ports:
       - 3000:3000
     volumes:
