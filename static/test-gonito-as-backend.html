@@ -43,7 +43,42 @@
                 req.send();
             };
 
+      function testCors() {
 
+          var createCORSRequest = function(method, url) {
+              var xhr = new XMLHttpRequest();
+              if ("withCredentials" in xhr) {
+                  // Most browsers.
+                  xhr.open(method, url, true);
+              } else if (typeof XDomainRequest != "undefined") {
+                  // IE8 & IE9
+                  xhr = new XDomainRequest();
+                  xhr.open(method, url);
+              } else {
+                  // CORS not supported.
+                  xhr = null;
+              }
+              xhr.setRequestHeader('Authorization', 'Bearer ' +
+                 keycloak.token);
+              //xhr.setRequestHeader('Xyz', 'Blabla');
+              xhr.setRequestHeader('Accept', 'application/json');
+              return xhr;
+          };
+
+          var url = 'http://127.0.0.1:3000/api/list-challenges';
+          var method = 'GET';
+          var xhr = createCORSRequest(method, url);
+
+          xhr.onload = function() {
+              alert("OK");
+          };
+
+          xhr.onerror = function() {
+              alert("NOT OK")
+          };
+
+          xhr.send();
+      }
     </script>
 </head>
 <body onload="initKeycloak()">
@@ -54,6 +89,11 @@
   <p><button onclick="loadData('user-info')">Check user</button></p>
 
   <p><button onclick="loadData('challenge-my-submissions/retroc2')">Other test</button></p>
+
+  <p><button onclick="loadData('list-challenges')">Yet another
+      test</button></p>
+
+  <p><button onclick="testCors()">CORS</button></p>
 
 </body>
 </html>

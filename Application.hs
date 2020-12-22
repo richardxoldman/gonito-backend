@@ -146,8 +146,8 @@ makeApplication foundation = do
 
     -- Create the WAI application and apply middlewares
     appPlain <- toWaiAppPlain foundation
-    return $ logWare $ defaultMiddlewaresNoLogging $ simpleCors appPlain
-
+    return $ logWare $ defaultMiddlewaresNoLogging $ myCors appPlain
+    where myCors = cors (const $ Just (simpleCorsResourcePolicy {corsMethods = ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"], corsRequestHeaders = ["Authorization"]}))
 makeLogWare :: App -> IO Middleware
 makeLogWare foundation =
     mkRequestLogger def
