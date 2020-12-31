@@ -32,6 +32,13 @@ import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
 data TestReference = TestReference Text Text
                      deriving (Show, Eq, Ord)
 
+instance ToJSON TestReference where
+    toJSON (TestReference metric name) = object
+        [ "name" .= name,
+          "metric" .= metric
+        ]
+
+
 getTestReference :: Entity Test -> TestReference
 getTestReference (Entity _ test) = TestReference (Data.Text.pack $ show $ testMetric test) (testName test)
 

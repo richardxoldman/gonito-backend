@@ -13,6 +13,7 @@
 /api/list-challenges ListChallengesJsonR GET
 /api/leaderboard/#Text LeaderboardJsonR GET
 /api/challenge-my-submissions/#Text ChallengeMySubmissionsJsonR GET
+/api/challenge-all-submissions/#Text ChallengeAllSubmissionsJsonR GET
 /api/user-info UserInfoR GET
 /api/add-user AddUserR GET
 /list-archived-challenges ListArchivedChallengesR GET

@@ -20,12 +20,16 @@ import Handler.Dashboard
 import Handler.Common
 import Handler.Evaluate
 
+import Database.Persist.Sql (fromSqlKey)
+
+import qualified Data.Map as Map
+
 import qualified Data.ByteString as BS
 import           Data.Word8 (isSpace, toLower)
-import           Network.Wai (Request, requestHeaders)
+import           Network.Wai (requestHeaders)
 import qualified Jose.Jwt as JWT
 import qualified Jose.Jwa as JWA
-import qualified Jose.Jwk as JWK
+
 
 import Data.Maybe (fromJust)
 
@@ -75,6 +79,7 @@ getLeaderboardJsonR name = do
   (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
   return $ array $ map (leaderboardEntryJson tests) leaderboard
 
+leaderboardEntryJson :: (ToJSON (f Value), Functor f) => f (Entity Test) -> LeaderboardEntry -> Value
 leaderboardEntryJson tests entry = object [
   "metadata" .= entry,
   "metrics" .=
@@ -688,6 +693,18 @@ authorizationTokenAuth = do
              | otherwise -> return Nothing
     Nothing -> return Nothing
 
+maybeAuthPossiblyByToken :: Handler (Maybe (Entity User))
+maybeAuthPossiblyByToken = do
+  mInfo <- authorizationTokenAuth
+  case mInfo of
+    Just info -> do
+      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent info
+      case x of
+        Just entUser -> return $ Just entUser
+        Nothing -> maybeAuth
+    Nothing -> maybeAuth
+
+
 requireAuthPossiblyByToken :: Handler (Entity User)
 requireAuthPossiblyByToken = do
   mInfo <- authorizationTokenAuth
@@ -730,11 +747,88 @@ getAddUserR = do
           return $ Bool True
     Nothing -> return $ Bool False
 
+getChallengeAllSubmissionsJsonR :: Text -> Handler Value
+getChallengeAllSubmissionsJsonR name = do
+  v <- fetchAllSubmissionsView name
+  return $ toJSON v
+
 getChallengeMySubmissionsJsonR :: Text -> Handler Value
 getChallengeMySubmissionsJsonR name = do
-  info <- authorizationTokenAuth
-  return $ array [show info]
+  v <- fetchMySubmissionsView name
+  return $ toJSON v
 
+fetchAllSubmissionsView :: Text -> Handler SubmissionsView
+fetchAllSubmissionsView name = do
+  fetchChallengeSubmissionsView (const True) name
+
+fetchMySubmissionsView :: Text -> Handler SubmissionsView
+fetchMySubmissionsView name = do
+  userId <- requireAuthId
+  fetchChallengeSubmissionsView (\(Entity _ submission) -> (submissionSubmitter submission == userId)) name
+
+convertTagInfoToView :: (Entity Import.Tag, Entity SubmissionTag) -> TagView
+convertTagInfoToView tagInfo =
+  TagView {
+     tagViewName = tagName $ entityVal $ fst tagInfo,
+     tagViewDescription = tagDescription $ entityVal $ fst tagInfo,
+     tagViewAccepted = submissionTagAccepted $ entityVal $ snd tagInfo
+     }
+
+convertEvaluationToView :: Map TestReference Evaluation -> Entity Test -> Maybe EvaluationView
+convertEvaluationToView mapping entTest =
+  case join $ evaluationScore <$> mEvaluation of
+    Just s ->
+      Just $ EvaluationView {
+        evaluationViewScore = formatTruncatedScore formattingOps mEvaluation,
+        evaluationViewFullScore = s,
+        evaluationViewTest = testRef
+        }
+    Nothing -> Nothing
+  where mEvaluation = Map.lookup testRef mapping
+        formattingOps = getTestFormattingOpts $ entityVal entTest
+        testRef = getTestReference entTest
+
+-- convertTableEntryToView :: Maybe UserId -> [Entity Test] -> TableEntry -> SubmissionView
+convertTableEntryToView :: [Entity Test] -> TableEntry -> HandlerFor App SubmissionView
+convertTableEntryToView tests entry = do
+  mUserId <- maybeAuthPossiblyByToken
+
+  isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission entry
+  isVisible <- runDB $ checkWhetherVisible submission (entityKey <$> mUserId)
+
+  return $ SubmissionView {
+    submissionViewId = fromSqlKey $ entityKey $ tableEntrySubmission entry,
+    submissionViewVariantId = fromSqlKey $ entityKey $ tableEntryVariant entry,
+    submissionViewRank = tableEntryRank entry,
+    submissionViewSubmitter = formatSubmitter $ entityVal $ tableEntrySubmitter entry,
+    submissionViewWhen = submissionStamp submission,
+    submissionViewVersion = tableEntryVersion entry,
+    submissionViewDescription = submissionDescription submission,
+    submissionViewTags = Import.map convertTagInfoToView $ tableEntryTagsInfo entry,
+    submissionViewHash = fromSHA1ToText $ submissionCommit submission,
+    submissionViewEvaluations = catMaybes $ Import.map (convertEvaluationToView $ tableEntryMapping entry) tests,
+    submissionViewIsOwner = (entityKey <$> mUserId) == Just (submissionSubmitter submission),
+    submissionViewIsReevaluable = isReevaluable,
+    submissionViewIsVisible = isVisible,
+    submissionViewIsPublic = submissionIsPublic submission
+  }
+  where submission = entityVal $ tableEntrySubmission entry
+
+fetchChallengeSubmissionsView :: ((Entity Submission) -> Bool) -> Text -> Handler SubmissionsView
+fetchChallengeSubmissionsView condition name = do
+  Entity challengeId _ <- runDB $ getBy404 $ UniqueName name
+  (evaluationMaps, tests') <- runDB $ getChallengeSubmissionInfos 1 condition (const True) id challengeId
+  let tests = sortBy testComparator tests'
+
+  submissions <- mapM (convertTableEntryToView tests) evaluationMaps
+
+  return $ SubmissionsView {
+    submissionsViewSubmissions = submissions,
+    submissionsViewTests = map getTestReference tests
+  }
+
+
+-- TODO switch to fetchChallengeSubmissionSview
 getChallengeMySubmissionsR :: Text -> Handler Html
 getChallengeMySubmissionsR name = do
   userId <- requireAuthId
@@ -742,6 +836,77 @@ getChallengeMySubmissionsR name = do
 
 getChallengeAllSubmissionsR :: Text -> Handler Html
 getChallengeAllSubmissionsR name = getChallengeSubmissions (\_ -> True) name
+
+data EvaluationView = EvaluationView {
+  evaluationViewScore :: Text,
+  evaluationViewFullScore :: Double,
+  evaluationViewTest :: TestReference
+}
+
+instance ToJSON EvaluationView where
+    toJSON e = object
+        [ "score" .= evaluationViewScore e
+        , "full-score" .= evaluationViewFullScore e
+        , "test" .= evaluationViewTest e
+        ]
+
+data TagView = TagView {
+  tagViewName :: Text,
+  tagViewDescription :: Maybe Text,
+  tagViewAccepted :: Maybe Bool }
+
+instance ToJSON TagView where
+  toJSON t = object
+       [ "name" .= tagViewName t
+       , "description" .= tagViewDescription t
+       , "accepted" .= tagViewAccepted t
+       ]
+
+data SubmissionView = SubmissionView {
+  submissionViewId :: Int64,
+  submissionViewVariantId :: Int64,
+  submissionViewRank :: Int,
+  submissionViewSubmitter :: Text,
+  submissionViewWhen :: UTCTime,
+  submissionViewVersion :: (Int, Int, Int),
+  submissionViewDescription :: Text,
+  submissionViewTags :: [TagView],
+  submissionViewHash :: Text,
+  submissionViewEvaluations :: [EvaluationView],
+  submissionViewIsOwner :: Bool,
+  submissionViewIsReevaluable :: Bool,
+  submissionViewIsVisible :: Bool,
+  submissionViewIsPublic :: Bool
+}
+
+instance ToJSON SubmissionView where
+  toJSON s = object
+   ["id" .= submissionViewId s
+    , "variant" .= submissionViewVariantId s
+    , "rank" .= submissionViewRank s
+    , "submitter" .= submissionViewSubmitter s
+    , "when" .= submissionViewWhen s
+    , "version" .= submissionViewVersion s
+    , "description" .= submissionViewDescription s
+    , "tags" .= submissionViewTags s
+    , "hash" .= submissionViewHash s
+    , "evaluations" .= submissionViewEvaluations s
+    , "isOwner" .= submissionViewIsOwner s
+    , "isReevaluable" .= submissionViewIsReevaluable s
+    , "isVisible" .= submissionViewIsVisible s
+    , "isPublic" .= submissionViewIsPublic s
+    ]
+
+data SubmissionsView = SubmissionsView {
+  submissionsViewSubmissions :: [SubmissionView],
+  submissionsViewTests :: [TestReference]
+}
+
+instance ToJSON SubmissionsView where
+  toJSON ss = object
+    [ "tests" .= submissionsViewTests ss,
+      "submissions" .= submissionsViewSubmissions ss
+    ]
 
 getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
 getChallengeSubmissions condition name = do
