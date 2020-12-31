@@ -7,7 +7,7 @@ WORKDIR /root/
 RUN apt-get -y update && apt-get -y install libfcgi-dev && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 RUN git clone git://gonito.net/geval && cd geval && git reset --hard a49abb560bd5e5f11f291f50176934fef5352c6c
-RUN git clone git://gonito.net/gonito && cd gonito && git reset --hard 0e814d39523e4280c61907745c2a73b725c3b3cc
+RUN git clone git://gonito.net/gonito && cd gonito && git reset --hard 8206d188c4e3f953ccaf639381f2f51f5641b0c8
 
 WORKDIR gonito
 
