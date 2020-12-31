@@ -39,6 +39,87 @@ After installing Stack:
 The last command will start the Web server with Gonito (go to
 http://127.0.0.1:3000 in your browser).
 
+Gonito & git
+------------
+
+Gonito uses git in an inherent manner:
+
+* challenges (data sets) are provided as git repositories,
+* submissions are uploaded via git repositories, they are referred to with
+  git commit hashes.
+
+Advantages:
+
+* great flexibility as far as where you want to keep your challenges
+  and submissions (could be external, well-known services such as
+  GitHub or GitLab, your local git server, let's say gitolite or Gogs, or
+  just a disk accessible in a Gonito instance),
+* even if Gonito ceases to exist, the challenges and submissions are still available
+  in a standard manner, provided that git repositories (be it external or local) are
+  accessible,
+* data sets can be easily downloaded using the command line
+  (e.g. `git clone git://gonito.net/paranormal-or-skeptic`), without
+  even clicking anything in the Web browser,
+* facilitates experiment repeatability and reproducibility (at worst
+  the system output is easily available via git)
+* tools that were used to generate the output could be linked as git subrepositories
+* some challenge/submission metadata are tracked in a Gonito-independent way
+  (within git commits),
+* copying data can be avoided with git mechanisms (e.g. when the challenge is already
+  cloned, downloading specific submissions should be much quicker),
+* large data sets and models could be stored if needed using mechanisms such as git-annex (see below).
+
+### Commit structure
+
+The following flow of git commits is recommended (though not required):
+
+* the challenge without hidden data for main test sets (i.e. files such as `test-A/expected.tsv`)
+  should be pushed to the `master` branch
+* the hidden files (`test-A/expected.tsv`) should be added in a
+  subsequent commit and pushed either to the `dont-peek` branch or a
+  `master` branch of a separate repository (if access to the hidden
+  data must be more strict),
+* the submissions should be committed with the `master` branch as the
+  parent (or at least ancestor) commit and pushed to the same
+  repository as the challenge data (in some user-specific branch) or any other
+  repository (could be user-owned repositories)
+* any subsequent submissions could be derived in a natural way from other git commits
+  (e.g. when a submission is improved, or even two approaches are merged)
+* new versions of the challenge can be committed (a challenge can be updated at Gonito)
+  to the `master` (and `dont-peek`) branches
+
+See also the following picture:
+
+![Recommended commit structure](misc/commits.png)
+
+### git-annex
+
+In some cases, you don't want to store challenge/submissions files simply in git:
+
+* very large data files, textual files (e.g. `train/in.tsv` even if
+  compressed as `train/in.tsv.xz`)
+* binary training/testing data (PDF files, images, movies, recordings)
+* data sensitive due to privacy/security concerns (a scenario where it's OK to store
+  metadata and some files in a widely accessible repository, but some files require
+  limited access)
+* large ML models (note that Gonito does not require models for evaluation, but still
+  it might be a good practice to commit them along with output files and scripts)
+
+Such cases can be handled in a natural manner using git-annex, a git
+extension for handling files and their metadata without commiting
+their content to the repository. The contents can be stored at a wide
+range of [special
+remotes](https://git-annex.branchable.com/special_remotes/), e.g. S3
+buckets, WebDAV, rsync servers.
+
+It's up to you which files are stored in git in a regular manner and
+which are added with `git annex add`, but note that if a
+challenge/submission file must be stored via git-annex and are required
+for evaluation (e.g. `expected.tsv` files for the challenge or
+`out.tsv` files for submissions), the git-annex special remote must be
+given when a challenge is created or a submission is done and the
+Gonito server must have access to such a special remote.
+
 Authors
 -------
 
