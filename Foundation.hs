@@ -169,10 +169,11 @@ instance Yesod App where
     isAuthorized (ChallengeReadmeR _) _ = regularAuthorization
     isAuthorized (ChallengeAllSubmissionsR _) _ = regularAuthorization
 
-    isAuthorized (ChallengeMySubmissionsJsonR _) _ = regularAuthorization
+    isAuthorized (ChallengeMySubmissionsJsonR _) _ = return Authorized
     isAuthorized (ChallengeAllSubmissionsJsonR _) _ = return Authorized
-    isAuthorized AddUserR _ = regularAuthorization
-    isAuthorized UserInfoR _ = regularAuthorization
+    isAuthorized AddUserR _ = return Authorized
+    isAuthorized UserInfoR _ = return Authorized
+    isAuthorized (ChallengeSubmissionJsonR _) _ = return Authorized
 
     isAuthorized (ChallengeGraphDataR _) _ = regularAuthorization
     isAuthorized (ChallengeDiscussionR _) _ = regularAuthorization

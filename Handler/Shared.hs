@@ -15,6 +15,8 @@ import qualified Data.Text.Encoding as DTE
 
 import Database.Persist.Sql (fromSqlKey)
 
+import Data.Scientific
+
 import Control.Concurrent.Lifted (threadDelay)
 import Control.Concurrent (forkIO)
 
@@ -99,8 +101,17 @@ runViewProgress = runViewProgress' ViewProgressR
 runOpenViewProgress :: (Channel -> Handler ()) -> Handler TypedContent
 runOpenViewProgress = runViewProgress' OpenViewProgressR
 
+runViewProgressAsynchronously :: (Channel -> Handler ()) -> Handler Value
+runViewProgressAsynchronously action = runViewProgressGeneralized getJobIdAsJson action
+--  where getJobIdAsJson jobId = return $ Number (scientific (toInteger jobId) 0)
+  where getJobIdAsJson jobId = return $ String $ pack $ show jobId
+
 runViewProgress' :: (Int -> Route App) -> (Channel -> Handler ()) -> Handler TypedContent
-runViewProgress' route action = do
+runViewProgress' route action = runViewProgressGeneralized doRedirection action
+  where doRedirection jobId = redirect $ route jobId
+
+runViewProgressGeneralized :: (Int -> Handler v) -> (Channel -> Handler ()) -> Handler v
+runViewProgressGeneralized handler action = do
   App {..} <- getYesod
   jobId <- randomInt
   chan <- liftIO $ atom $ do
@@ -117,7 +128,7 @@ runViewProgress' route action = do
       writeTChan chan Nothing
       m <- readTVar jobs
       writeTVar jobs $ IntMap.delete jobId m
-  redirect $ route jobId
+  handler jobId
 
 data RepoCloningSpec = RepoCloningSpec {
   cloningSpecRepo :: RepoSpec,

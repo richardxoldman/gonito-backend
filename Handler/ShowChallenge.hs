@@ -279,8 +279,10 @@ getChallengeSubmissionR name = do
    (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
-postChallengeSubmissionR :: Text -> Handler TypedContent
-postChallengeSubmissionR name = do
+postChallengeSubmissionJsonR :: Text -> Handler Value
+postChallengeSubmissionJsonR name = do
+    Entity userId _ <- requireAuthPossiblyByToken
+
     (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
     ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
     let submissionData' = case result of
@@ -288,7 +290,19 @@ postChallengeSubmissionR name = do
           _ -> Nothing
         Just submissionData = submissionData'
 
+    runViewProgressAsynchronously $ doCreateSubmission userId challengeId submissionData
+
+postChallengeSubmissionR :: Text -> Handler TypedContent
+postChallengeSubmissionR name = do
     userId <- requireAuthId
+
+    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
+    ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
+    let submissionData' = case result of
+          FormSuccess res -> Just res
+          _ -> Nothing
+        Just submissionData = submissionData'
+
     runViewProgress $ doCreateSubmission userId challengeId submissionData
 
 postTriggerLocallyR :: Handler TypedContent
@@ -763,7 +777,7 @@ fetchAllSubmissionsView name = do
 
 fetchMySubmissionsView :: Text -> Handler SubmissionsView
 fetchMySubmissionsView name = do
-  userId <- requireAuthId
+  Entity userId _ <- requireAuthPossiblyByToken
   fetchChallengeSubmissionsView (\(Entity _ submission) -> (submissionSubmitter submission == userId)) name
 
 convertTagInfoToView :: (Entity Import.Tag, Entity SubmissionTag) -> TagView

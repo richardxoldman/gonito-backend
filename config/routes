@@ -10,12 +10,14 @@
 /view-progress/#Int ViewProgressR GET
 /open-view-progress/#Int OpenViewProgressR GET
 /list-challenges ListChallengesR GET
+
 /api/list-challenges ListChallengesJsonR GET
 /api/leaderboard/#Text LeaderboardJsonR GET
 /api/challenge-my-submissions/#Text ChallengeMySubmissionsJsonR GET
 /api/challenge-all-submissions/#Text ChallengeAllSubmissionsJsonR GET
 /api/user-info UserInfoR GET
 /api/add-user AddUserR GET
+/api/challenge-submission/#Text ChallengeSubmissionJsonR POST
 /list-archived-challenges ListArchivedChallengesR GET
 /challenge-image/#ChallengeId ChallengeImageR GET
 

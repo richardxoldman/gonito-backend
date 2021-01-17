@@ -154,6 +154,7 @@ library
                  , wai-cors
                  , word8
                  , jose-jwt
+                 , scientific
 
 executable         gonito
     if flag(library-only)
