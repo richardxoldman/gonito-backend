@@ -98,3 +98,5 @@
 /presentation/psnc-2019 PresentationPSNC2019R GET
 /gonito-in-class GonitoInClassR GET
 /writing-papers WritingPapersWithGonitoR GET
+
+/swagger.json SwaggerR GET

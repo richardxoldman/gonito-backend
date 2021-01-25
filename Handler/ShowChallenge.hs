@@ -1,6 +1,8 @@
+{-# LANGUAGE OverloadedLists #-}
+
 module Handler.ShowChallenge where
 
-import Import
+import Import hiding (Proxy, fromList)
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
 import qualified Data.Text.Lazy as TL
@@ -59,6 +61,14 @@ import Data.List (nub)
 import qualified Database.Esqueleto      as E
 import           Database.Esqueleto      ((^.))
 
+import Data.Swagger hiding (get)
+import qualified Data.Swagger as DS
+
+import Data.Swagger.Declare
+import Control.Lens hiding ((.=), (^.))
+import Data.Proxy
+import Data.HashMap.Strict.InsOrd (fromList)
+
 instance ToJSON LeaderboardEntry where
     toJSON entry = object
         [ "submitter" .= (formatSubmitter $ leaderboardUser entry)
@@ -69,6 +79,52 @@ instance ToJSON LeaderboardEntry where
                                                 (leaderboardParams entry)
         , "times" .= leaderboardNumberOfSubmissions entry
         ]
+
+instance ToSchema LeaderboardEntry where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (Proxy :: Proxy String)
+    intSchema <- declareSchemaRef (Proxy :: Proxy Int)
+    return $ NamedSchema (Just "LeaderboardEntry") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("submitter", stringSchema)
+                     , ("when", stringSchema)
+                     , ("version", stringSchema)
+                     , ("description", stringSchema)
+                     , ("times", intSchema)
+                    ]
+        & required .~ [ "submitter", "when", "version", "description", "times" ]
+
+
+declareLeaderboardSwagger :: Declare (Definitions Schema) Swagger
+declareLeaderboardSwagger = do
+  -- param schemas
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+
+  leaderboardResponse      <- declareResponse (Proxy :: Proxy [LeaderboardEntry])
+
+  return $ mempty
+    & paths .~
+        [ ("/api/leaderboard/{challengeName}",
+            mempty & DS.get ?~ (mempty
+                                 & parameters .~ [ Inline $ mempty
+                                                   & name .~ "challengeName"
+                                                   & required ?~ True
+                                                   & schema .~ ParamOther (mempty
+                                                                           & in_ .~ ParamPath
+                                                                           & paramSchema .~ challengeNameSchema) ]
+                                 & produces ?~ MimeList ["application/json"]
+                                 & description ?~ "Returns a leaderboard for a given challenge"
+                                 & at 200 ?~ Inline leaderboardResponse))
+        ]
+
+
+leaderboardApi :: Swagger
+leaderboardApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareLeaderboardSwagger mempty
+
+
 
 getLeaderboardJsonR :: Text -> Handler Value
 getLeaderboardJsonR name = do

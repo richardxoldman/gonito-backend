@@ -59,6 +59,7 @@ library
                      Data.SubmissionConditions
                      Gonito.ExtractMetadata
                      Data.Diff
+                     Handler.Swagger
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT
@@ -155,6 +156,9 @@ library
                  , word8
                  , jose-jwt
                  , scientific
+                 , swagger2
+                 , lens
+                 , insert-ordered-containers
 
 executable         gonito
     if flag(library-only)
