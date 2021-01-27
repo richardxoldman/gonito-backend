@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedLists #-}
-
 module Handler.ShowChallenge where
 
 import Import hiding (Proxy, fromList)
@@ -66,7 +64,7 @@ import qualified Data.Swagger as DS
 
 import Data.Swagger.Declare
 import Control.Lens hiding ((.=), (^.))
-import Data.Proxy
+import Data.Proxy as DPR
 import Data.HashMap.Strict.InsOrd (fromList)
 
 instance ToJSON LeaderboardEntry where
@@ -82,8 +80,8 @@ instance ToJSON LeaderboardEntry where
 
 instance ToSchema LeaderboardEntry where
   declareNamedSchema _ = do
-    stringSchema <- declareSchemaRef (Proxy :: Proxy String)
-    intSchema <- declareSchemaRef (Proxy :: Proxy Int)
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
     return $ NamedSchema (Just "LeaderboardEntry") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
@@ -105,18 +103,18 @@ declareLeaderboardSwagger = do
 
   return $ mempty
     & paths .~
-        [ ("/api/leaderboard/{challengeName}",
-            mempty & DS.get ?~ (mempty
-                                 & parameters .~ [ Inline $ mempty
-                                                   & name .~ "challengeName"
-                                                   & required ?~ True
-                                                   & schema .~ ParamOther (mempty
-                                                                           & in_ .~ ParamPath
-                                                                           & paramSchema .~ challengeNameSchema) ]
-                                 & produces ?~ MimeList ["application/json"]
-                                 & description ?~ "Returns a leaderboard for a given challenge"
-                                 & at 200 ?~ Inline leaderboardResponse))
-        ]
+        fromList [ ("/api/leaderboard/{challengeName}",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "challengeName"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ challengeNameSchema) ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Returns a leaderboard for a given challenge"
+                                        & at 200 ?~ Inline leaderboardResponse))
+                 ]
 
 
 leaderboardApi :: Swagger
