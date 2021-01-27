@@ -1,12 +1,42 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
+
 module Handler.ListChallenges where
 
-import Import
+import Import hiding (get, fromList, Proxy)
+
+import Data.HashMap.Strict.InsOrd (fromList)
+
+import Data.Proxy
+import Data.Aeson
+import Control.Lens hiding ((.=))
+import Data.Swagger
+import Data.Swagger.Lens
+import Data.Swagger.Declare
 
 mainCondition :: [Filter Challenge]
 mainCondition = [ChallengeArchived !=. Just True]
 
 getListChallengesR :: Handler Html
 getListChallengesR = generalListChallenges mainCondition
+
+declareListChallengesSwagger :: Declare (Definitions Schema) Swagger
+declareListChallengesSwagger = do
+  -- param schemas
+  listChallengesResponse      <- declareResponse (Proxy :: Proxy [Entity Challenge])
+
+  return $ mempty
+    & paths .~
+        [ ("/api/list-challenges", mempty & get ?~ (mempty
+            & produces ?~ MimeList ["application/json"]
+            & description ?~ "Returns the list of all challenges"
+            & at 200 ?~ Inline listChallengesResponse))
+        ]
+
+listChallengesApi :: Swagger
+listChallengesApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareListChallengesSwagger mempty
 
 getListChallengesJsonR :: Handler Value
 getListChallengesJsonR = generalListChallengesJson mainCondition
@@ -22,6 +52,22 @@ instance ToJSON (Entity Challenge) where
         , "starred" .= challengeStarred ch
         , "archived" .= challengeArchived ch
         ]
+
+instance ToSchema (Entity Challenge) where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (Proxy :: Proxy String)
+    booleanSchema <- declareSchemaRef (Proxy :: Proxy Bool)
+    return $ NamedSchema (Just "Challenge") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("name", stringSchema)
+                    , ("title", stringSchema)
+                    , ("description", stringSchema)
+                    , ("starred", booleanSchema)
+                    , ("archived", booleanSchema)
+                    ]
+        & required .~ [ "name", "title", "description", "starred", "archived" ]
+
 
 generalListChallengesJson :: [Filter Challenge] -> Handler Value
 generalListChallengesJson filterExpr = do

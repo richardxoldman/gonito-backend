@@ -18,4 +18,6 @@ extra-deps:
   - yesod-table-2.0.3
   - esqueleto-3.0.0
   - 'ordered-containers-0.2.2@sha256:ebf2be3f592d9cf148ea6b8375f8af97148d44f82d8d04476899285e965afdbf,810'
+  - 'optics-core-0.3.0.1@sha256:50845a47810eb5a5f03dfa9bb1edd8a577fc7ca1702ba4bde68b235f7cb44528,4536'
+  - 'indexed-profunctors-0.1@sha256:ddf618d0d4c58319c1e735e746bc69a1021f13b6f475dc9614b80af03432e6d4,1016'
 resolver: lts-12.26

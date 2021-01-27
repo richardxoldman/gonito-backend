@@ -219,6 +219,8 @@ instance Yesod App where
 
     isAuthorized (CompareFormR _ _) _ = regularAuthorization
 
+    isAuthorized SwaggerR _ = return Authorized
+
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
 
