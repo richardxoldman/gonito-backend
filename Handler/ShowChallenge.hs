@@ -815,6 +815,39 @@ getAddUserR = do
           return $ Bool True
     Nothing -> return $ Bool False
 
+declareAllSubmissionsApi :: String -> String -> Declare (Definitions Schema) Swagger
+declareAllSubmissionsApi q d = do
+  -- param schemas
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+
+  allSubmissionsResponse <- declareResponse (Proxy :: Proxy SubmissionsView)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/" ++ q ++ "/{challengeName}",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "challengeName"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ challengeNameSchema) ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "d"
+                                        & at 200 ?~ Inline allSubmissionsResponse))
+                 ]
+
+
+allSubmissionsApi :: Swagger
+allSubmissionsApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare (declareAllSubmissionsApi "challenge-all-submissions" "Returns all submissions for a challenge") mempty
+
+mySubmissionsApi :: Swagger
+mySubmissionsApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare (declareAllSubmissionsApi "challenge-my-submissions" "Returns all submissions for a challenge for the user") mempty
+
 getChallengeAllSubmissionsJsonR :: Text -> Handler Value
 getChallengeAllSubmissionsJsonR challengeName = do
   v <- fetchAllSubmissionsView challengeName
@@ -918,6 +951,21 @@ instance ToJSON EvaluationView where
         , "test" .= evaluationViewTest e
         ]
 
+instance ToSchema EvaluationView where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    doubleSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Double)
+    testRefSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy TestReference)
+    return $ NamedSchema (Just "Evaluation") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("score", stringSchema)
+                     , ("full-score", doubleSchema)
+                     , ("test", testRefSchema)
+                    ]
+        & required .~ [ "score", "full-score", "test" ]
+
+
 data TagView = TagView {
   tagViewName :: Text,
   tagViewDescription :: Maybe Text,
@@ -929,6 +977,20 @@ instance ToJSON TagView where
        , "description" .= tagViewDescription t
        , "accepted" .= tagViewAccepted t
        ]
+
+instance ToSchema TagView where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
+    return $ NamedSchema (Just "Tag") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("name", stringSchema)
+                     , ("description", stringSchema)
+                     , ("accepted", boolSchema)
+                    ]
+        & required .~ [ "name", "description" ]
+
 
 data SubmissionView = SubmissionView {
   submissionViewId :: Int64,
@@ -965,6 +1027,36 @@ instance ToJSON SubmissionView where
     , "isPublic" .= submissionViewIsPublic s
     ]
 
+instance ToSchema SubmissionView where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
+    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
+    intsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Int])
+    tagsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TagView])
+    evalsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+    return $ NamedSchema (Just "SubmissionView") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("id", intSchema)
+                     , ("variant", intSchema)
+                     , ("rank", intSchema)
+                     , ("submitter", stringSchema)
+                     , ("when", stringSchema)
+                     , ("version", intsSchema)
+                     , ("description", stringSchema)
+                     , ("tags", tagsSchema)
+                     , ("hash", stringSchema)
+                     , ("evaluations", evalsSchema)
+                     , ("isOwner", boolSchema)
+                     , ("isReevaluable", boolSchema)
+                     , ("isVisible", boolSchema)
+                     , ("isPublic", boolSchema)
+                    ]
+        & required .~ [ "id", "variant", "rank", "submitter", "when", "version",
+                        "description", "tags", "hash", "evaluations",
+                        "isOwner", "isReevaluable", "isVisible", "isPublic" ]
+
 data SubmissionsView = SubmissionsView {
   submissionsViewSubmissions :: [SubmissionView],
   submissionsViewTests :: [TestReference]
@@ -975,6 +1067,18 @@ instance ToJSON SubmissionsView where
     [ "tests" .= submissionsViewTests ss,
       "submissions" .= submissionsViewSubmissions ss
     ]
+
+instance ToSchema SubmissionsView where
+  declareNamedSchema _ = do
+    submissionViewsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [SubmissionView])
+    testRefsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TestReference])
+    return $ NamedSchema (Just "Tag") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("tests", submissionViewsSchema)
+                     , ("submissions", testRefsSchema)
+                    ]
+        & required .~ [ "tests", "submission" ]
 
 getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
 getChallengeSubmissions condition name = do

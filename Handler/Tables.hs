@@ -29,6 +29,13 @@ import GEval.EvaluationScheme
 
 import GEval.ParseParams (parseParamsFromFilePath, OutputFileParsed(..))
 
+import Data.Swagger hiding (get)
+import qualified Data.Swagger as DS
+import Data.Swagger.Declare
+import Data.Proxy as DPR
+import Control.Lens hiding ((.=), (^.))
+import Data.HashMap.Strict.InsOrd (fromList)
+
 data TestReference = TestReference Text Text
                      deriving (Show, Eq, Ord)
 
@@ -38,6 +45,16 @@ instance ToJSON TestReference where
           "metric" .= metric
         ]
 
+instance ToSchema TestReference where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    return $ NamedSchema (Just "TestReference") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           Data.HashMap.Strict.InsOrd.fromList [  ("name", stringSchema)
+                                               , ("metric", stringSchema)
+                                               ]
+        & required .~ [ "name", "metric" ]
 
 getTestReference :: Entity Test -> TestReference
 getTestReference (Entity _ test) = TestReference (Data.Text.pack $ show $ testMetric test) (testName test)
@@ -51,7 +68,7 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardBestVariantId :: VariantId,
   leaderboardEvaluationMap :: Map TestReference Evaluation,
   leaderboardNumberOfSubmissions :: Int,
-  leaderboardTags :: [(Entity Tag, Entity SubmissionTag)],
+  leaderboardTags :: [(Entity Import.Tag, Entity SubmissionTag)],
   leaderboardParams :: [Parameter],
   leaderboardVersion :: (Int, Int, Int)
 }
@@ -61,7 +78,7 @@ data TableEntry = TableEntry {
   tableEntryVariant :: Entity Variant,
   tableEntrySubmitter :: Entity User,
   tableEntryMapping :: Map TestReference Evaluation,
-  tableEntryTagsInfo :: [(Entity Tag, Entity SubmissionTag)],
+  tableEntryTagsInfo :: [(Entity Import.Tag, Entity SubmissionTag)],
   tableEntryParams :: [Entity Parameter],
   tableEntryRank :: Int,
   tableEntryVersion :: (Int, Int, Int) }
@@ -456,7 +473,7 @@ getScore testId variantId = do
 
 data BasicSubmissionInfo = BasicSubmissionInfo {
   basicSubmissionInfoUser :: User,
-  basicSubmissionInfoTagEnts :: [(Entity Tag, Entity SubmissionTag)],
+  basicSubmissionInfoTagEnts :: [(Entity Import.Tag, Entity SubmissionTag)],
   basicSubmissionInfoVersion :: Version }
 
 getBasicSubmissionInfo :: (MonadIO m, PersistQueryRead backend,

@@ -12,7 +12,7 @@ getSwaggerR :: Handler Value
 getSwaggerR = return $ toJSON apiDescription
 
 apiDescription :: Swagger
-apiDescription = generalApi <> listChallengesApi <> leaderboardApi
+apiDescription = generalApi <> listChallengesApi <> leaderboardApi <> allSubmissionsApi <> mySubmissionsApi
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)
