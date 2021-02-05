@@ -816,23 +816,23 @@ getAddUserR = do
     Nothing -> return $ Bool False
 
 getChallengeAllSubmissionsJsonR :: Text -> Handler Value
-getChallengeAllSubmissionsJsonR name = do
-  v <- fetchAllSubmissionsView name
+getChallengeAllSubmissionsJsonR challengeName = do
+  v <- fetchAllSubmissionsView challengeName
   return $ toJSON v
 
 getChallengeMySubmissionsJsonR :: Text -> Handler Value
-getChallengeMySubmissionsJsonR name = do
-  v <- fetchMySubmissionsView name
+getChallengeMySubmissionsJsonR challengeName = do
+  v <- fetchMySubmissionsView challengeName
   return $ toJSON v
 
 fetchAllSubmissionsView :: Text -> Handler SubmissionsView
-fetchAllSubmissionsView name = do
-  fetchChallengeSubmissionsView (const True) name
+fetchAllSubmissionsView challengeName = do
+  fetchChallengeSubmissionsView (const True) challengeName
 
 fetchMySubmissionsView :: Text -> Handler SubmissionsView
-fetchMySubmissionsView name = do
+fetchMySubmissionsView challengeName = do
   Entity userId _ <- requireAuthPossiblyByToken
-  fetchChallengeSubmissionsView (\(Entity _ submission) -> (submissionSubmitter submission == userId)) name
+  fetchChallengeSubmissionsView (\(Entity _ submission) -> (submissionSubmitter submission == userId)) challengeName
 
 convertTagInfoToView :: (Entity Import.Tag, Entity SubmissionTag) -> TagView
 convertTagInfoToView tagInfo =
