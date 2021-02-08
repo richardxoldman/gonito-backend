@@ -18,8 +18,9 @@
 /api/user-info UserInfoR GET
 /api/add-user AddUserR GET
 /api/challenge-submission/#Text ChallengeSubmissionJsonR POST
-/list-archived-challenges ListArchivedChallengesR GET
+/api/challenge-readme/#Text/markdown ChallengeReadmeInMarkdownR GET
 /challenge-image/#ChallengeId ChallengeImageR GET
+/list-archived-challenges ListArchivedChallengesR GET
 
 /challenge/#Text ShowChallengeR GET
 /challenge-readme/#Text ChallengeReadmeR GET

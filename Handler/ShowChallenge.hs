@@ -187,19 +187,51 @@ hasMetricsOfSecondPriority challengeId = do
 
 
 getChallengeReadmeR :: Text -> Handler Html
-getChallengeReadmeR name = do
-  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
-  readme <- challengeReadme name
+getChallengeReadmeR challengeName = do
+  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
+  readme <- challengeReadme challengeName
   challengeLayout False challenge $ toWidget readme
 
-challengeReadme :: Text -> HandlerFor App Html
-challengeReadme name = do
-  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
+challengeReadmeInMarkdownApi :: Swagger
+challengeReadmeInMarkdownApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareChallengeReadmeInMarkdownSwagger mempty
+
+declareChallengeReadmeInMarkdownSwagger :: Declare (Definitions Schema) Swagger
+declareChallengeReadmeInMarkdownSwagger = do
+  -- param schemas
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/challenge-readme/{challengeName}/markdown",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "challengeName"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ challengeNameSchema) ]
+                                        & produces ?~ MimeList ["application/text"]
+                                        & description ?~ "Returns the challenge README in Markdown"))
+                 ]
+
+getChallengeReadmeInMarkdownR :: Text -> Handler TL.Text
+getChallengeReadmeInMarkdownR challengeName = doChallengeReadmeContents challengeName
+
+challengeReadme :: Text -> Handler Html
+challengeReadme challengeName = do
+  theContents <- doChallengeReadmeContents challengeName
+  return $ markdown def theContents
+
+doChallengeReadmeContents :: Text -> Handler TL.Text
+doChallengeReadmeContents challengeName = do
+  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
   let repoId = challengePublicRepo challenge
   repoDir <- getRepoDir repoId
   let readmeFilePath = repoDir </> readmeFile
   theContents <- liftIO $ System.IO.readFile readmeFilePath
-  return $ markdown def $ TL.pack theContents
+  return $ TL.pack theContents
 
 showChallengeWidget :: Maybe (Entity User)
                       -> Entity Challenge
@@ -833,7 +865,7 @@ declareAllSubmissionsApi q d = do
                                                                                   & in_ .~ ParamPath
                                                                                   & paramSchema .~ challengeNameSchema) ]
                                         & produces ?~ MimeList ["application/json"]
-                                        & description ?~ "d"
+                                        & description ?~ T.pack d
                                         & at 200 ?~ Inline allSubmissionsResponse))
                  ]
 
