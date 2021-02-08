@@ -8,10 +8,8 @@ import Import hiding (get, fromList, Proxy)
 import Data.HashMap.Strict.InsOrd (fromList)
 
 import Data.Proxy
-import Data.Aeson
 import Control.Lens hiding ((.=))
 import Data.Swagger
-import Data.Swagger.Lens
 import Data.Swagger.Declare
 
 mainCondition :: [Filter Challenge]
@@ -44,13 +42,20 @@ getListChallengesJsonR = generalListChallengesJson mainCondition
 getListArchivedChallengesR :: Handler Html
 getListArchivedChallengesR = generalListChallenges [ChallengeArchived ==. Just True]
 
+imageUrl :: Entity Challenge -> Maybe (Route App)
+imageUrl (Entity challengeId challenge) =
+  case challengeImage challenge of
+    Just _ -> Just $ ChallengeImageR challengeId
+    Nothing -> Nothing
+
 instance ToJSON (Entity Challenge) where
-    toJSON (Entity _ ch) = object
+    toJSON chEnt@(Entity _ ch) = object
         [ "name"  .= challengeName ch
         , "title" .= challengeTitle ch
         , "description" .= challengeDescription ch
         , "starred" .= challengeStarred ch
         , "archived" .= challengeArchived ch
+        , "imageUrl" .= (("/" <>) <$> intercalate "/" <$> fst <$> renderRoute <$> imageUrl chEnt)
         ]
 
 instance ToSchema (Entity Challenge) where
@@ -65,6 +70,7 @@ instance ToSchema (Entity Challenge) where
                     , ("description", stringSchema)
                     , ("starred", booleanSchema)
                     , ("archived", booleanSchema)
+                    , ("imageUrl", stringSchema)
                     ]
         & required .~ [ "name", "title", "description", "starred", "archived" ]
 

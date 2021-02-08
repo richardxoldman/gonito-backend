@@ -19,7 +19,7 @@
 /api/add-user AddUserR GET
 /api/challenge-submission/#Text ChallengeSubmissionJsonR POST
 /api/challenge-readme/#Text/markdown ChallengeReadmeInMarkdownR GET
-/challenge-image/#ChallengeId ChallengeImageR GET
+/api/challenge-image/#ChallengeId ChallengeImageR GET
 /list-archived-challenges ListArchivedChallengesR GET
 
 /challenge/#Text ShowChallengeR GET
