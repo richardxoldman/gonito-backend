@@ -125,11 +125,11 @@ leaderboardApi = spec & definitions .~ defs
 
 
 getLeaderboardJsonR :: Text -> Handler Value
-getLeaderboardJsonR name = do
+getLeaderboardJsonR challengeName = do
   app <- getYesod
   let leaderboardStyle = appLeaderboardStyle $ appSettings app
 
-  Entity challengeId _ <- runDB $ getBy404 $ UniqueName name
+  Entity challengeId _ <- runDB $ getBy404 $ UniqueName challengeName
   (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
   return $ array $ map (leaderboardEntryJson tests) leaderboard
 
@@ -142,11 +142,11 @@ leaderboardEntryJson tests entry = object [
             "score" .= (formatTruncatedScore (getTestFormattingOpts t) $ extractScoreFromLeaderboardEntry (getTestReference e) entry)]) tests]
 
 getShowChallengeR :: Text -> Handler Html
-getShowChallengeR name = do
+getShowChallengeR challengeName = do
   app <- getYesod
   let leaderboardStyle = appLeaderboardStyle $ appSettings app
 
-  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
+  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName challengeName
   Just repo <- runDB $ get $ challengePublicRepo challenge
   (leaderboard, (entries, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
 
@@ -264,16 +264,16 @@ showChallengeWidget mUserEnt
 
 getRepoLink :: Repo -> Maybe Text
 getRepoLink repo
-  | sitePrefix `isPrefixOf` url = Just $ (browsableGitRepo bareRepoName) ++ "/" ++ (repoBranch repo)
+  | sitePrefix `isPrefixOf` theUrl = Just $ (browsableGitRepo bareRepoName) ++ "/" ++ (repoBranch repo)
   | otherwise = Nothing
   where sitePrefix = "git://gonito.net/" :: Text
         sitePrefixLen = length sitePrefix
-        url = repoUrl repo
-        bareRepoName = drop sitePrefixLen url
+        theUrl = repoUrl repo
+        bareRepoName = drop sitePrefixLen theUrl
 
 getChallengeHowToR :: Text -> Handler Html
-getChallengeHowToR name = do
-  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
+getChallengeHowToR challengeName = do
+  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
   maybeUser <- maybeAuth
 
   app <- getYesod
@@ -350,8 +350,8 @@ archiveForm :: ChallengeId -> Form ChallengeId
 archiveForm challengeId = renderBootstrap3 BootstrapBasicForm $ areq hiddenField "" (Just challengeId)
 
 getChallengeSubmissionR :: Text -> Handler Html
-getChallengeSubmissionR name = do
-   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
+getChallengeSubmissionR challengeName = do
+   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
    maybeUser <- maybeAuth
 
    Just repo <- runDB $ get $ challengePublicRepo challenge
@@ -360,16 +360,16 @@ getChallengeSubmissionR name = do
    let repoHost = appRepoHost $ appSettings app
 
    let defaultUrl = fromMaybe (defaultRepo scheme repoHost challenge repo maybeUser)
-                              ((<> name) <$> (join $ userAltRepoScheme <$> entityVal <$> maybeUser))
+                              ((<> challengeName) <$> (join $ userAltRepoScheme <$> entityVal <$> maybeUser))
 
    (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
 postChallengeSubmissionJsonR :: Text -> Handler Value
-postChallengeSubmissionJsonR name = do
+postChallengeSubmissionJsonR challengeName = do
     Entity userId _ <- requireAuthPossiblyByToken
 
-    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
+    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
     ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
@@ -379,10 +379,10 @@ postChallengeSubmissionJsonR name = do
     runViewProgressAsynchronously $ doCreateSubmission userId challengeId submissionData
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
-postChallengeSubmissionR name = do
+postChallengeSubmissionR challengeName = do
     userId <- requireAuthId
 
-    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
+    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
     ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
@@ -408,19 +408,19 @@ postTriggerLocallyR = do
 postTriggerRemotelyR :: Handler TypedContent
 postTriggerRemotelyR = do
   (Just challengeName) <- lookupPostParam "challenge"
-  (Just url) <- lookupPostParam "url"
+  (Just theUrl) <- lookupPostParam "url"
   (Just token) <- lookupPostParam "token"
   mBranch <- lookupPostParam "branch"
   mGitAnnexRemote <- lookupPostParam "git-annex-remote"
-  doTrigger token challengeName url mBranch mGitAnnexRemote
+  doTrigger token challengeName theUrl mBranch mGitAnnexRemote
 
 postTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
-postTriggerRemotelySimpleR token challengeName url branch =
-  doTrigger token challengeName (decodeSlash url) (Just branch) Nothing
+postTriggerRemotelySimpleR token challengeName theUrl branch =
+  doTrigger token challengeName (decodeSlash theUrl) (Just branch) Nothing
 
 getTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
-getTriggerRemotelySimpleR token challengeName url branch =
-  doTrigger token challengeName (decodeSlash url) (Just branch) Nothing
+getTriggerRemotelySimpleR token challengeName theUrl branch =
+  doTrigger token challengeName (decodeSlash theUrl) (Just branch) Nothing
 
 data GitServerPayload = GitServerPayload {
   gitServerPayloadRef :: Text,
@@ -447,20 +447,20 @@ postTriggerByWebhookR token challengeName = do
     then
       do
         let branch = T.replace refPrefix "" ref
-        let url = fromMaybe (fromJust $ gitServerPayloadGitSshUrl payload)
+        let theUrl = fromMaybe (fromJust $ gitServerPayloadGitSshUrl payload)
                             (gitServerPayloadSshUrl payload)
-        doTrigger token challengeName url (Just branch) Nothing
+        doTrigger token challengeName theUrl (Just branch) Nothing
     else
       error $ "unexpected ref `" ++ (T.unpack ref) ++ "`"
 
 
 doTrigger :: Text -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
-doTrigger token challengeName url mBranch mGitAnnexRemote = do
+doTrigger token challengeName theUrl mBranch mGitAnnexRemote = do
   [Entity userId _] <- runDB $ selectList [UserTriggerToken ==. Just token] []
-  trigger userId challengeName url mBranch mGitAnnexRemote
+  trigger userId challengeName theUrl mBranch mGitAnnexRemote
 
 trigger :: UserId -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
-trigger userId challengeName url mBranch mGitAnnexRemote = do
+trigger userId challengeName theUrl mBranch mGitAnnexRemote = do
   let branch = fromMaybe "master" mBranch
   mChallengeEnt <- runDB $ getBy $ UniqueName challengeName
 
@@ -468,7 +468,7 @@ trigger userId challengeName url mBranch mGitAnnexRemote = do
         challengeSubmissionDataDescription = Nothing,
         challengeSubmissionDataTags = Nothing,
         challengeSubmissionDataRepo = RepoSpec {
-            repoSpecUrl=url,
+            repoSpecUrl=theUrl,
             repoSpecBranch=branch,
             repoSpecGitAnnexRemote=mGitAnnexRemote}
         }
@@ -485,8 +485,8 @@ isBefore moment (Just deadline) = moment <= deadline
 -- the submission repo, just by looking at the metadata)
 willClone :: Challenge -> ChallengeSubmissionData -> Bool
 willClone challenge submissionData =
-  (challengeName challenge) `isInfixOf` url && branch /= dontPeek && not (dontPeek `isInfixOf` url)
-  where url = repoSpecUrl $ challengeSubmissionDataRepo submissionData
+  (challengeName challenge) `isInfixOf` theUrl && branch /= dontPeek && not (dontPeek `isInfixOf` theUrl)
+  where theUrl = repoSpecUrl $ challengeSubmissionDataRepo submissionData
         branch = repoSpecBranch $ challengeSubmissionDataRepo submissionData
         dontPeek = "dont-peek"
 
@@ -496,10 +496,10 @@ doCreateSubmission :: UserId -> Key Challenge -> ChallengeSubmissionData -> Chan
 doCreateSubmission userId challengeId challengeSubmissionData chan = do
   challenge <- runDB $ get404 challengeId
 
-  version <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+  theVersion <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
   theNow <- liftIO getCurrentTime
 
-  if theNow `isBefore` (versionDeadline $ entityVal version)
+  if theNow `isBefore` (versionDeadline $ entityVal theVersion)
     then
      do
       let wanted = willClone challenge challengeSubmissionData
@@ -536,7 +536,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
             TheHigherTheBetter -> E.desc
             TheLowerTheBetter -> E.asc
 
-      bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out, test, version) -> do
+      bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out, test, theVersion) -> do
               E.where_ (submission ^. SubmissionChallenge E.==. E.val challengeId
                         E.&&. submission ^. SubmissionIsHidden E.==. E.val False
                         E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId
@@ -548,10 +548,10 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                         E.&&. test ^. TestName E.==. E.val (testName mainTest)
                         E.&&. test ^. TestMetric E.==. E.val (testMetric mainTest)
                         E.&&. test ^. TestActive
-                        E.&&. (evaluation ^. EvaluationVersion E.==. E.just (version ^. VersionCommit)
+                        E.&&. (evaluation ^. EvaluationVersion E.==. E.just (theVersion ^. VersionCommit)
                                E.||. E.isNothing (evaluation ^. EvaluationVersion))
-                        E.&&. version ^. VersionCommit E.==. test ^. TestCommit
-                        E.&&. version ^. VersionMajor E.>=. E.val submittedMajorVersion)
+                        E.&&. theVersion ^. VersionCommit E.==. test ^. TestCommit
+                        E.&&. theVersion ^. VersionMajor E.>=. E.val submittedMajorVersion)
               E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
               E.limit 1
               return evaluation
@@ -703,7 +703,7 @@ getScoreForOut mainTestId out = do
              Nothing -> Nothing
 
 getSubmission :: UserId -> Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
-getSubmission userId repoId commit challengeId description chan = do
+getSubmission userId repoId commit challengeId subDescription chan = do
   challenge <- runDB $ get404 challengeId
   maybeSubmission <- runDB $ getBy $ UniqueSubmissionRepoCommitChallenge repoId commit challengeId
   case maybeSubmission of
@@ -717,7 +717,7 @@ getSubmission userId repoId commit challengeId description chan = do
         submissionRepo=repoId,
         submissionCommit=commit,
         submissionChallenge=challengeId,
-        submissionDescription=description,
+        submissionDescription=subDescription,
         submissionStamp=time,
         submissionSubmitter=userId,
         submissionIsPublic=False,
@@ -788,7 +788,7 @@ authorizationTokenAuth = do
                 let token = BS.filter (/= 32) token'
                 einfo <- liftIO $ JWT.decode [jwk] (Just (JWT.JwsEncoding JWA.RS256)) token
                 return $ case einfo of
-                           Right (JWT.Jws (_, info)) -> decode $ fromStrict info
+                           Right (JWT.Jws (_, infos)) -> decode $ fromStrict infos
                            _ -> Nothing
              | otherwise -> return Nothing
     Nothing -> return Nothing
@@ -797,8 +797,8 @@ maybeAuthPossiblyByToken :: Handler (Maybe (Entity User))
 maybeAuthPossiblyByToken = do
   mInfo <- authorizationTokenAuth
   case mInfo of
-    Just info -> do
-      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent info
+    Just infos -> do
+      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent infos
       case x of
         Just entUser -> return $ Just entUser
         Nothing -> maybeAuth
@@ -809,8 +809,8 @@ requireAuthPossiblyByToken :: Handler (Entity User)
 requireAuthPossiblyByToken = do
   mInfo <- authorizationTokenAuth
   case mInfo of
-    Just info -> do
-      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent info
+    Just infos -> do
+      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent infos
       case x of
         Just entUser -> return entUser
         Nothing -> requireAuth
@@ -825,8 +825,8 @@ getAddUserR :: Handler Value
 getAddUserR = do
   mInfo <- authorizationTokenAuth
   case mInfo of
-    Just info -> do
-      let ident = jwtAuthInfoIdent info
+    Just infos -> do
+      let ident = jwtAuthInfoIdent infos
       x <- runDB $ getBy $ UniqueUser ident
       case x of
         Just _ -> return $ Bool False
@@ -908,7 +908,7 @@ convertTagInfoToView tagInfo =
      }
 
 convertEvaluationToView :: Map TestReference Evaluation -> Entity Test -> Maybe EvaluationView
-convertEvaluationToView mapping entTest =
+convertEvaluationToView theMapping entTest =
   case join $ evaluationScore <$> mEvaluation of
     Just s ->
       Just $ EvaluationView {
@@ -917,7 +917,7 @@ convertEvaluationToView mapping entTest =
         evaluationViewTest = testRef
         }
     Nothing -> Nothing
-  where mEvaluation = Map.lookup testRef mapping
+  where mEvaluation = Map.lookup testRef theMapping
         formattingOps = getTestFormattingOpts $ entityVal entTest
         testRef = getTestReference entTest
 
@@ -948,8 +948,8 @@ convertTableEntryToView tests entry = do
   where submission = entityVal $ tableEntrySubmission entry
 
 fetchChallengeSubmissionsView :: ((Entity Submission) -> Bool) -> Text -> Handler SubmissionsView
-fetchChallengeSubmissionsView condition name = do
-  Entity challengeId _ <- runDB $ getBy404 $ UniqueName name
+fetchChallengeSubmissionsView condition challengeName = do
+  Entity challengeId _ <- runDB $ getBy404 $ UniqueName challengeName
   (evaluationMaps, tests') <- runDB $ getChallengeSubmissionInfos 1 condition (const True) id challengeId
   let tests = sortBy testComparator tests'
 
@@ -963,12 +963,12 @@ fetchChallengeSubmissionsView condition name = do
 
 -- TODO switch to fetchChallengeSubmissionSview
 getChallengeMySubmissionsR :: Text -> Handler Html
-getChallengeMySubmissionsR name = do
+getChallengeMySubmissionsR challengeName = do
   userId <- requireAuthId
-  getChallengeSubmissions (\(Entity _ submission) -> (submissionSubmitter submission == userId)) name
+  getChallengeSubmissions (\(Entity _ submission) -> (submissionSubmitter submission == userId)) challengeName
 
 getChallengeAllSubmissionsR :: Text -> Handler Html
-getChallengeAllSubmissionsR name = getChallengeSubmissions (\_ -> True) name
+getChallengeAllSubmissionsR challengeName = getChallengeSubmissions (\_ -> True) challengeName
 
 data EvaluationView = EvaluationView {
   evaluationViewScore :: Text,
@@ -1113,8 +1113,8 @@ instance ToSchema SubmissionsView where
         & required .~ [ "tests", "submission" ]
 
 getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
-getChallengeSubmissions condition name = do
-  Entity challengeId challenge <- runDB $ getBy404 $ UniqueName name
+getChallengeSubmissions condition challengeName = do
+  Entity challengeId challenge <- runDB $ getBy404 $ UniqueName challengeName
   (evaluationMaps, tests') <- runDB $ getChallengeSubmissionInfos 1 condition (const True) id challengeId
   let tests = sortBy testComparator tests'
   mauth <- maybeAuth
@@ -1204,10 +1204,10 @@ $.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) testId param}", 
 challengeLayout :: Bool -> Challenge -> WidgetFor App () -> HandlerFor App Html
 challengeLayout withHeader challenge widget = do
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
-  version <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
-  let versionFormatted = formatVersion ((versionMajor $ entityVal version),
-                                        (versionMinor $ entityVal version),
-                                        (versionPatch $ entityVal version))
+  theVersion <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+  let versionFormatted = formatVersion ((versionMajor $ entityVal theVersion),
+                                        (versionMinor $ entityVal theVersion),
+                                        (versionPatch $ entityVal theVersion))
   maybeUser <- maybeAuth
   bc <- widgetToPageContent widget
   defaultLayout $ do
