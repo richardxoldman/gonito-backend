@@ -8,7 +8,7 @@ neither affiliated with nor endorsed by [Kaggle](https://www.kaggle.com)).
 
 What's so special about Gonito:
 
-  * free & open-source (AGPL), you can use it your own, in your
+  * free & open-source (GPL), you can use it your own, in your
     company, at your university, etc.
   * git-based (challenges and solutions are submitted only with git).
 
