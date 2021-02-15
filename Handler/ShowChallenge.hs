@@ -76,6 +76,7 @@ instance ToJSON LeaderboardEntry where
                                                 (leaderboardBestVariant entry)
                                                 (leaderboardParams entry)
         , "times" .= leaderboardNumberOfSubmissions entry
+        , "hash" .= (fromSHA1ToText $ submissionCommit $ leaderboardBestSubmission entry)
         ]
 
 instance ToSchema LeaderboardEntry where
@@ -90,8 +91,9 @@ instance ToSchema LeaderboardEntry where
                      , ("version", stringSchema)
                      , ("description", stringSchema)
                      , ("times", intSchema)
+                     , ("hash", stringSchema)
                     ]
-        & required .~ [ "submitter", "when", "version", "description", "times" ]
+        & required .~ [ "submitter", "when", "version", "description", "times", "hash" ]
 
 
 declareLeaderboardSwagger :: Declare (Definitions Schema) Swagger
