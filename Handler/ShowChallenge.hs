@@ -1107,8 +1107,8 @@ instance ToSchema SubmissionsView where
     return $ NamedSchema (Just "Tag") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
-           fromList [  ("tests", submissionViewsSchema)
-                     , ("submissions", testRefsSchema)
+           fromList [  ("submissions", submissionViewsSchema)
+                     , ("tests", testRefsSchema)
                     ]
         & required .~ [ "tests", "submission" ]
 
