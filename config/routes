@@ -20,6 +20,7 @@
 /api/challenge-submission/#Text ChallengeSubmissionJsonR POST
 /api/challenge-readme/#Text/markdown ChallengeReadmeInMarkdownR GET
 /api/challenge-image/#ChallengeId ChallengeImageR GET
+/api/query/#Text QueryJsonR GET
 /list-archived-challenges ListArchivedChallengesR GET
 
 /challenge/#Text ShowChallengeR GET

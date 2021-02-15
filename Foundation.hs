@@ -1,3 +1,4 @@
+
 {-# LANGUAGE InstanceSigs #-}
 
 module Foundation where
@@ -175,6 +176,7 @@ instance Yesod App where
     isAuthorized UserInfoR _ = return Authorized
     isAuthorized (ChallengeSubmissionJsonR _) _ = return Authorized
     isAuthorized (ChallengeReadmeInMarkdownR _) _ = regularAuthorization
+    isAuthorized (QueryJsonR _) _ = return Authorized
 
     isAuthorized (ChallengeGraphDataR _) _ = regularAuthorization
     isAuthorized (ChallengeDiscussionR _) _ = regularAuthorization

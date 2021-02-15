@@ -1,9 +1,17 @@
 module Handler.SubmissionView where
 
-import Import
+import Import hiding (fromList)
 
 import qualified Database.Esqueleto      as E
 import           Database.Esqueleto      ((^.))
+
+import Handler.Shared
+import PersistSHA1
+
+import Data.Swagger hiding (get)
+import Control.Lens hiding ((.=), (^.))
+import Data.Proxy as DPR
+import Data.HashMap.Strict.InsOrd (fromList)
 
 data FullSubmissionInfo = FullSubmissionInfo {
   fsiSubmissionId :: SubmissionId,
@@ -13,9 +21,30 @@ data FullSubmissionInfo = FullSubmissionInfo {
   fsiChallenge :: Challenge,
   fsiChallengeRepo :: Repo,
   fsiScheme :: RepoScheme,
-  fsiTags :: [(Entity Tag, Entity SubmissionTag)],
+  fsiTags :: [(Entity Import.Tag, Entity SubmissionTag)],
   fsiExternalLinks :: [Entity ExternalLink],
   fsiSuperSubmissions :: [FullSubmissionInfo] }
+
+instance ToJSON FullSubmissionInfo where
+  toJSON entry = object
+        [ "hash" .= (fromSHA1ToText $ submissionCommit $ fsiSubmission entry),
+          "submitter" .= (formatSubmitter $ fsiUser entry),
+          "challenge" .= (challengeName $ fsiChallenge entry)
+        ]
+
+instance ToSchema FullSubmissionInfo where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    return $ NamedSchema (Just "SubmissionInfo") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("hash", stringSchema)
+                     , ("submitter", stringSchema)
+                     , ("challenge", stringSchema)
+                    ]
+        & required .~ [ "hash", "submitter", "challenge" ]
+
+
 
 getFullInfo :: Entity Submission -> Handler FullSubmissionInfo
 getFullInfo (Entity submissionId submission) = do
@@ -50,7 +79,7 @@ getFullInfo (Entity submissionId submission) = do
     fsiExternalLinks = links,
     fsiSuperSubmissions = superSubmissionFsis }
 
-getTags :: (BaseBackend backend ~ SqlBackend, MonadIO m, PersistQueryRead backend) => Key Submission -> ReaderT backend m [(Entity Tag, Entity SubmissionTag)]
+getTags :: (BaseBackend backend ~ SqlBackend, MonadIO m, PersistQueryRead backend) => Key Submission -> ReaderT backend m [(Entity Import.Tag, Entity SubmissionTag)]
 getTags submissionId = do
   sts <- selectList [SubmissionTagSubmission ==. submissionId] []
   let tagIds = Import.map (submissionTagTag . entityVal) sts
