@@ -406,6 +406,72 @@ getChallengeSubmissionR challengeName = do
    (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
+
+declareChallengeSubmissionSwagger :: Declare (Definitions Schema) Swagger
+declareChallengeSubmissionSwagger = do
+  -- param schemas
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+  let stringSchema = toParamSchema (Proxy :: Proxy String)
+
+  challengeSubmissionResponse      <- declareResponse (Proxy :: Proxy Int)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/challenge-submission/{challengeName}",
+                    mempty & DS.post ?~ (mempty
+                                         & parameters .~ [ Inline $ mempty
+                                                           & name .~ "challengeName"
+                                                           & required ?~ True
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamPath
+                                                                                   & paramSchema .~ challengeNameSchema),
+                                                           Inline $ mempty
+                                                           & name .~ "f1"
+                                                           & description .~ Just "submission description"
+                                                           & required ?~ False
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema),
+                                                           Inline $ mempty
+                                                           & name .~ "f2"
+                                                           & description .~ Just "submission tags"
+                                                           & required ?~ False
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema),
+                                                           Inline $ mempty
+                                                           & name .~ "f3"
+                                                           & description .~ Just "repo URL"
+                                                           & required ?~ True
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema),
+                                                                                                                      Inline $ mempty
+                                                           & name .~ "f4"
+                                                           & description .~ Just "repo branch"
+                                                           & required ?~ True
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema),
+
+                                                           Inline $ mempty
+                                                           & name .~ "f5"
+                                                           & description .~ Just "git-annex remote specification"
+                                                           & required ?~ False
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema)]
+                                         & produces ?~ MimeList ["application/json"]
+                                         & description ?~ "Initiates a submission based on a given repo URL/branch. Returns an asynchrous job ID."
+                                         & at 200 ?~ Inline challengeSubmissionResponse))
+                 ]
+
+challengeSubmissionApi :: Swagger
+challengeSubmissionApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareChallengeSubmissionSwagger mempty
+
+
 postChallengeSubmissionJsonR :: Text -> Handler Value
 postChallengeSubmissionJsonR challengeName = do
     Entity userId _ <- requireAuthPossiblyByToken
