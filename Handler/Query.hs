@@ -57,6 +57,7 @@ import Handler.ShowChallenge
 data VariantView = VariantView {
   variantViewId :: Int64,
   variantViewName :: Text,
+  variantViewRank :: Int,
   variantViewEvaluations :: [EvaluationView],
   variantViewParams :: [Parameter]
 }
@@ -82,6 +83,7 @@ instance ToJSON VariantView where
   toJSON entry = object
         [ "id" .= variantViewId entry,
           "name" .= variantViewName entry,
+          "rank" .= variantViewRank entry,
           "evaluations" .= variantViewEvaluations entry,
           "params" .= variantViewParams entry
         ]
@@ -97,6 +99,7 @@ instance ToSchema VariantView where
         & properties .~
            fromList [  ("id", intSchema),
                        ("name", stringSchema),
+                       ("rank", intSchema),
                        ("evaluations", evaluationsSchema),
                        ("params", paramsSchema)
                     ]
@@ -291,6 +294,7 @@ toQueryResultView fsi = do
                            VariantView {
                             variantViewId = fromSqlKey $ entityKey $ tableEntryVariant entry,
                             variantViewName = variantName $ entityVal $ tableEntryVariant entry,
+                            variantViewRank = tableEntryRank entry,
                             variantViewEvaluations =  catMaybes $ Import.map (convertEvaluationToView $ tableEntryMapping entry) tests,
                             variantViewParams = Import.map entityVal $ tableEntryParams entry
 
