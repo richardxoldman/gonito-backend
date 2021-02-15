@@ -5,6 +5,7 @@ import Import
 import Data.Swagger
 import Handler.ListChallenges
 import Handler.ShowChallenge
+import Handler.Query
 
 import Control.Lens hiding ((.=))
 
@@ -18,6 +19,7 @@ apiDescription = generalApi
                  <> allSubmissionsApi
                  <> mySubmissionsApi
                  <> challengeReadmeInMarkdownApi
+                 <> queryApi
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)

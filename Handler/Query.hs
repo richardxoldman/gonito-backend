@@ -70,7 +70,7 @@ instance ToJSON Parameter where
 instance ToSchema Parameter where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
-    return $ NamedSchema (Just "SubmissionInfo") $ mempty
+    return $ NamedSchema (Just "Parameter") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
            fromList [  ("name", stringSchema),
@@ -92,7 +92,7 @@ instance ToSchema VariantView where
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [String])
     evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
     paramsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Parameter])
-    return $ NamedSchema (Just "SubmissionInfo") $ mempty
+    return $ NamedSchema (Just "Variant") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
            fromList [  ("id", intSchema),
@@ -117,7 +117,7 @@ instance ToSchema QueryResultView where
   declareNamedSchema _ = do
     submissionInfoSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy FullSubmissionInfo)
     variantViewsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [VariantView])
-    return $ NamedSchema (Just "SubmissionInfo") $ mempty
+    return $ NamedSchema (Just "QueryResult") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
            fromList [  ("submissionInfo", submissionInfoSchema),
@@ -334,7 +334,7 @@ declareQuerySwagger = do
 queryApi :: Swagger
 queryApi = spec & definitions .~ defs
   where
-    (defs, spec) = runDeclare declareLeaderboardSwagger mempty
+    (defs, spec) = runDeclare declareQuerySwagger mempty
 
 
 priorityLimitForViewVariant :: Int
