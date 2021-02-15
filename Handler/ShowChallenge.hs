@@ -8,6 +8,8 @@ import           Text.Markdown
 
 import qualified Data.Text as T
 
+import qualified Data.HashMap.Strict as HMS
+
 import qualified Yesod.Table as Table
 
 import Handler.Extract
@@ -79,29 +81,12 @@ instance ToJSON LeaderboardEntry where
         , "hash" .= (fromSHA1ToText $ submissionCommit $ leaderboardBestSubmission entry)
         ]
 
-instance ToSchema LeaderboardEntry where
-  declareNamedSchema _ = do
-    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
-    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
-    return $ NamedSchema (Just "LeaderboardEntry") $ mempty
-        & type_ .~ SwaggerObject
-        & properties .~
-           fromList [  ("submitter", stringSchema)
-                     , ("when", stringSchema)
-                     , ("version", stringSchema)
-                     , ("description", stringSchema)
-                     , ("times", intSchema)
-                     , ("hash", stringSchema)
-                    ]
-        & required .~ [ "submitter", "when", "version", "description", "times", "hash" ]
-
-
 declareLeaderboardSwagger :: Declare (Definitions Schema) Swagger
 declareLeaderboardSwagger = do
   -- param schemas
   let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
 
-  leaderboardResponse      <- declareResponse (Proxy :: Proxy [LeaderboardEntry])
+  leaderboardResponse      <- declareResponse (Proxy :: Proxy LeaderboardView)
 
   return $ mempty
     & paths .~
@@ -124,7 +109,28 @@ leaderboardApi = spec & definitions .~ defs
   where
     (defs, spec) = runDeclare declareLeaderboardSwagger mempty
 
+data LeaderboardView = LeaderboardView {
+  leaderboardViewTests :: [Entity Test],
+  leaderboardViewEntries :: [LeaderboardEntryView]
+}
 
+instance ToJSON LeaderboardView where
+    toJSON v = object
+        [ "tests" .= (map getTestReference $ leaderboardViewTests v)
+        , "entries" .= leaderboardViewEntries v
+        ]
+
+instance ToSchema LeaderboardView where
+  declareNamedSchema _ = do
+    testsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TestReference])
+    entriesSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [LeaderboardEntryView])
+    return $ NamedSchema (Just "Leaderboard") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("tests", testsSchema)
+                     , ("entries", entriesSchema)
+                    ]
+        & required .~ [ "tests", "entries" ]
 
 getLeaderboardJsonR :: Text -> Handler Value
 getLeaderboardJsonR challengeName = do
@@ -133,15 +139,48 @@ getLeaderboardJsonR challengeName = do
 
   Entity challengeId _ <- runDB $ getBy404 $ UniqueName challengeName
   (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
-  return $ array $ map (leaderboardEntryJson tests) leaderboard
+  return $ toJSON $ LeaderboardView {
+    leaderboardViewTests = tests,
+    leaderboardViewEntries = map (toLeaderboardEntryView tests) leaderboard }
 
-leaderboardEntryJson :: (ToJSON (f Value), Functor f) => f (Entity Test) -> LeaderboardEntry -> Value
-leaderboardEntryJson tests entry = object [
-  "metadata" .= entry,
-  "metrics" .=
-    map (\e@(Entity _ t) -> object [
-            "metric" .= testName t,
-            "score" .= (formatTruncatedScore (getTestFormattingOpts t) $ extractScoreFromLeaderboardEntry (getTestReference e) entry)]) tests]
+data LeaderboardEntryView = LeaderboardEntryView {
+  leaderboardEntryViewEntry :: LeaderboardEntry,
+  leaderboardEntryViewEvaluations :: [EvaluationView]
+}
+
+addJsonKey :: Text -> Value -> Value -> Value
+addJsonKey key val (Object xs) = Object $ HMS.insert key val xs
+addJsonKey _ _ xs = xs
+
+instance ToJSON LeaderboardEntryView where
+    toJSON v = addJsonKey "evaluations"
+                           (toJSON $ leaderboardEntryViewEvaluations v)
+                           (toJSON $ leaderboardEntryViewEntry v)
+
+instance ToSchema LeaderboardEntryView where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
+    evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+    return $ NamedSchema (Just "LeaderboardEntry") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("submitter", stringSchema)
+                     , ("when", stringSchema)
+                     , ("version", stringSchema)
+                     , ("description", stringSchema)
+                     , ("times", intSchema)
+                     , ("hash", stringSchema)
+                     , ("evaluations", evaluationsSchema)
+                    ]
+        & required .~ [ "submitter", "when", "version", "description", "times", "hash", "evaluations" ]
+
+toLeaderboardEntryView :: [(Entity Test)] -> LeaderboardEntry -> LeaderboardEntryView
+toLeaderboardEntryView tests entry = LeaderboardEntryView {
+  leaderboardEntryViewEntry = entry,
+  leaderboardEntryViewEvaluations = catMaybes $
+                                    map (convertEvaluationToView (leaderboardEvaluationMap entry)) tests
+  }
 
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR challengeName = do
