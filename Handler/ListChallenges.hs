@@ -8,10 +8,8 @@ import Import hiding (get, fromList, Proxy)
 import Data.HashMap.Strict.InsOrd (fromList)
 
 import Data.Proxy
-import Data.Aeson
 import Control.Lens hiding ((.=))
 import Data.Swagger
-import Data.Swagger.Lens
 import Data.Swagger.Declare
 
 mainCondition :: [Filter Challenge]
@@ -24,13 +22,26 @@ declareListChallengesSwagger :: Declare (Definitions Schema) Swagger
 declareListChallengesSwagger = do
   -- param schemas
   listChallengesResponse      <- declareResponse (Proxy :: Proxy [Entity Challenge])
+  challengeInfoResponse      <- declareResponse (Proxy :: Proxy (Entity Challenge))
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
 
   return $ mempty
     & paths .~
         [ ("/api/list-challenges", mempty & get ?~ (mempty
             & produces ?~ MimeList ["application/json"]
             & description ?~ "Returns the list of all challenges"
-            & at 200 ?~ Inline listChallengesResponse))
+            & at 200 ?~ Inline listChallengesResponse)),
+          ("/api/challenge-info/{challengeName}",
+            mempty & get ?~ (mempty
+                                 & parameters .~ [ Inline $ mempty
+                                                   & name .~ "challengeName"
+                                                   & required ?~ True
+                                                   & schema .~ ParamOther (mempty
+                                                                            & in_ .~ ParamPath
+                                                                            & paramSchema .~ challengeNameSchema) ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Returns metadata for a specific challenge"
+                                        & at 200 ?~ Inline challengeInfoResponse))
         ]
 
 listChallengesApi :: Swagger
@@ -44,13 +55,20 @@ getListChallengesJsonR = generalListChallengesJson mainCondition
 getListArchivedChallengesR :: Handler Html
 getListArchivedChallengesR = generalListChallenges [ChallengeArchived ==. Just True]
 
+imageUrl :: Entity Challenge -> Maybe (Route App)
+imageUrl (Entity challengeId challenge) =
+  case challengeImage challenge of
+    Just _ -> Just $ ChallengeImageR challengeId
+    Nothing -> Nothing
+
 instance ToJSON (Entity Challenge) where
-    toJSON (Entity _ ch) = object
+    toJSON chEnt@(Entity _ ch) = object
         [ "name"  .= challengeName ch
         , "title" .= challengeTitle ch
         , "description" .= challengeDescription ch
         , "starred" .= challengeStarred ch
         , "archived" .= challengeArchived ch
+        , "imageUrl" .= (("/" <>) <$> intercalate "/" <$> fst <$> renderRoute <$> imageUrl chEnt)
         ]
 
 instance ToSchema (Entity Challenge) where
@@ -65,6 +83,7 @@ instance ToSchema (Entity Challenge) where
                     , ("description", stringSchema)
                     , ("starred", booleanSchema)
                     , ("archived", booleanSchema)
+                    , ("imageUrl", stringSchema)
                     ]
         & required .~ [ "name", "title", "description", "starred", "archived" ]
 
@@ -86,6 +105,11 @@ getChallenges filterExpr = runDB $ selectList filterExpr [Desc ChallengeStarred,
 
 listChallengesCore :: [Entity Challenge] -> Widget
 listChallengesCore challenges = $(widgetFile "list-challenges-core")
+
+getChallengeInfoJsonR :: Text -> Handler Value
+getChallengeInfoJsonR challengeName = do
+  entCh <- runDB $ getBy404 $ UniqueName challengeName
+  return $ toJSON entCh
 
 getChallengeImageR :: ChallengeId -> Handler Html
 getChallengeImageR challengeId = do

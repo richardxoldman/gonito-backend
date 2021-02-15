@@ -8,6 +8,8 @@ import           Text.Markdown
 
 import qualified Data.Text as T
 
+import qualified Data.HashMap.Strict as HMS
+
 import qualified Yesod.Table as Table
 
 import Handler.Extract
@@ -76,30 +78,15 @@ instance ToJSON LeaderboardEntry where
                                                 (leaderboardBestVariant entry)
                                                 (leaderboardParams entry)
         , "times" .= leaderboardNumberOfSubmissions entry
+        , "hash" .= (fromSHA1ToText $ submissionCommit $ leaderboardBestSubmission entry)
         ]
-
-instance ToSchema LeaderboardEntry where
-  declareNamedSchema _ = do
-    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
-    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
-    return $ NamedSchema (Just "LeaderboardEntry") $ mempty
-        & type_ .~ SwaggerObject
-        & properties .~
-           fromList [  ("submitter", stringSchema)
-                     , ("when", stringSchema)
-                     , ("version", stringSchema)
-                     , ("description", stringSchema)
-                     , ("times", intSchema)
-                    ]
-        & required .~ [ "submitter", "when", "version", "description", "times" ]
-
 
 declareLeaderboardSwagger :: Declare (Definitions Schema) Swagger
 declareLeaderboardSwagger = do
   -- param schemas
   let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
 
-  leaderboardResponse      <- declareResponse (Proxy :: Proxy [LeaderboardEntry])
+  leaderboardResponse      <- declareResponse (Proxy :: Proxy LeaderboardView)
 
   return $ mempty
     & paths .~
@@ -122,31 +109,85 @@ leaderboardApi = spec & definitions .~ defs
   where
     (defs, spec) = runDeclare declareLeaderboardSwagger mempty
 
+data LeaderboardView = LeaderboardView {
+  leaderboardViewTests :: [Entity Test],
+  leaderboardViewEntries :: [LeaderboardEntryView]
+}
 
+instance ToJSON LeaderboardView where
+    toJSON v = object
+        [ "tests" .= (map getTestReference $ leaderboardViewTests v)
+        , "entries" .= leaderboardViewEntries v
+        ]
+
+instance ToSchema LeaderboardView where
+  declareNamedSchema _ = do
+    testsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TestReference])
+    entriesSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [LeaderboardEntryView])
+    return $ NamedSchema (Just "Leaderboard") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("tests", testsSchema)
+                     , ("entries", entriesSchema)
+                    ]
+        & required .~ [ "tests", "entries" ]
 
 getLeaderboardJsonR :: Text -> Handler Value
-getLeaderboardJsonR name = do
+getLeaderboardJsonR challengeName = do
   app <- getYesod
   let leaderboardStyle = appLeaderboardStyle $ appSettings app
 
-  Entity challengeId _ <- runDB $ getBy404 $ UniqueName name
+  Entity challengeId _ <- runDB $ getBy404 $ UniqueName challengeName
   (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
-  return $ array $ map (leaderboardEntryJson tests) leaderboard
+  return $ toJSON $ LeaderboardView {
+    leaderboardViewTests = tests,
+    leaderboardViewEntries = map (toLeaderboardEntryView tests) leaderboard }
 
-leaderboardEntryJson :: (ToJSON (f Value), Functor f) => f (Entity Test) -> LeaderboardEntry -> Value
-leaderboardEntryJson tests entry = object [
-  "metadata" .= entry,
-  "metrics" .=
-    map (\e@(Entity _ t) -> object [
-            "metric" .= testName t,
-            "score" .= (formatTruncatedScore (getTestFormattingOpts t) $ extractScoreFromLeaderboardEntry (getTestReference e) entry)]) tests]
+data LeaderboardEntryView = LeaderboardEntryView {
+  leaderboardEntryViewEntry :: LeaderboardEntry,
+  leaderboardEntryViewEvaluations :: [EvaluationView]
+}
+
+addJsonKey :: Text -> Value -> Value -> Value
+addJsonKey key val (Object xs) = Object $ HMS.insert key val xs
+addJsonKey _ _ xs = xs
+
+instance ToJSON LeaderboardEntryView where
+    toJSON v = addJsonKey "evaluations"
+                           (toJSON $ leaderboardEntryViewEvaluations v)
+                           (toJSON $ leaderboardEntryViewEntry v)
+
+instance ToSchema LeaderboardEntryView where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
+    evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+    return $ NamedSchema (Just "LeaderboardEntry") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("submitter", stringSchema)
+                     , ("when", stringSchema)
+                     , ("version", stringSchema)
+                     , ("description", stringSchema)
+                     , ("times", intSchema)
+                     , ("hash", stringSchema)
+                     , ("evaluations", evaluationsSchema)
+                    ]
+        & required .~ [ "submitter", "when", "version", "description", "times", "hash", "evaluations" ]
+
+toLeaderboardEntryView :: [(Entity Test)] -> LeaderboardEntry -> LeaderboardEntryView
+toLeaderboardEntryView tests entry = LeaderboardEntryView {
+  leaderboardEntryViewEntry = entry,
+  leaderboardEntryViewEvaluations = catMaybes $
+                                    map (convertEvaluationToView (leaderboardEvaluationMap entry)) tests
+  }
 
 getShowChallengeR :: Text -> Handler Html
-getShowChallengeR name = do
+getShowChallengeR challengeName = do
   app <- getYesod
   let leaderboardStyle = appLeaderboardStyle $ appSettings app
 
-  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
+  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName challengeName
   Just repo <- runDB $ get $ challengePublicRepo challenge
   (leaderboard, (entries, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
 
@@ -187,19 +228,51 @@ hasMetricsOfSecondPriority challengeId = do
 
 
 getChallengeReadmeR :: Text -> Handler Html
-getChallengeReadmeR name = do
-  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
-  readme <- challengeReadme name
+getChallengeReadmeR challengeName = do
+  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
+  readme <- challengeReadme challengeName
   challengeLayout False challenge $ toWidget readme
 
-challengeReadme :: Text -> HandlerFor App Html
-challengeReadme name = do
-  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
+challengeReadmeInMarkdownApi :: Swagger
+challengeReadmeInMarkdownApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareChallengeReadmeInMarkdownSwagger mempty
+
+declareChallengeReadmeInMarkdownSwagger :: Declare (Definitions Schema) Swagger
+declareChallengeReadmeInMarkdownSwagger = do
+  -- param schemas
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/challenge-readme/{challengeName}/markdown",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "challengeName"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ challengeNameSchema) ]
+                                        & produces ?~ MimeList ["application/text"]
+                                        & description ?~ "Returns the challenge README in Markdown"))
+                 ]
+
+getChallengeReadmeInMarkdownR :: Text -> Handler TL.Text
+getChallengeReadmeInMarkdownR challengeName = doChallengeReadmeContents challengeName
+
+challengeReadme :: Text -> Handler Html
+challengeReadme challengeName = do
+  theContents <- doChallengeReadmeContents challengeName
+  return $ markdown def theContents
+
+doChallengeReadmeContents :: Text -> Handler TL.Text
+doChallengeReadmeContents challengeName = do
+  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
   let repoId = challengePublicRepo challenge
   repoDir <- getRepoDir repoId
   let readmeFilePath = repoDir </> readmeFile
   theContents <- liftIO $ System.IO.readFile readmeFilePath
-  return $ markdown def $ TL.pack theContents
+  return $ TL.pack theContents
 
 showChallengeWidget :: Maybe (Entity User)
                       -> Entity Challenge
@@ -232,16 +305,16 @@ showChallengeWidget mUserEnt
 
 getRepoLink :: Repo -> Maybe Text
 getRepoLink repo
-  | sitePrefix `isPrefixOf` url = Just $ (browsableGitRepo bareRepoName) ++ "/" ++ (repoBranch repo)
+  | sitePrefix `isPrefixOf` theUrl = Just $ (browsableGitRepo bareRepoName) ++ "/" ++ (repoBranch repo)
   | otherwise = Nothing
   where sitePrefix = "git://gonito.net/" :: Text
         sitePrefixLen = length sitePrefix
-        url = repoUrl repo
-        bareRepoName = drop sitePrefixLen url
+        theUrl = repoUrl repo
+        bareRepoName = drop sitePrefixLen theUrl
 
 getChallengeHowToR :: Text -> Handler Html
-getChallengeHowToR name = do
-  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
+getChallengeHowToR challengeName = do
+  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
   maybeUser <- maybeAuth
 
   app <- getYesod
@@ -318,8 +391,8 @@ archiveForm :: ChallengeId -> Form ChallengeId
 archiveForm challengeId = renderBootstrap3 BootstrapBasicForm $ areq hiddenField "" (Just challengeId)
 
 getChallengeSubmissionR :: Text -> Handler Html
-getChallengeSubmissionR name = do
-   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName name
+getChallengeSubmissionR challengeName = do
+   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
    maybeUser <- maybeAuth
 
    Just repo <- runDB $ get $ challengePublicRepo challenge
@@ -328,16 +401,82 @@ getChallengeSubmissionR name = do
    let repoHost = appRepoHost $ appSettings app
 
    let defaultUrl = fromMaybe (defaultRepo scheme repoHost challenge repo maybeUser)
-                              ((<> name) <$> (join $ userAltRepoScheme <$> entityVal <$> maybeUser))
+                              ((<> challengeName) <$> (join $ userAltRepoScheme <$> entityVal <$> maybeUser))
 
    (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
+
+declareChallengeSubmissionSwagger :: Declare (Definitions Schema) Swagger
+declareChallengeSubmissionSwagger = do
+  -- param schemas
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+  let stringSchema = toParamSchema (Proxy :: Proxy String)
+
+  challengeSubmissionResponse      <- declareResponse (Proxy :: Proxy Int)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/challenge-submission/{challengeName}",
+                    mempty & DS.post ?~ (mempty
+                                         & parameters .~ [ Inline $ mempty
+                                                           & name .~ "challengeName"
+                                                           & required ?~ True
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamPath
+                                                                                   & paramSchema .~ challengeNameSchema),
+                                                           Inline $ mempty
+                                                           & name .~ "f1"
+                                                           & description .~ Just "submission description"
+                                                           & required ?~ False
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema),
+                                                           Inline $ mempty
+                                                           & name .~ "f2"
+                                                           & description .~ Just "submission tags"
+                                                           & required ?~ False
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema),
+                                                           Inline $ mempty
+                                                           & name .~ "f3"
+                                                           & description .~ Just "repo URL"
+                                                           & required ?~ True
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema),
+                                                                                                                      Inline $ mempty
+                                                           & name .~ "f4"
+                                                           & description .~ Just "repo branch"
+                                                           & required ?~ True
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema),
+
+                                                           Inline $ mempty
+                                                           & name .~ "f5"
+                                                           & description .~ Just "git-annex remote specification"
+                                                           & required ?~ False
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamFormData
+                                                                                   & paramSchema .~ stringSchema)]
+                                         & produces ?~ MimeList ["application/json"]
+                                         & description ?~ "Initiates a submission based on a given repo URL/branch. Returns an asynchrous job ID."
+                                         & at 200 ?~ Inline challengeSubmissionResponse))
+                 ]
+
+challengeSubmissionApi :: Swagger
+challengeSubmissionApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareChallengeSubmissionSwagger mempty
+
+
 postChallengeSubmissionJsonR :: Text -> Handler Value
-postChallengeSubmissionJsonR name = do
+postChallengeSubmissionJsonR challengeName = do
     Entity userId _ <- requireAuthPossiblyByToken
 
-    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
+    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
     ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
@@ -347,10 +486,10 @@ postChallengeSubmissionJsonR name = do
     runViewProgressAsynchronously $ doCreateSubmission userId challengeId submissionData
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
-postChallengeSubmissionR name = do
+postChallengeSubmissionR challengeName = do
     userId <- requireAuthId
 
-    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
+    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
     ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
@@ -376,19 +515,19 @@ postTriggerLocallyR = do
 postTriggerRemotelyR :: Handler TypedContent
 postTriggerRemotelyR = do
   (Just challengeName) <- lookupPostParam "challenge"
-  (Just url) <- lookupPostParam "url"
+  (Just theUrl) <- lookupPostParam "url"
   (Just token) <- lookupPostParam "token"
   mBranch <- lookupPostParam "branch"
   mGitAnnexRemote <- lookupPostParam "git-annex-remote"
-  doTrigger token challengeName url mBranch mGitAnnexRemote
+  doTrigger token challengeName theUrl mBranch mGitAnnexRemote
 
 postTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
-postTriggerRemotelySimpleR token challengeName url branch =
-  doTrigger token challengeName (decodeSlash url) (Just branch) Nothing
+postTriggerRemotelySimpleR token challengeName theUrl branch =
+  doTrigger token challengeName (decodeSlash theUrl) (Just branch) Nothing
 
 getTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
-getTriggerRemotelySimpleR token challengeName url branch =
-  doTrigger token challengeName (decodeSlash url) (Just branch) Nothing
+getTriggerRemotelySimpleR token challengeName theUrl branch =
+  doTrigger token challengeName (decodeSlash theUrl) (Just branch) Nothing
 
 data GitServerPayload = GitServerPayload {
   gitServerPayloadRef :: Text,
@@ -415,20 +554,20 @@ postTriggerByWebhookR token challengeName = do
     then
       do
         let branch = T.replace refPrefix "" ref
-        let url = fromMaybe (fromJust $ gitServerPayloadGitSshUrl payload)
+        let theUrl = fromMaybe (fromJust $ gitServerPayloadGitSshUrl payload)
                             (gitServerPayloadSshUrl payload)
-        doTrigger token challengeName url (Just branch) Nothing
+        doTrigger token challengeName theUrl (Just branch) Nothing
     else
       error $ "unexpected ref `" ++ (T.unpack ref) ++ "`"
 
 
 doTrigger :: Text -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
-doTrigger token challengeName url mBranch mGitAnnexRemote = do
+doTrigger token challengeName theUrl mBranch mGitAnnexRemote = do
   [Entity userId _] <- runDB $ selectList [UserTriggerToken ==. Just token] []
-  trigger userId challengeName url mBranch mGitAnnexRemote
+  trigger userId challengeName theUrl mBranch mGitAnnexRemote
 
 trigger :: UserId -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
-trigger userId challengeName url mBranch mGitAnnexRemote = do
+trigger userId challengeName theUrl mBranch mGitAnnexRemote = do
   let branch = fromMaybe "master" mBranch
   mChallengeEnt <- runDB $ getBy $ UniqueName challengeName
 
@@ -436,7 +575,7 @@ trigger userId challengeName url mBranch mGitAnnexRemote = do
         challengeSubmissionDataDescription = Nothing,
         challengeSubmissionDataTags = Nothing,
         challengeSubmissionDataRepo = RepoSpec {
-            repoSpecUrl=url,
+            repoSpecUrl=theUrl,
             repoSpecBranch=branch,
             repoSpecGitAnnexRemote=mGitAnnexRemote}
         }
@@ -453,8 +592,8 @@ isBefore moment (Just deadline) = moment <= deadline
 -- the submission repo, just by looking at the metadata)
 willClone :: Challenge -> ChallengeSubmissionData -> Bool
 willClone challenge submissionData =
-  (challengeName challenge) `isInfixOf` url && branch /= dontPeek && not (dontPeek `isInfixOf` url)
-  where url = repoSpecUrl $ challengeSubmissionDataRepo submissionData
+  (challengeName challenge) `isInfixOf` theUrl && branch /= dontPeek && not (dontPeek `isInfixOf` theUrl)
+  where theUrl = repoSpecUrl $ challengeSubmissionDataRepo submissionData
         branch = repoSpecBranch $ challengeSubmissionDataRepo submissionData
         dontPeek = "dont-peek"
 
@@ -464,10 +603,10 @@ doCreateSubmission :: UserId -> Key Challenge -> ChallengeSubmissionData -> Chan
 doCreateSubmission userId challengeId challengeSubmissionData chan = do
   challenge <- runDB $ get404 challengeId
 
-  version <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+  theVersion <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
   theNow <- liftIO getCurrentTime
 
-  if theNow `isBefore` (versionDeadline $ entityVal version)
+  if theNow `isBefore` (versionDeadline $ entityVal theVersion)
     then
      do
       let wanted = willClone challenge challengeSubmissionData
@@ -504,7 +643,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
             TheHigherTheBetter -> E.desc
             TheLowerTheBetter -> E.asc
 
-      bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out, test, version) -> do
+      bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out, test, theVersion) -> do
               E.where_ (submission ^. SubmissionChallenge E.==. E.val challengeId
                         E.&&. submission ^. SubmissionIsHidden E.==. E.val False
                         E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId
@@ -516,10 +655,10 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                         E.&&. test ^. TestName E.==. E.val (testName mainTest)
                         E.&&. test ^. TestMetric E.==. E.val (testMetric mainTest)
                         E.&&. test ^. TestActive
-                        E.&&. (evaluation ^. EvaluationVersion E.==. E.just (version ^. VersionCommit)
+                        E.&&. (evaluation ^. EvaluationVersion E.==. E.just (theVersion ^. VersionCommit)
                                E.||. E.isNothing (evaluation ^. EvaluationVersion))
-                        E.&&. version ^. VersionCommit E.==. test ^. TestCommit
-                        E.&&. version ^. VersionMajor E.>=. E.val submittedMajorVersion)
+                        E.&&. theVersion ^. VersionCommit E.==. test ^. TestCommit
+                        E.&&. theVersion ^. VersionMajor E.>=. E.val submittedMajorVersion)
               E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
               E.limit 1
               return evaluation
@@ -671,7 +810,7 @@ getScoreForOut mainTestId out = do
              Nothing -> Nothing
 
 getSubmission :: UserId -> Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
-getSubmission userId repoId commit challengeId description chan = do
+getSubmission userId repoId commit challengeId subDescription chan = do
   challenge <- runDB $ get404 challengeId
   maybeSubmission <- runDB $ getBy $ UniqueSubmissionRepoCommitChallenge repoId commit challengeId
   case maybeSubmission of
@@ -685,7 +824,7 @@ getSubmission userId repoId commit challengeId description chan = do
         submissionRepo=repoId,
         submissionCommit=commit,
         submissionChallenge=challengeId,
-        submissionDescription=description,
+        submissionDescription=subDescription,
         submissionStamp=time,
         submissionSubmitter=userId,
         submissionIsPublic=False,
@@ -756,7 +895,7 @@ authorizationTokenAuth = do
                 let token = BS.filter (/= 32) token'
                 einfo <- liftIO $ JWT.decode [jwk] (Just (JWT.JwsEncoding JWA.RS256)) token
                 return $ case einfo of
-                           Right (JWT.Jws (_, info)) -> decode $ fromStrict info
+                           Right (JWT.Jws (_, infos)) -> decode $ fromStrict infos
                            _ -> Nothing
              | otherwise -> return Nothing
     Nothing -> return Nothing
@@ -765,8 +904,8 @@ maybeAuthPossiblyByToken :: Handler (Maybe (Entity User))
 maybeAuthPossiblyByToken = do
   mInfo <- authorizationTokenAuth
   case mInfo of
-    Just info -> do
-      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent info
+    Just infos -> do
+      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent infos
       case x of
         Just entUser -> return $ Just entUser
         Nothing -> maybeAuth
@@ -777,8 +916,8 @@ requireAuthPossiblyByToken :: Handler (Entity User)
 requireAuthPossiblyByToken = do
   mInfo <- authorizationTokenAuth
   case mInfo of
-    Just info -> do
-      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent info
+    Just infos -> do
+      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent infos
       case x of
         Just entUser -> return entUser
         Nothing -> requireAuth
@@ -793,8 +932,8 @@ getAddUserR :: Handler Value
 getAddUserR = do
   mInfo <- authorizationTokenAuth
   case mInfo of
-    Just info -> do
-      let ident = jwtAuthInfoIdent info
+    Just infos -> do
+      let ident = jwtAuthInfoIdent infos
       x <- runDB $ getBy $ UniqueUser ident
       case x of
         Just _ -> return $ Bool False
@@ -815,24 +954,57 @@ getAddUserR = do
           return $ Bool True
     Nothing -> return $ Bool False
 
+declareAllSubmissionsApi :: String -> String -> Declare (Definitions Schema) Swagger
+declareAllSubmissionsApi q d = do
+  -- param schemas
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+
+  allSubmissionsResponse <- declareResponse (Proxy :: Proxy SubmissionsView)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/" ++ q ++ "/{challengeName}",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "challengeName"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ challengeNameSchema) ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ T.pack d
+                                        & at 200 ?~ Inline allSubmissionsResponse))
+                 ]
+
+
+allSubmissionsApi :: Swagger
+allSubmissionsApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare (declareAllSubmissionsApi "challenge-all-submissions" "Returns all submissions for a challenge") mempty
+
+mySubmissionsApi :: Swagger
+mySubmissionsApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare (declareAllSubmissionsApi "challenge-my-submissions" "Returns all submissions for a challenge for the user") mempty
+
 getChallengeAllSubmissionsJsonR :: Text -> Handler Value
-getChallengeAllSubmissionsJsonR name = do
-  v <- fetchAllSubmissionsView name
+getChallengeAllSubmissionsJsonR challengeName = do
+  v <- fetchAllSubmissionsView challengeName
   return $ toJSON v
 
 getChallengeMySubmissionsJsonR :: Text -> Handler Value
-getChallengeMySubmissionsJsonR name = do
-  v <- fetchMySubmissionsView name
+getChallengeMySubmissionsJsonR challengeName = do
+  v <- fetchMySubmissionsView challengeName
   return $ toJSON v
 
 fetchAllSubmissionsView :: Text -> Handler SubmissionsView
-fetchAllSubmissionsView name = do
-  fetchChallengeSubmissionsView (const True) name
+fetchAllSubmissionsView challengeName = do
+  fetchChallengeSubmissionsView (const True) challengeName
 
 fetchMySubmissionsView :: Text -> Handler SubmissionsView
-fetchMySubmissionsView name = do
+fetchMySubmissionsView challengeName = do
   Entity userId _ <- requireAuthPossiblyByToken
-  fetchChallengeSubmissionsView (\(Entity _ submission) -> (submissionSubmitter submission == userId)) name
+  fetchChallengeSubmissionsView (\(Entity _ submission) -> (submissionSubmitter submission == userId)) challengeName
 
 convertTagInfoToView :: (Entity Import.Tag, Entity SubmissionTag) -> TagView
 convertTagInfoToView tagInfo =
@@ -843,7 +1015,7 @@ convertTagInfoToView tagInfo =
      }
 
 convertEvaluationToView :: Map TestReference Evaluation -> Entity Test -> Maybe EvaluationView
-convertEvaluationToView mapping entTest =
+convertEvaluationToView theMapping entTest =
   case join $ evaluationScore <$> mEvaluation of
     Just s ->
       Just $ EvaluationView {
@@ -852,7 +1024,7 @@ convertEvaluationToView mapping entTest =
         evaluationViewTest = testRef
         }
     Nothing -> Nothing
-  where mEvaluation = Map.lookup testRef mapping
+  where mEvaluation = Map.lookup testRef theMapping
         formattingOps = getTestFormattingOpts $ entityVal entTest
         testRef = getTestReference entTest
 
@@ -883,8 +1055,8 @@ convertTableEntryToView tests entry = do
   where submission = entityVal $ tableEntrySubmission entry
 
 fetchChallengeSubmissionsView :: ((Entity Submission) -> Bool) -> Text -> Handler SubmissionsView
-fetchChallengeSubmissionsView condition name = do
-  Entity challengeId _ <- runDB $ getBy404 $ UniqueName name
+fetchChallengeSubmissionsView condition challengeName = do
+  Entity challengeId _ <- runDB $ getBy404 $ UniqueName challengeName
   (evaluationMaps, tests') <- runDB $ getChallengeSubmissionInfos 1 condition (const True) id challengeId
   let tests = sortBy testComparator tests'
 
@@ -898,12 +1070,12 @@ fetchChallengeSubmissionsView condition name = do
 
 -- TODO switch to fetchChallengeSubmissionSview
 getChallengeMySubmissionsR :: Text -> Handler Html
-getChallengeMySubmissionsR name = do
+getChallengeMySubmissionsR challengeName = do
   userId <- requireAuthId
-  getChallengeSubmissions (\(Entity _ submission) -> (submissionSubmitter submission == userId)) name
+  getChallengeSubmissions (\(Entity _ submission) -> (submissionSubmitter submission == userId)) challengeName
 
 getChallengeAllSubmissionsR :: Text -> Handler Html
-getChallengeAllSubmissionsR name = getChallengeSubmissions (\_ -> True) name
+getChallengeAllSubmissionsR challengeName = getChallengeSubmissions (\_ -> True) challengeName
 
 data EvaluationView = EvaluationView {
   evaluationViewScore :: Text,
@@ -918,6 +1090,21 @@ instance ToJSON EvaluationView where
         , "test" .= evaluationViewTest e
         ]
 
+instance ToSchema EvaluationView where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    doubleSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Double)
+    testRefSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy TestReference)
+    return $ NamedSchema (Just "Evaluation") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("score", stringSchema)
+                     , ("full-score", doubleSchema)
+                     , ("test", testRefSchema)
+                    ]
+        & required .~ [ "score", "full-score", "test" ]
+
+
 data TagView = TagView {
   tagViewName :: Text,
   tagViewDescription :: Maybe Text,
@@ -929,6 +1116,20 @@ instance ToJSON TagView where
        , "description" .= tagViewDescription t
        , "accepted" .= tagViewAccepted t
        ]
+
+instance ToSchema TagView where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
+    return $ NamedSchema (Just "Tag") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("name", stringSchema)
+                     , ("description", stringSchema)
+                     , ("accepted", boolSchema)
+                    ]
+        & required .~ [ "name", "description" ]
+
 
 data SubmissionView = SubmissionView {
   submissionViewId :: Int64,
@@ -965,6 +1166,36 @@ instance ToJSON SubmissionView where
     , "isPublic" .= submissionViewIsPublic s
     ]
 
+instance ToSchema SubmissionView where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
+    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
+    intsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Int])
+    tagsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TagView])
+    evalsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+    return $ NamedSchema (Just "SubmissionView") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("id", intSchema)
+                     , ("variant", intSchema)
+                     , ("rank", intSchema)
+                     , ("submitter", stringSchema)
+                     , ("when", stringSchema)
+                     , ("version", intsSchema)
+                     , ("description", stringSchema)
+                     , ("tags", tagsSchema)
+                     , ("hash", stringSchema)
+                     , ("evaluations", evalsSchema)
+                     , ("isOwner", boolSchema)
+                     , ("isReevaluable", boolSchema)
+                     , ("isVisible", boolSchema)
+                     , ("isPublic", boolSchema)
+                    ]
+        & required .~ [ "id", "variant", "rank", "submitter", "when", "version",
+                        "description", "tags", "hash", "evaluations",
+                        "isOwner", "isReevaluable", "isVisible", "isPublic" ]
+
 data SubmissionsView = SubmissionsView {
   submissionsViewSubmissions :: [SubmissionView],
   submissionsViewTests :: [TestReference]
@@ -976,9 +1207,21 @@ instance ToJSON SubmissionsView where
       "submissions" .= submissionsViewSubmissions ss
     ]
 
+instance ToSchema SubmissionsView where
+  declareNamedSchema _ = do
+    submissionViewsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [SubmissionView])
+    testRefsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TestReference])
+    return $ NamedSchema (Just "Tag") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("submissions", submissionViewsSchema)
+                     , ("tests", testRefsSchema)
+                    ]
+        & required .~ [ "tests", "submission" ]
+
 getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
-getChallengeSubmissions condition name = do
-  Entity challengeId challenge <- runDB $ getBy404 $ UniqueName name
+getChallengeSubmissions condition challengeName = do
+  Entity challengeId challenge <- runDB $ getBy404 $ UniqueName challengeName
   (evaluationMaps, tests') <- runDB $ getChallengeSubmissionInfos 1 condition (const True) id challengeId
   let tests = sortBy testComparator tests'
   mauth <- maybeAuth
@@ -1068,10 +1311,10 @@ $.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) testId param}", 
 challengeLayout :: Bool -> Challenge -> WidgetFor App () -> HandlerFor App Html
 challengeLayout withHeader challenge widget = do
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
-  version <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
-  let versionFormatted = formatVersion ((versionMajor $ entityVal version),
-                                        (versionMinor $ entityVal version),
-                                        (versionPatch $ entityVal version))
+  theVersion <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+  let versionFormatted = formatVersion ((versionMajor $ entityVal theVersion),
+                                        (versionMinor $ entityVal theVersion),
+                                        (versionPatch $ entityVal theVersion))
   maybeUser <- maybeAuth
   bc <- widgetToPageContent widget
   defaultLayout $ do

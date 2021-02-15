@@ -2,7 +2,7 @@
 
 module Handler.Query where
 
-import Import
+import Import hiding (fromList, Proxy)
 
 import Handler.SubmissionView
 import Handler.Shared
@@ -42,6 +42,93 @@ import System.FilePath (takeFileName)
 import System.Directory (makeAbsolute)
 
 import Data.SplitIntoCrossTabs
+
+import Data.Swagger hiding (get)
+import qualified Data.Swagger as DS
+
+import Data.Swagger.Declare
+import Control.Lens hiding ((.=), (^.), (<.>))
+import Data.Proxy as DPR
+import Data.HashMap.Strict.InsOrd (fromList)
+
+import Handler.ShowChallenge
+
+
+data VariantView = VariantView {
+  variantViewId :: Int64,
+  variantViewName :: Text,
+  variantViewRank :: Int,
+  variantViewEvaluations :: [EvaluationView],
+  variantViewParams :: [Parameter]
+}
+
+instance ToJSON Parameter where
+  toJSON entry = object
+        [ "name" .= parameterName entry,
+          "value" .= parameterValue entry
+        ]
+
+instance ToSchema Parameter where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    return $ NamedSchema (Just "Parameter") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("name", stringSchema),
+                       ("value", stringSchema)
+                    ]
+        & required .~ [ "name", "value" ]
+
+instance ToJSON VariantView where
+  toJSON entry = object
+        [ "id" .= variantViewId entry,
+          "name" .= variantViewName entry,
+          "rank" .= variantViewRank entry,
+          "evaluations" .= variantViewEvaluations entry,
+          "params" .= variantViewParams entry
+        ]
+
+instance ToSchema VariantView where
+  declareNamedSchema _ = do
+    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Int64])
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [String])
+    evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+    paramsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Parameter])
+    return $ NamedSchema (Just "Variant") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("id", intSchema),
+                       ("name", stringSchema),
+                       ("rank", intSchema),
+                       ("evaluations", evaluationsSchema),
+                       ("params", paramsSchema)
+                    ]
+        & required .~ [ "evaluations" ]
+
+data QueryResultView = QueryResultView {
+  queryResultViewSubmissionInfo :: FullSubmissionInfo,
+  queryResultViewVariants :: [VariantView]
+}
+
+instance ToJSON QueryResultView where
+    toJSON entry = object
+        [ "submissionInfo" .= queryResultViewSubmissionInfo entry,
+          "variants" .= queryResultViewVariants entry
+        ]
+
+instance ToSchema QueryResultView where
+  declareNamedSchema _ = do
+    submissionInfoSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy FullSubmissionInfo)
+    variantViewsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [VariantView])
+    return $ NamedSchema (Just "QueryResult") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("submissionInfo", submissionInfoSchema),
+                       ("variants", variantViewsSchema)
+                    ]
+        & required .~ [ "submissionInfo", "variants" ]
+
+
 
 rawCommitQuery :: (MonadIO m, RawSql a) => Text -> ReaderT SqlBackend m [a]
 rawCommitQuery sha1Prefix =
@@ -190,6 +277,69 @@ processQuery query = do
   defaultLayout $ do
     setTitle "query results"
     $(widgetFile "query-results")
+
+toQueryResultView :: FullSubmissionInfo -> Handler QueryResultView
+toQueryResultView fsi = do
+  let submissionId = fsiSubmissionId fsi
+  let submission = fsiSubmission fsi
+  (tableEntries, tests) <- runDB
+                          $ getChallengeSubmissionInfos 2
+                                                        (\s -> entityKey s == submissionId)
+                                                        (const True)
+                                                        id
+                                                        (submissionChallenge submission)
+
+
+  let evaluations = map (\entry ->
+                           VariantView {
+                            variantViewId = fromSqlKey $ entityKey $ tableEntryVariant entry,
+                            variantViewName = variantName $ entityVal $ tableEntryVariant entry,
+                            variantViewRank = tableEntryRank entry,
+                            variantViewEvaluations =  catMaybes $ Import.map (convertEvaluationToView $ tableEntryMapping entry) tests,
+                            variantViewParams = Import.map entityVal $ tableEntryParams entry
+
+                            }) tableEntries
+
+  return $ QueryResultView {
+    queryResultViewSubmissionInfo = fsi,
+    queryResultViewVariants = evaluations }
+
+getQueryJsonR :: Text -> Handler Value
+getQueryJsonR query = do
+  submissions' <- findSubmissions query
+  let submissions = map fst submissions'
+
+  qrvs <- mapM toQueryResultView submissions
+  return $ array qrvs
+
+declareQuerySwagger :: Declare (Definitions Schema) Swagger
+declareQuerySwagger = do
+  -- param schemas
+  let querySchema = toParamSchema (Proxy :: Proxy String)
+
+  queryResponse      <- declareResponse (Proxy :: Proxy [QueryResultView])
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/query/{query}",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "query"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ querySchema) ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "For a SHA1 hash prefix returns all the submissions matching"
+                                        & at 200 ?~ Inline queryResponse))
+                 ]
+
+
+queryApi :: Swagger
+queryApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareQuerySwagger mempty
+
 
 priorityLimitForViewVariant :: Int
 priorityLimitForViewVariant = 4

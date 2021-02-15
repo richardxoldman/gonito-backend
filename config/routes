@@ -18,8 +18,11 @@
 /api/user-info UserInfoR GET
 /api/add-user AddUserR GET
 /api/challenge-submission/#Text ChallengeSubmissionJsonR POST
+/api/challenge-readme/#Text/markdown ChallengeReadmeInMarkdownR GET
+/api/challenge-image/#ChallengeId ChallengeImageR GET
+/api/query/#Text QueryJsonR GET
+/api/challenge-info/#Text ChallengeInfoJsonR GET
 /list-archived-challenges ListArchivedChallengesR GET
-/challenge-image/#ChallengeId ChallengeImageR GET
 
 /challenge/#Text ShowChallengeR GET
 /challenge-readme/#Text ChallengeReadmeR GET
