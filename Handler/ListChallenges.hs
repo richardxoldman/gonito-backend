@@ -22,13 +22,26 @@ declareListChallengesSwagger :: Declare (Definitions Schema) Swagger
 declareListChallengesSwagger = do
   -- param schemas
   listChallengesResponse      <- declareResponse (Proxy :: Proxy [Entity Challenge])
+  challengeInfoResponse      <- declareResponse (Proxy :: Proxy (Entity Challenge))
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
 
   return $ mempty
     & paths .~
         [ ("/api/list-challenges", mempty & get ?~ (mempty
             & produces ?~ MimeList ["application/json"]
             & description ?~ "Returns the list of all challenges"
-            & at 200 ?~ Inline listChallengesResponse))
+            & at 200 ?~ Inline listChallengesResponse)),
+          ("/api/challenge-info/{challengeName}",
+            mempty & get ?~ (mempty
+                                 & parameters .~ [ Inline $ mempty
+                                                   & name .~ "challengeName"
+                                                   & required ?~ True
+                                                   & schema .~ ParamOther (mempty
+                                                                            & in_ .~ ParamPath
+                                                                            & paramSchema .~ challengeNameSchema) ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Returns metadata for a specific challenge"
+                                        & at 200 ?~ Inline challengeInfoResponse))
         ]
 
 listChallengesApi :: Swagger
@@ -92,6 +105,11 @@ getChallenges filterExpr = runDB $ selectList filterExpr [Desc ChallengeStarred,
 
 listChallengesCore :: [Entity Challenge] -> Widget
 listChallengesCore challenges = $(widgetFile "list-challenges-core")
+
+getChallengeInfoJsonR :: Text -> Handler Value
+getChallengeInfoJsonR challengeName = do
+  entCh <- runDB $ getBy404 $ UniqueName challengeName
+  return $ toJSON entCh
 
 getChallengeImageR :: ChallengeId -> Handler Html
 getChallengeImageR challengeId = do
