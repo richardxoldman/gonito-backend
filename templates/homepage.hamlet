@@ -5,7 +5,7 @@
                $if location /= ""
                   \@#{location}
             !
-        <p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a Kaggle<sup><a href="#disclaimer">*</a></sup>-like platform for machine learning competitions.
+        <p>Gonito (pronounced <i>ɡɔ̃ˈɲitɔ</i>) is a open git-based platform for machine learning competitions.
 
     <div class="panel panel-default">
         <div class="panel-heading">What's so special about Gonito:
@@ -34,8 +34,6 @@
         <div class="alert alert-info" role="alert">
             <p>
                 <strong>How to log in?</strong> If you already have an account, just click <a href="@{AuthR LoginR}">log in</a>. Otherwise, please get in touch with the site admin#{contactEmailLabel master}.
-
-    <p class="text-muted text-right"><sup>*</sup>Disclaimer: Gonito is neither affiliated with nor endorsed by <a href="https://www.kaggle.com">Kaggle</a>.
 
     $if not (null starredChallenges)
       <h2>Challenges
