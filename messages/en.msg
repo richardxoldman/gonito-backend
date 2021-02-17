@@ -94,3 +94,8 @@ ShouldChallengeBeValidated: validate challenge (do not switch off unless you hav
 ShowAnnotations: show annotations
 Compare: Compare
 OutSha1: Output Sha1 hash
+ChallengeIsArchived: This challenge is archived!
+ChallengeNotHealthy: Something is wrong with the challenge data!
+Archive: Archive
+Unarchive: Unarchive
+Heal: Heal

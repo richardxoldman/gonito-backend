@@ -188,6 +188,9 @@ getShowChallengeR challengeName = do
   let leaderboardStyle = appLeaderboardStyle $ appSettings app
 
   challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName challengeName
+
+  isHealthy <- isChallengeHealthy challenge
+
   Just repo <- runDB $ get $ challengePublicRepo challenge
   (leaderboard, (entries, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
 
@@ -218,7 +221,8 @@ getShowChallengeR challengeName = do
                                                       altLeaderboard
                                                       params
                                                       tests
-                                                      altTests)
+                                                      altTests
+                                                      isHealthy)
 
 hasMetricsOfSecondPriority :: (PersistQueryRead backend, MonadIO m, BaseBackend backend ~ SqlBackend) => Key Challenge -> ReaderT backend m Bool
 hasMetricsOfSecondPriority challengeId = do
@@ -265,6 +269,13 @@ challengeReadme challengeName = do
   theContents <- doChallengeReadmeContents challengeName
   return $ markdown def theContents
 
+-- Checks whether the directories with repos are available
+isChallengeHealthy :: Challenge -> Handler Bool
+isChallengeHealthy challenge = do
+  publicRepoDirExists <- doesRepoExistsOnTheDisk $ challengePublicRepo challenge
+  privateRepoDirExists <- doesRepoExistsOnTheDisk $ challengePrivateRepo challenge
+  return $ publicRepoDirExists && privateRepoDirExists
+
 doChallengeReadmeContents :: Text -> Handler TL.Text
 doChallengeReadmeContents challengeName = do
   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
@@ -284,6 +295,7 @@ showChallengeWidget :: Maybe (Entity User)
                       -> [Text]
                       -> [Entity Test]
                       -> (Maybe [Entity Test])
+                      -> Bool
                       -> WidgetFor App ()
 showChallengeWidget mUserEnt
                     (Entity challengeId challenge)
@@ -295,6 +307,7 @@ showChallengeWidget mUserEnt
                     params
                     tests
                     mAltTests
+                    isHealthy
   = $(widgetFile "show-challenge")
   where leaderboardWithRanks = zip [1..] leaderboard
         mAltLeaderboardWithRanks = zip [1..] <$> mAltLeaderboard
@@ -373,6 +386,15 @@ challengeHowTo challenge settings repo shownId isIDSet isSSHUploaded mAltRepoSch
         urlToYourRepo = case mAltRepoScheme of
           Just altRepoScheme -> encodeSlash (altRepoScheme <> (challengeName challenge))
           Nothing -> "URL_TO_YOUR_REPO"
+
+postHealR :: ChallengeId -> Handler TypedContent
+postHealR challengeId = runViewProgress $ doHeal challengeId
+
+doHeal challengeId chan = do
+  challenge <- runDB $ get404 challengeId
+  getRepoDirOrClone (challengePrivateRepo challenge) chan
+  getRepoDirOrClone (challengePublicRepo challenge) chan
+  return ()
 
 postArchiveR :: ChallengeId -> Handler Html
 postArchiveR challengeId = doSetArchive True challengeId

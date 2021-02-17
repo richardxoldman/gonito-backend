@@ -208,6 +208,7 @@ instance Yesod App where
     isAuthorized (ArchiveR _) _ = isAdmin
     isAuthorized (UnarchiveR _) _ = isAdmin
     isAuthorized (ChallengeUpdateR _) _ = isAdmin
+    isAuthorized (HealR _) _ = isAdmin
 
     isAuthorized MyScoreR _ = regularAuthorization
 

@@ -15,8 +15,6 @@ import qualified Data.Text.Encoding as DTE
 
 import Database.Persist.Sql (fromSqlKey)
 
-import Data.Scientific
-
 import Control.Concurrent.Lifted (threadDelay)
 import Control.Concurrent (forkIO)
 
@@ -341,13 +339,19 @@ getStuffUsingGitAnnex tmpRepoDir (Just gitAnnexRemote) = do
 runGitAnnex :: FilePath -> [String] -> Runner ()
 runGitAnnex tmpRepoDir args = runProg (Just tmpRepoDir) gitPath ("annex":args)
 
+doesRepoExistsOnTheDisk :: RepoId -> Handler Bool
+doesRepoExistsOnTheDisk repoId = do
+  repoDir <- getRepoDir repoId
+  repoDirExists <- liftIO $ doesDirectoryExist repoDir
+  return repoDirExists
+
 -- Gets a directory for an already cloned repo (e.g. arena/r1234). If,
 -- for some reason, the directory does not exist (e.g. the database
 -- was recovered on a new computer), it will re-clone the repository.
 getRepoDirOrClone :: RepoId -> Channel -> Handler FilePath
 getRepoDirOrClone repoId chan = do
+  repoDirExists <- doesRepoExistsOnTheDisk repoId
   repoDir <- getRepoDir repoId
-  repoDirExists <- liftIO $ doesDirectoryExist repoDir
   if repoDirExists
     then
       return ()

@@ -66,6 +66,7 @@
 
 /challenge-archive/#ChallengeId ArchiveR POST
 /challenge-unarchive/#ChallengeId UnarchiveR POST
+/challenge-heal/#ChallengeId HealR POST
 
 /account YourAccountR GET POST
 /avatar/#UserId AvatarR GET
