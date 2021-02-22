@@ -21,16 +21,12 @@ import Handler.MakePublic
 import Handler.Dashboard
 import Handler.Common
 import Handler.Evaluate
+import Handler.JWT
 
 import Database.Persist.Sql (fromSqlKey)
 
 import qualified Data.Map as Map
 
-import qualified Data.ByteString as BS
-import           Data.Word8 (isSpace, toLower)
-import           Network.Wai (requestHeaders)
-import qualified Jose.Jwt as JWT
-import qualified Jose.Jwa as JWA
 
 
 import Data.Maybe (fromJust)
@@ -79,6 +75,9 @@ instance ToJSON LeaderboardEntry where
                                                 (leaderboardParams entry)
         , "times" .= leaderboardNumberOfSubmissions entry
         , "hash" .= (fromSHA1ToText $ submissionCommit $ leaderboardBestSubmission entry)
+        , "isPublic" .= (submissionIsPublic $ leaderboardBestSubmission entry)
+        , "isReevaluable" .= (leaderboardIsReevaluable entry)
+        , "isVisible" .= (leaderboardIsVisible entry)
         ]
 
 declareLeaderboardSwagger :: Declare (Definitions Schema) Swagger
@@ -161,6 +160,7 @@ instance ToSchema LeaderboardEntryView where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
+    boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
     evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
     return $ NamedSchema (Just "LeaderboardEntry") $ mempty
         & type_ .~ SwaggerObject
@@ -172,6 +172,9 @@ instance ToSchema LeaderboardEntryView where
                      , ("times", intSchema)
                      , ("hash", stringSchema)
                      , ("evaluations", evaluationsSchema)
+                     , ("isPublic", boolSchema)
+                     , ("isReevaluable", boolSchema)
+                     , ("isVisible", boolSchema)
                     ]
         & required .~ [ "submitter", "when", "version", "description", "times", "hash", "evaluations" ]
 
@@ -889,61 +892,6 @@ submissionForm defaultUrl defBranch defaultGitAnnexRemote = renderBootstrap3 Boo
     <*> (RepoSpec <$> areq textField (bfs MsgSubmissionUrl) defaultUrl
                   <*> areq textField (bfs MsgSubmissionBranch) defBranch
                   <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) (Just defaultGitAnnexRemote))
-
-data JwtAuthInfo = JwtAuthInfo Text
-  deriving (Show, Eq)
-
-instance FromJSON JwtAuthInfo where
- parseJSON (Object v) =
-    JwtAuthInfo <$> v .: "preferred_username"
- parseJSON _ = mzero
-
-jwtAuthInfoIdent :: JwtAuthInfo -> Text
-jwtAuthInfoIdent (JwtAuthInfo ident) = ident
-
-authorizationTokenAuth :: Handler (Maybe JwtAuthInfo)
-authorizationTokenAuth = do
-  app <- getYesod
-  let mJwk = appJSONWebKey $ appSettings app
-
-  case mJwk of
-    Just jwk -> do
-      req <- waiRequest
-      case lookup "Authorization" (Network.Wai.requestHeaders req) of
-        Nothing -> return Nothing
-        Just authHead -> case BS.break isSpace authHead of
-           (strategy, token')
-             | BS.map Data.Word8.toLower strategy == "bearer" -> do
-                let token = BS.filter (/= 32) token'
-                einfo <- liftIO $ JWT.decode [jwk] (Just (JWT.JwsEncoding JWA.RS256)) token
-                return $ case einfo of
-                           Right (JWT.Jws (_, infos)) -> decode $ fromStrict infos
-                           _ -> Nothing
-             | otherwise -> return Nothing
-    Nothing -> return Nothing
-
-maybeAuthPossiblyByToken :: Handler (Maybe (Entity User))
-maybeAuthPossiblyByToken = do
-  mInfo <- authorizationTokenAuth
-  case mInfo of
-    Just infos -> do
-      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent infos
-      case x of
-        Just entUser -> return $ Just entUser
-        Nothing -> maybeAuth
-    Nothing -> maybeAuth
-
-
-requireAuthPossiblyByToken :: Handler (Entity User)
-requireAuthPossiblyByToken = do
-  mInfo <- authorizationTokenAuth
-  case mInfo of
-    Just infos -> do
-      x <- runDB $ getBy $ UniqueUser $ jwtAuthInfoIdent infos
-      case x of
-        Just entUser -> return entUser
-        Nothing -> requireAuth
-    Nothing -> requireAuth
 
 getUserInfoR :: Handler Value
 getUserInfoR = do

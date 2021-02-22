@@ -60,6 +60,7 @@ library
                      Gonito.ExtractMetadata
                      Data.Diff
                      Handler.Swagger
+                     Handler.JWT
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

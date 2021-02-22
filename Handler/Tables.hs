@@ -7,6 +7,7 @@ import Handler.Shared
 import Handler.Evaluate
 import Handler.SubmissionView
 import Handler.TagUtils
+import Handler.JWT
 
 import Data.Diff
 
@@ -70,7 +71,9 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardNumberOfSubmissions :: Int,
   leaderboardTags :: [(Entity Import.Tag, Entity SubmissionTag)],
   leaderboardParams :: [Parameter],
-  leaderboardVersion :: (Int, Int, Int)
+  leaderboardVersion :: (Int, Int, Int),
+  leaderboardIsVisible :: Bool,
+  leaderboardIsReevaluable :: Bool
 }
 
 data TableEntry = TableEntry {
@@ -329,14 +332,14 @@ getLeaderboardEntriesByCriterion maxPriority challengeId condition preselector s
   return (entries, (evaluationMaps, mainTests))
 
 
-toLeaderboardEntry :: (Foldable t, YesodPersist site, PersistQueryRead (YesodPersistBackend site), PersistUniqueRead (YesodPersistBackend site), BaseBackend (YesodPersistBackend site) ~ SqlBackend) => Key Challenge -> [Entity Test] -> t TableEntry -> HandlerFor site LeaderboardEntry
+toLeaderboardEntry :: Foldable t => Key Challenge -> [Entity Test] -> t TableEntry -> Handler LeaderboardEntry
 toLeaderboardEntry challengeId tests ss = do
   let bestOne = DL.maximumBy submissionComparator ss
   let (TableEntry bestSubmission bestVariant user evals _ _ _ _) = bestOne
   let submissionId = entityKey bestSubmission
   tagEnts <- runDB $ getTags submissionId
 
-  parameters <- runDB $ selectList [ParameterVariant ==. (entityKey bestVariant)] [Asc ParameterName]
+  theParameters <- runDB $ selectList [ParameterVariant ==. (entityKey bestVariant)] [Asc ParameterName]
 
   submission <- runDB $ get404 submissionId
   (Just (Entity _ version)) <- runDB $ getBy $ UniqueVersionByCommit $ submissionVersion submission
@@ -349,6 +352,12 @@ toLeaderboardEntry challengeId tests ss = do
   allUserSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId,
                                            SubmissionSubmitter ==. entityKey user]
                                           [Desc SubmissionStamp]
+
+  mUserId <- maybeAuthPossiblyByToken
+
+  isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission bestOne
+  isVisible <- runDB $ checkWhetherVisible submission (entityKey <$> mUserId)
+
   return $ LeaderboardEntry {
               leaderboardUser = entityVal user,
               leaderboardUserId = entityKey user,
@@ -359,8 +368,10 @@ toLeaderboardEntry challengeId tests ss = do
               leaderboardEvaluationMap = evals,
               leaderboardNumberOfSubmissions = length allUserSubmissions,
               leaderboardTags = tagEnts,
-              leaderboardParams = map entityVal parameters,
-              leaderboardVersion = theVersion
+              leaderboardParams = map entityVal theParameters,
+              leaderboardVersion = theVersion,
+              leaderboardIsReevaluable = isReevaluable,
+              leaderboardIsVisible = isVisible
               }
      where mainTestEnt@(Entity _ mainTest) = getMainTest tests
            mainTestRef = getTestReference mainTestEnt
