@@ -1,7 +1,12 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DoAndIfThenElse #-}
+
 module Handler.ShowChallenge where
 
 import Import hiding (Proxy, fromList)
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
+
+import GHC.Generics
 
 import qualified Data.Text.Lazy as TL
 import           Text.Markdown
@@ -439,6 +444,7 @@ declareChallengeSubmissionSwagger = do
   let stringSchema = toParamSchema (Proxy :: Proxy String)
 
   challengeSubmissionResponse      <- declareResponse (Proxy :: Proxy Int)
+  wrongSubmissionResponse      <- declareResponse (Proxy :: Proxy GonitoStatus)
 
   return $ mempty
     & paths .~
@@ -488,7 +494,8 @@ declareChallengeSubmissionSwagger = do
                                                                                    & paramSchema .~ stringSchema)]
                                          & produces ?~ MimeList ["application/json"]
                                          & description ?~ "Initiates a submission based on a given repo URL/branch. Returns an asynchrous job ID."
-                                         & at 200 ?~ Inline challengeSubmissionResponse))
+                                         & at 200 ?~ Inline challengeSubmissionResponse
+                                         & at 422 ?~ Inline wrongSubmissionResponse))
                  ]
 
 challengeSubmissionApi :: Swagger
@@ -497,18 +504,53 @@ challengeSubmissionApi = spec & definitions .~ defs
     (defs, spec) = runDeclare declareChallengeSubmissionSwagger mempty
 
 
+data ChallangeSubmissionStatus = SubmissionOK | SubmissionWrong Text
+  deriving (Eq, Show)
+
+data GonitoStatus = GonitoStatus {
+  detail :: Text
+  } deriving (Eq, Show, Generic)
+
+instance ToJSON GonitoStatus
+instance ToSchema GonitoStatus
+
 postChallengeSubmissionJsonR :: Text -> Handler Value
 postChallengeSubmissionJsonR challengeName = do
     Entity userId _ <- requireAuthPossiblyByToken
 
-    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
+    challengeEnt@(Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
     ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
           _ -> Nothing
         Just submissionData = submissionData'
 
-    runViewProgressAsynchronously $ doCreateSubmission userId challengeId submissionData
+    status <- checkSubmission challengeEnt submissionData
+
+    case status of
+      SubmissionOK -> runViewProgressAsynchronously $ doCreateSubmission userId challengeId submissionData
+      SubmissionWrong errorMsg -> sendResponseStatus status422 $ toJSON (GonitoStatus errorMsg)
+
+checkSubmission :: Entity Challenge -> ChallengeSubmissionData -> Handler ChallangeSubmissionStatus
+checkSubmission (Entity _ challenge) submissionData = do
+  let repo = challengeSubmissionDataRepo submissionData
+  if (null $ repoSpecUrl repo)
+  then
+    return $ SubmissionWrong "empty URL"
+  else
+    do
+     if (null $ repoSpecBranch repo)
+     then
+       return $ SubmissionWrong "empty branch"
+     else
+       do
+        if (willClone challenge submissionData)
+        then
+         do
+          return SubmissionOK
+        else
+         do
+          return $ SubmissionWrong "Refusing to clone the submission from this URL."
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
 postChallengeSubmissionR challengeName = do
