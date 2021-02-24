@@ -21,6 +21,7 @@ apiDescription = generalApi
                  <> challengeReadmeInMarkdownApi
                  <> queryApi
                  <> challengeSubmissionApi
+                 <> versionInfoApi
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)

@@ -5,6 +5,9 @@ module Handler.ListChallenges where
 
 import Import hiding (get, fromList, Proxy)
 
+import Handler.Shared
+import PersistSHA1
+
 import Data.HashMap.Strict.InsOrd (fromList)
 
 import Data.Proxy
@@ -69,6 +72,7 @@ instance ToJSON (Entity Challenge) where
         , "starred" .= challengeStarred ch
         , "archived" .= challengeArchived ch
         , "imageUrl" .= (("/" <>) <$> intercalate "/" <$> fst <$> renderRoute <$> imageUrl chEnt)
+        , "version" .= (fromSHA1ToText $ challengeVersion ch)
         ]
 
 instance ToSchema (Entity Challenge) where
@@ -84,8 +88,63 @@ instance ToSchema (Entity Challenge) where
                     , ("starred", booleanSchema)
                     , ("archived", booleanSchema)
                     , ("imageUrl", stringSchema)
+                    , ("version", stringSchema)
                     ]
-        & required .~ [ "name", "title", "description", "starred", "archived" ]
+        & required .~ [ "name", "title", "description", "starred", "archived", "version" ]
+
+
+declareVersionInfoSwagger :: Declare (Definitions Schema) Swagger
+declareVersionInfoSwagger = do
+  -- param schemas
+  versionInfoResponse      <- declareResponse (Proxy :: Proxy (Entity Version))
+  let versionHashSchema = toParamSchema (Proxy :: Proxy String)
+
+  return $ mempty
+    & paths .~
+        [ ("/api/version-info/{challengeName}",
+            mempty & get ?~ (mempty
+                                 & parameters .~ [ Inline $ mempty
+                                                   & name .~ "versionHash"
+                                                   & required ?~ True
+                                                   & schema .~ ParamOther (mempty
+                                                                            & in_ .~ ParamPath
+                                                                            & paramSchema .~ versionHashSchema) ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Returns information about a challenge version"
+                                        & at 200 ?~ Inline versionInfoResponse))
+        ]
+
+versionInfoApi :: Swagger
+versionInfoApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareVersionInfoSwagger mempty
+
+
+instance ToJSON (Entity Version) where
+    toJSON chEnt@(Entity _ ver) = object
+        [ "deadline"  .= versionDeadline ver
+        , "version" .= (formatVersion (versionMajor ver,
+                                       versionMinor ver,
+                                       versionPatch ver))
+        , "description" .= versionDescription ver
+        , "when" .= versionStamp ver
+        , "commit" .= (fromSHA1ToText $ versionCommit ver)
+        ]
+
+instance ToSchema (Entity Version) where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (Proxy :: Proxy String)
+    booleanSchema <- declareSchemaRef (Proxy :: Proxy Bool)
+    return $ NamedSchema (Just "Challenge") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("deadline", stringSchema)
+                    , ("version", stringSchema)
+                    , ("description", stringSchema)
+                    , ("when", stringSchema)
+                    , ("commit", stringSchema)
+                    ]
+        & required .~ [ "version", "description", "when", "commit" ]
 
 
 generalListChallengesJson :: [Filter Challenge] -> Handler Value
@@ -110,6 +169,12 @@ getChallengeInfoJsonR :: Text -> Handler Value
 getChallengeInfoJsonR challengeName = do
   entCh <- runDB $ getBy404 $ UniqueName challengeName
   return $ toJSON entCh
+
+getVersionInfoJsonR :: Text -> Handler Value
+getVersionInfoJsonR versionHash = do
+  theVersion <- runDB $ getBy404 $ UniqueVersionByCommit $ fromTextToSHA1 versionHash
+  return $ toJSON theVersion
+
 
 getChallengeImageR :: ChallengeId -> Handler Html
 getChallengeImageR challengeId = do
