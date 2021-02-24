@@ -1,3 +1,11 @@
+## 1.2.0
+
+Enhancements:
+
+* add "version" field for challenges
+* add end-point for challenge versions
+* no CSRF token is required when submitting a solution via API
+
 ## 1.1.0
 
 Improvements

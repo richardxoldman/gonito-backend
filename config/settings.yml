@@ -35,7 +35,7 @@ database:
   database: "_env:PGDATABASE:gonito"
   poolsize: "_env:PGPOOLSIZE:10"
 
-copyright: © Filip Graliński
+copyright: © Filip Graliński, Gonito ver. 1.2.0
 
 admin-user: "_env:ADMINUSER:"
 admin-password: "_env:ADMINPASS:"
