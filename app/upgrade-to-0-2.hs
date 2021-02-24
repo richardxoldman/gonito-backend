@@ -42,16 +42,19 @@ process dbName = do
                           return (variant, submission, out, test)
 
   Prelude.putStrLn "Adding evaluations…"
-  _ <- mapM (processVariant dbName) variants
+  let total = length variants
+  putStrLn $ "TOTAL " ++ (show total)
+  _ <- mapM (\(v, ix) -> processVariant total ix dbName v) $ zip variants [1..]
 
   putStrLn "DELETING"
   runOnDb dbName $ deleteWhere [EvaluationVersion ==. Nothing]
 
   return ()
 
-processVariant :: String -> (Entity Variant, Entity Submission, Entity Out, Entity Test) -> IO ()
-processVariant dbName (variant, Entity _ submission, Entity _ out, Entity testId _) = do
+processVariant :: Int -> Int -> String -> (Entity Variant, Entity Submission, Entity Out, Entity Test) -> IO ()
+processVariant total ix dbName (variant, Entity _ submission, Entity _ out, Entity testId _) = do
   Prelude.putStrLn (show $ entityKey variant)
+  Prelude.putStrLn ((show ix) ++ "/" ++ (show total))
 
   evaluations <- runOnDb dbName
                 $ E.select $ E.from $ \evaluation -> do
