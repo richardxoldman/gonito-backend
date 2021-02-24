@@ -6,8 +6,6 @@ module Handler.ShowChallenge where
 import Import hiding (Proxy, fromList)
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
-import GHC.Generics
-
 import qualified Data.Text.Lazy as TL
 import           Text.Markdown
 
@@ -398,10 +396,11 @@ challengeHowTo challenge settings repo shownId isIDSet isSSHUploaded mAltRepoSch
 postHealR :: ChallengeId -> Handler TypedContent
 postHealR challengeId = runViewProgress $ doHeal challengeId
 
+doHeal :: Key Challenge -> Channel -> HandlerFor App ()
 doHeal challengeId chan = do
   challenge <- runDB $ get404 challengeId
-  getRepoDirOrClone (challengePrivateRepo challenge) chan
-  getRepoDirOrClone (challengePublicRepo challenge) chan
+  _ <- getRepoDirOrClone (challengePrivateRepo challenge) chan
+  _ <- getRepoDirOrClone (challengePublicRepo challenge) chan
   return ()
 
 postArchiveR :: ChallengeId -> Handler Html
@@ -519,7 +518,7 @@ postChallengeSubmissionJsonR challengeName = do
     Entity userId _ <- requireAuthPossiblyByToken
 
     challengeEnt@(Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
-    ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
+    ((result, _), _) <- runFormPostNoToken $ submissionForm Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
           _ -> Nothing
