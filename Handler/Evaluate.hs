@@ -205,13 +205,7 @@ checkOrInsertEvaluation :: FilePath -> Bool -> Channel -> SHA1 -> Out -> Handler
 checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
   test <- runDB $ get404 $ outTest out
   challenge <- runDB $ get404 $ testChallenge test
-  maybeEvaluation' <- runDB $ fetchTheEvaluation out version
-
-  let maybeEvaluation = case maybeEvaluation' of
-        Just (Entity _ evaluation) -> case evaluationVersion evaluation of
-          Just _ -> maybeEvaluation'
-          Nothing -> Nothing
-        Nothing -> Nothing
+  maybeEvaluation <- runDB $ fetchTheEvaluation out version
 
   if not forceEvaluation && isJust maybeEvaluation
    then
@@ -238,7 +232,7 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
             runDB $ deleteWhere [
               EvaluationTest ==. outTest out,
               EvaluationChecksum ==. outChecksum out,
-              EvaluationVersion ==. Just version ]
+              EvaluationVersion ==. version ]
            else
             return ()
           _ <- runDB $ insert $ let (pointResult, errorBound) = extractResult result
@@ -249,7 +243,7 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
                                    evaluationErrorBound=errorBound,
                                    evaluationErrorMessage=Nothing,
                                    evaluationStamp=time,
-                                   evaluationVersion=Just version }
+                                   evaluationVersion=version }
           msg chan "Evaluation done"
         Right (Right (_, Just _)) -> do
           err chan "Unexpected multiple results (???)"

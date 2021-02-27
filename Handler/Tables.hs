@@ -472,8 +472,7 @@ getScore testId variantId = do
                             E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum
                             -- all this complication here and with orderBy due
                             -- to the legacy issue with evaluation version sometimes missing
-                            E.&&. (evaluation ^. EvaluationVersion E.==. E.just (submission ^. SubmissionVersion)
-                                   E.||. E.isNothing (evaluation ^. EvaluationVersion))
+                            E.&&. (evaluation ^. EvaluationVersion E.==. submission ^. SubmissionVersion)
                             E.&&. evaluation ^. EvaluationTest E.==. E.val testId)
                   E.orderBy [E.asc (evaluation ^. EvaluationScore)]
                   return evaluation

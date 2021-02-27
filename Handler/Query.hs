@@ -230,7 +230,7 @@ doGetScoreForOut mMetricName submission sha1code = do
                             E.&&. evaluation ^. EvaluationTest E.==. test ^. TestId
                             E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum
                             E.&&. out ^. OutChecksum E.==. E.val sha1code
-                            E.&&. (evaluation ^. EvaluationVersion E.==. E.just (version ^. VersionCommit)))
+                            E.&&. (evaluation ^. EvaluationVersion E.==. version ^. VersionCommit))
                   E.orderBy [E.asc (test ^. TestPriority),
                              E.desc (version ^. VersionMajor),
                              E.desc (version ^. VersionMinor),
@@ -637,7 +637,7 @@ lineByLineTable (Entity testId test) theStamp = mempty
           evaluationErrorBound = Nothing,
           evaluationErrorMessage = Nothing,
           evaluationStamp = theStamp,
-          evaluationVersion = Nothing }
+          evaluationVersion = undefined }
 
 resultTable :: Entity Submission -> WidgetFor App ()
 resultTable (Entity submissionId submission) = do

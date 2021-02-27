@@ -181,27 +181,6 @@ executable         gonito-bin
 
     ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
 
-executable         upgrade-to-0-2
-    if flag(library-only)
-        Buildable: False
-
-    main-is:           upgrade-to-0-2.hs
-    hs-source-dirs:    app
-    build-depends:     base
-                       , gonito
-                       , esqueleto
-                       , text
-                       , monad-logger
-                       , persistent
-                       , persistent-postgresql
-                       , resourcet
-                       , bytestring
-                       , persistent-template
-                       , mtl
-                       , utf8-string
-
-    ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
-
 test-suite test
     type:              exitcode-stdio-1.0
     main-is:           Spec.hs

@@ -129,7 +129,8 @@ Evaluation
     errorMessage Text Maybe
     stamp UTCTime default=now()
     -- Should be just SHA1 (without Maybe) - Maybe is just a legacy
-    version SHA1 Maybe
+    version SHA1
+    UniqueEvaluationTestChecksumVersion test checksum version
     deriving Show
 Comment
     challenge ChallengeId

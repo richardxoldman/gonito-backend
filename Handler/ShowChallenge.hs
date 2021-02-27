@@ -721,8 +721,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                         E.&&. test ^. TestName E.==. E.val (testName mainTest)
                         E.&&. test ^. TestMetric E.==. E.val (testMetric mainTest)
                         E.&&. test ^. TestActive
-                        E.&&. (evaluation ^. EvaluationVersion E.==. E.just (theVersion ^. VersionCommit)
-                               E.||. E.isNothing (evaluation ^. EvaluationVersion))
+                        E.&&. (evaluation ^. EvaluationVersion E.==. theVersion ^. VersionCommit)
                         E.&&. theVersion ^. VersionCommit E.==. test ^. TestCommit
                         E.&&. theVersion ^. VersionMajor E.>=. E.val submittedMajorVersion)
               E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
