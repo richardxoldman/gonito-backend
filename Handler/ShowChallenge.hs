@@ -1334,12 +1334,12 @@ challengeLayout withHeader challenge widget = do
     $(widgetFile "challenge")
 
 getTestProgressR :: Int -> Handler TypedContent
-getTestProgressR m = runViewProgressWithWebSockets $ doTestProgress m
+getTestProgressR m = runViewProgress $ doTestProgress m
 
 doTestProgress :: Int -> Channel -> Handler ()
 doTestProgress m chan = do
   forM [1..m] $ (\i -> do
-                    msg chan $ (Data.Text.pack $ show i)
+                    msg chan $ (Data.Text.pack $ ("GO\n" ++ show i))
                     liftIO $ threadDelay 1000000
                     return ())
   return ()

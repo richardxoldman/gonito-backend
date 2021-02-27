@@ -42,6 +42,17 @@ toLeaderboardStyle :: Text -> LeaderboardStyle
 toLeaderboardStyle "by-tag" = ByTag
 toLeaderboardStyle _ = BySubmitter
 
+-- How showing progress for asynchronous operations
+-- such as creating a challenge, submitting a submission, etc.
+-- is realized technically.
+data ViewingProgressStyle = WithWebSockets | WithPlainText
+                            deriving (Eq, Show)
+
+toViewingProgressStyle :: Text -> ViewingProgressStyle
+toViewingProgressStyle "with-web-sockets" = WithWebSockets
+toViewingProgressStyle _ = WithPlainText
+
+
 -- | Runtime settings to configure this application. These settings can be
 -- loaded from various sources: defaults, environment variables, config files,
 -- theoretically even a database.
@@ -96,6 +107,7 @@ data AppSettings = AppSettings
     -- ^ Are challenges, submission, etc. visible without logging in
     , appIsPublic :: Bool
     , appJSONWebKey :: Maybe JWK.Jwk
+    , appViewingProgressStyle   :: ViewingProgressStyle
     }
 
 instance FromJSON AppSettings where
@@ -142,6 +154,8 @@ instance FromJSON AppSettings where
         appIsPublic               <- o .:? "is-public" .!= False
 
         appJSONWebKey             <- o .:? "json-web-key"
+
+        appViewingProgressStyle   <- toViewingProgressStyle <$> o .: "viewing-progress-style"
 
         return AppSettings {..}
 

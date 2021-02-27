@@ -17,6 +17,15 @@ new-best-result-slack-hook: "_env:NEW_BEST_RESULT_SLACK_HOOK:"
 server-ssh-public-key: "_env:SERVER_SSH_PUBLIC_KEY:"
 is-public:    "_env:IS_PUBLIC:true"
 
+# How the output of asynchronous operations is presented
+# - with-plain-text - just plain text shown by the browser;
+#   pros: it works with anything, cons: with NGINX the output
+#   is not shown progressively, only when it is finished
+# - with-web-sockets - using web sockets and JavaScripts, pros:
+#   nicer visually, fully works with NGINX, cons: does not work
+#   with lighttpd
+viewing-progress-style: "_env:VIEWING_PROGRESS_STYLE:with-plain-text"
+
 # Optional values with the following production defaults.
 # In development, they default to the inverse.
 #

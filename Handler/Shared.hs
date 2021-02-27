@@ -96,7 +96,13 @@ browsableGitRepo bareRepoName
 
 
 runViewProgress :: (Channel -> Handler ()) -> Handler TypedContent
-runViewProgress = runViewProgress' ViewProgressR
+runViewProgress action = do
+  app <- getYesod
+  let viewingProgressStyle = appViewingProgressStyle $ appSettings app
+  runViewProgress' (case viewingProgressStyle of
+                       WithWebSockets -> ViewProgressWithWebSocketsR
+                       WithPlainText -> ViewProgressR)
+                   action
 
 runOpenViewProgress :: (Channel -> Handler ()) -> Handler TypedContent
 runOpenViewProgress = runViewProgress' OpenViewProgressR
@@ -147,6 +153,10 @@ getViewProgressWithWebSocketsR jobId = do
                 background-color: black;
                 padding: 10pt;
             }
+            #outwindow pre {
+                color: white;
+                background-color: black;
+            }
             #wait {
                animation: blink 1s linear infinite;
             }
@@ -172,7 +182,7 @@ getViewProgressWithWebSocketsR jobId = do
             conn = new WebSocket(url);
 
             conn.onmessage = function(e) {
-                var p = document.createElement("p");
+                var p = document.createElement("pre");
                 p.appendChild(document.createTextNode(e.data));
                 output.appendChild(p);
             };
