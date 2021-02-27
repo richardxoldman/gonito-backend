@@ -10,5 +10,5 @@
      $maybe result <- mResult
         <a name="worst-items-#{testSet}">
         <h4>worst items
-        ^{Table.buildBootstrap (lineByLineTable mainTest theStamp) result}
+        ^{Table.buildBootstrap (lineByLineTable mainTest theVersion theStamp) result}
      $nothing

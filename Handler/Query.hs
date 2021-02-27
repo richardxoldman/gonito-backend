@@ -553,6 +553,8 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
   let variantId = entityKey <$> tableEntryVariant <$> entry
 
   let theStamp = submissionStamp $ entityVal $ tableEntrySubmission $ current entry
+  let theVersion = submissionVersion $ entityVal $ tableEntrySubmission $ current entry
+
   challenge <- handlerToWidget $ runDB $ get404 $ submissionChallenge $ entityVal $ tableEntrySubmission $ current entry
   let isNonSensitive = challengeSensitive challenge == Just False
 
@@ -623,8 +625,8 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
         return Nothing
   $(widgetFile "view-output")
 
-lineByLineTable :: Entity Test -> UTCTime -> Table.Table App (Int, DiffLineRecord)
-lineByLineTable (Entity testId test) theStamp = mempty
+lineByLineTable :: Entity Test -> SHA1 -> UTCTime -> Table.Table App (Int, DiffLineRecord)
+lineByLineTable (Entity testId test) theVersion theStamp = mempty
   ++ Table.int "#" fst
   ++ theLimitedTextCell "input" (((\(DiffLineRecord inp _ _ _) -> inp) . snd))
   ++ theLimitedTextCell "expected output" ((\(DiffLineRecord _ expected _ _) -> expected) . snd)
@@ -637,7 +639,7 @@ lineByLineTable (Entity testId test) theStamp = mempty
           evaluationErrorBound = Nothing,
           evaluationErrorMessage = Nothing,
           evaluationStamp = theStamp,
-          evaluationVersion = undefined }
+          evaluationVersion = theVersion }
 
 resultTable :: Entity Submission -> WidgetFor App ()
 resultTable (Entity submissionId submission) = do
