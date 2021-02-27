@@ -500,28 +500,39 @@ getBasicSubmissionInfo (Entity submissionId submission) = do
                basicSubmissionInfoTagEnts = tagEnts,
                basicSubmissionInfoVersion = version })
 
-getEvaluationMap :: (MonadIO m, PersistQueryRead backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
-                   => Map.Map TestId TestReference
-                     -> Map.Map SubmissionId BasicSubmissionInfo
-                     -> (Int, (Entity Submission, Entity Variant)) -> ReaderT backend m TableEntry
+getEvaluationMap :: (PersistUniqueRead backend,
+                    PersistQueryRead backend,
+                    BackendCompatible SqlBackend backend,
+                    MonadIO m,
+                    BaseBackend backend ~ SqlBackend)
+                   => Map (Key Test) TestReference
+                     -> Map (Key Submission) BasicSubmissionInfo
+                     -> (Int, (Entity Submission, Entity Variant))
+                     -> ReaderT backend m TableEntry
 getEvaluationMap testsMap submissionsMap (rank, (s@(Entity submissionId submission), v@(Entity variantId _))) = do
   let submissionInfo = submissionsMap Map.! submissionId
   let user = basicSubmissionInfoUser submissionInfo
   let tagEnts = basicSubmissionInfoTagEnts submissionInfo
-  let version = basicSubmissionInfoVersion submissionInfo
-
-  outs <- selectList [OutVariant ==. variantId] [Asc OutId]
+  let theVersion = basicSubmissionInfoVersion submissionInfo
   let versionHash = submissionVersion submission
-  maybeEvaluations <- mapM (\(Entity _ o) -> fetchTheEvaluation o versionHash) outs
-  let evaluations = catMaybes maybeEvaluations
+
+  evaluations <- E.select $ E.from $ \(evaluation, out) ->
+    do
+     E.where_ (out ^. OutVariant E.==. E.val variantId
+               E.&&. evaluation ^. EvaluationTest E.==. out ^. OutTest
+               E.&&. evaluation ^. EvaluationChecksum E.==. out ^. OutChecksum
+               E.&&. evaluation ^. EvaluationVersion E.==. E.val versionHash)
+     E.orderBy [E.asc (out ^. OutId)]
+     return evaluation
+
   let pairs = map (\(Entity _ e) -> (evaluationTest e, e)) evaluations
   let pairs' = map (\(testId, e) -> (testsMap Map.! testId, e)) pairs
   let m = Map.fromList pairs'
 
   parameters <- selectList [ParameterVariant ==. variantId] [Asc ParameterName]
 
-  let major = versionMajor version
-  let minor = versionMinor version
-  let patch = versionPatch version
+  let major = versionMajor theVersion
+  let minor = versionMinor theVersion
+  let patch = versionPatch theVersion
 
   return $ TableEntry s v (Entity (submissionSubmitter submission) user) m tagEnts parameters rank (major, minor, patch)
