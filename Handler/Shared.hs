@@ -7,6 +7,8 @@ import Import
 
 import qualified Data.IntMap            as IntMap
 
+import Yesod.WebSockets
+
 import Handler.Runner
 import System.Exit
 
@@ -98,6 +100,88 @@ runViewProgress = runViewProgress' ViewProgressR
 
 runOpenViewProgress :: (Channel -> Handler ()) -> Handler TypedContent
 runOpenViewProgress = runViewProgress' OpenViewProgressR
+
+runViewProgressWithWebSockets :: (Channel -> Handler ()) -> Handler TypedContent
+runViewProgressWithWebSockets = runViewProgress' ViewProgressWithWebSocketsR
+
+consoleApp :: Int -> WebSocketsT Handler ()
+consoleApp jobId = do
+    App {..} <- getYesod
+    mchan <- liftIO $ atom $ do
+        m <- readTVar jobs
+        case IntMap.lookup jobId m of
+            Nothing -> return Nothing
+            Just chan -> fmap Just $ dupTChan chan
+    case mchan of
+        Nothing -> do
+          sendTextData ("CANNOT FIND THE OUTPUT (ALREADY SHOWN??)" :: Text)
+          sendCloseE ("" :: Text)
+          return ()
+        Just chan -> do
+             let loop = do
+                     mtext <- liftIO $ atom $ readTChan chan
+                     case mtext of
+                         Nothing -> sendCloseE ("" :: Text)
+                         Just text -> do
+                             sendTextData text
+                             loop
+             loop
+             return ()
+
+
+getViewProgressWithWebSocketsR :: Int -> Handler Html
+getViewProgressWithWebSocketsR jobId = do
+    webSockets $ consoleApp jobId
+    defaultLayout $ do
+        [whamlet|
+           <div #outwindow>
+             <div #output>
+             <div #wait>
+                ... PLEASE WAIT ...
+        |]
+        toWidget [lucius|
+            #outwindow {
+                border: 1px solid black;
+                margin-bottom: 1em;
+                color: white;
+                background-color: black;
+                padding: 10pt;
+            }
+            #wait {
+               animation: blink 1s linear infinite;
+            }
+            @keyframes blink {
+            0% {
+               opacity: 0;
+            }
+            50% {
+               opacity: .5;
+            }
+            100% {
+               opacity: 1;
+            }
+         }
+        |]
+        toWidget [julius|
+            var url = document.URL,
+                output = document.getElementById("output"),
+                wait = document.getElementById("wait"),
+                conn;
+
+            url = url.replace("http:", "ws:").replace("https:", "wss:");
+            conn = new WebSocket(url);
+
+            conn.onmessage = function(e) {
+                var p = document.createElement("p");
+                p.appendChild(document.createTextNode(e.data));
+                output.appendChild(p);
+            };
+
+            conn.onclose = function(e) {
+                wait.parentNode.removeChild(wait);
+            };
+        |]
+
 
 runViewProgressAsynchronously :: (Channel -> Handler ()) -> Handler Value
 runViewProgressAsynchronously action = runViewProgressGeneralized getJobIdAsJson action

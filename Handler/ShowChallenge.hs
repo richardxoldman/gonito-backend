@@ -15,6 +15,8 @@ import qualified Data.HashMap.Strict as HMS
 
 import qualified Yesod.Table as Table
 
+import Control.Concurrent.Lifted (threadDelay)
+
 import Handler.Extract
 import Handler.Shared
 import Handler.Runner
@@ -1330,3 +1332,14 @@ challengeLayout withHeader challenge widget = do
   defaultLayout $ do
     setTitle "Challenge"
     $(widgetFile "challenge")
+
+getTestProgressR :: Int -> Handler TypedContent
+getTestProgressR m = runViewProgressWithWebSockets $ doTestProgress m
+
+doTestProgress :: Int -> Channel -> Handler ()
+doTestProgress m chan = do
+  forM [1..m] $ (\i -> do
+                    msg chan $ (Data.Text.pack $ show i)
+                    liftIO $ threadDelay 1000000
+                    return ())
+  return ()

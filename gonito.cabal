@@ -160,6 +160,7 @@ library
                  , swagger2
                  , lens
                  , insert-ordered-containers
+                 , yesod-websockets
 
 executable         gonito
     if flag(library-only)
@@ -223,3 +224,4 @@ test-suite test
                  , wai
                  , containers
                  , unordered-containers
+                 , yesod-websockets
