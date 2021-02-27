@@ -227,16 +227,20 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
                 asPercentage = False }
           msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult defaultFormattingOpts result) ]
           time <- liftIO getCurrentTime
-          if forceEvaluation
+          let (pointResult, errorBound) = extractResult result
+          if (isJust maybeEvaluation)
            then
-            runDB $ deleteWhere [
+            runDB $ updateWhere [
               EvaluationTest ==. outTest out,
               EvaluationChecksum ==. outChecksum out,
               EvaluationVersion ==. version ]
+                 [ EvaluationScore =. Just pointResult,
+                   EvaluationErrorBound =. errorBound,
+                   EvaluationErrorMessage =. Nothing,
+                   EvaluationStamp =. time ]
            else
-            return ()
-          _ <- runDB $ insert $ let (pointResult, errorBound) = extractResult result
-                               in Evaluation {
+             do
+              _ <- runDB $ insert $ Evaluation {
                                    evaluationTest=outTest out,
                                    evaluationChecksum=outChecksum out,
                                    evaluationScore=Just pointResult,
@@ -244,6 +248,7 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
                                    evaluationErrorMessage=Nothing,
                                    evaluationStamp=time,
                                    evaluationVersion=version }
+              return ()
           msg chan "Evaluation done"
         Right (Right (_, Just _)) -> do
           err chan "Unexpected multiple results (???)"
