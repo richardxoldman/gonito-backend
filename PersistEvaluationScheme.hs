@@ -11,7 +11,7 @@ instance PersistField EvaluationScheme where
 
   fromPersistValue (PersistText t) = case readMay t of
     Just val -> Right val
-    Nothing -> Left "Unexpected value"
+    Nothing -> Left $ "Unexpected value '" ++ t ++ "'"
   fromPersistValue _ = Left "Unexpected value"
 
 instance PersistFieldSql EvaluationScheme where
