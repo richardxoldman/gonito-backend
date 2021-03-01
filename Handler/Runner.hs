@@ -2,6 +2,9 @@
 module Handler.Runner where
 
 import Import
+
+import qualified System.IO as SIO
+
 import System.Process
 import System.Exit
 import System.Environment
@@ -128,7 +131,9 @@ gatherOutput ph hout herr chan = work mempty mempty
       return allTheRest
 
 msg :: Channel -> Text -> Handler ()
-msg chan m = liftIO $ atom $ writeTChan chan $ Just (m ++ "\n")
+msg chan m = do
+  liftIO $ SIO.hPutStrLn stderr (unpack m)
+  liftIO $ atom $ writeTChan chan $ Just (m ++ "\n")
 
 err :: Channel -> Text -> Handler ()
 err = msg
