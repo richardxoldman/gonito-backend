@@ -1333,13 +1333,13 @@ challengeLayout withHeader challenge widget = do
     setTitle "Challenge"
     $(widgetFile "challenge")
 
-getTestProgressR :: Int -> Handler TypedContent
-getTestProgressR m = runViewProgress $ doTestProgress m
+getTestProgressR :: Int -> Int -> Handler TypedContent
+getTestProgressR m d = runViewProgress $ doTestProgress m d
 
-doTestProgress :: Int -> Channel -> Handler ()
-doTestProgress m chan = do
+doTestProgress :: Int -> Int -> Channel -> Handler ()
+doTestProgress m d chan = do
   forM [1..m] $ (\i -> do
                     msg chan $ (Data.Text.pack $ ("GO\n" ++ show i))
-                    liftIO $ threadDelay 1000000
+                    liftIO $ threadDelay (d * 1000000)
                     return ())
   return ()

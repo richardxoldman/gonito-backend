@@ -10,7 +10,7 @@
 /view-progress/#Int ViewProgressR GET
 /open-view-progress/#Int OpenViewProgressR GET
 /view-progress-with-web-sockets/#Int ViewProgressWithWebSocketsR GET
-/test-progress/#Int TestProgressR GET
+/test-progress/#Int/#Int TestProgressR GET
 /list-challenges ListChallengesR GET
 
 /api/list-challenges ListChallengesJsonR GET
