@@ -44,6 +44,7 @@
                 <ul class="dropdown-menu">
                     <li><a href="@{YourAccountR}">_{MsgYourAccount}</a></li>
                     <li><a href="@{MyScoreR}">_{MsgYourScore}</a></li>
+                    <li><a href="@{MyTeamsR}">_{MsgYourTeams}</a></li>
                     <li><a href="@{AuthR LogoutR}">_{MsgLogOut}</a></li>
         $nothing
             <ul class="nav navbar-nav navbar-top navbar-collapse collapse">

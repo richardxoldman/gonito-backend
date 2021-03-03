@@ -27,6 +27,9 @@
 /api/version-info/#Text VersionInfoJsonR GET
 /list-archived-challenges ListArchivedChallengesR GET
 
+/my-teams MyTeamsR GET
+/create-team CreateTeamR POST
+
 /challenge/#Text ShowChallengeR GET
 /challenge-readme/#Text ChallengeReadmeR GET
 /challenge-submission/#Text ChallengeSubmissionR GET POST

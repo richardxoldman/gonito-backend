@@ -99,3 +99,6 @@ ChallengeNotHealthy: Something is wrong with the challenge data!
 Archive: Archive
 Unarchive: Unarchive
 Heal: Heal
+TeamIdent: Team name
+TeamIdentTooltip: Note that it cannot be changed later
+YourTeams: your teams

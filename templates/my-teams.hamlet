@@ -1,0 +1,8 @@
+<hr>
+
+<h2>Create a new team
+
+<form method=post action=@{CreateTeamR}#form enctype=#{formEnctype}>
+  ^{formWidget}
+  <button .btn .btn-primary type="submit">
+     _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>
