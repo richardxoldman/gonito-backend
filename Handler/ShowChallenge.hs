@@ -896,7 +896,8 @@ getSubmission userId repoId commit challengeId subDescription chan = do
         submissionSubmitter=userId,
         submissionIsPublic=False,
         submissionIsHidden=False,
-        submissionVersion=challengeVersion challenge}
+        submissionVersion=challengeVersion challenge,
+        submissionTeam=Nothing }
 
 getSubmissionRepo :: UserId -> Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo userId challengeId repoSpec chan = getPossiblyExistingRepo checkRepoAvailibility userId challengeId repoSpec chan

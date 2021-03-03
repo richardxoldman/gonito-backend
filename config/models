@@ -12,6 +12,20 @@ User
     triggerToken Text Maybe
     altRepoScheme Text Maybe
     deriving Typeable
+Team
+    ident Text
+    avatar ByteString Maybe
+    UniqueTeam ident
+TeamMember
+    user UserId
+    team TeamId
+    isCaptain Bool
+TeamLog
+    stamp UTCTime default=now()
+    actionType TeamActionType
+    agens UserId
+    patiens UserId Maybe
+    verificationKey Text Maybe
 PublicKey
     user UserId
     pubkey Text
@@ -90,6 +104,7 @@ Submission
     isHidden Bool default=False
     -- challenge version present when the submission was done
     version SHA1
+    team UserId Maybe
     UniqueSubmissionRepoCommitChallenge repo commit challenge
 Variant
     submission SubmissionId

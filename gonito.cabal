@@ -27,6 +27,7 @@ library
                      PersistEvaluationScheme
                      PersistMetric
                      PersistSHA1
+                     PersistTeamActionType
                      Settings
                      Settings.StaticFiles
                      Handler.Common
