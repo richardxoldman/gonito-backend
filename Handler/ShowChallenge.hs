@@ -73,6 +73,7 @@ import Data.HashMap.Strict.InsOrd (fromList)
 instance ToJSON LeaderboardEntry where
     toJSON entry = object
         [ "submitter" .= (formatSubmitter $ leaderboardUser entry)
+        , "team" .= (teamIdent <$> entityVal <$> leaderboardTeam entry)
         , "when" .= (submissionStamp $ leaderboardBestSubmission entry)
         , "version" .= (formatVersion $ leaderboardVersion entry)
         , "description" .= descriptionToBeShown (leaderboardBestSubmission entry)
@@ -171,6 +172,7 @@ instance ToSchema LeaderboardEntryView where
         & type_ .~ SwaggerObject
         & properties .~
            fromList [  ("submitter", stringSchema)
+                     , ("team", stringSchema)
                      , ("when", stringSchema)
                      , ("version", stringSchema)
                      , ("description", stringSchema)
@@ -1081,7 +1083,8 @@ convertTableEntryToView tests entry = do
     submissionViewIsOwner = (entityKey <$> mUserId) == Just (submissionSubmitter submission),
     submissionViewIsReevaluable = isReevaluable,
     submissionViewIsVisible = isVisible,
-    submissionViewIsPublic = submissionIsPublic submission
+    submissionViewIsPublic = submissionIsPublic submission,
+    submissionViewTeam = teamIdent <$> entityVal <$> tableEntryTeam entry
   }
   where submission = entityVal $ tableEntrySubmission entry
 
@@ -1176,7 +1179,8 @@ data SubmissionView = SubmissionView {
   submissionViewIsOwner :: Bool,
   submissionViewIsReevaluable :: Bool,
   submissionViewIsVisible :: Bool,
-  submissionViewIsPublic :: Bool
+  submissionViewIsPublic :: Bool,
+  submissionViewTeam :: Maybe Text
 }
 
 instance ToJSON SubmissionView where
@@ -1195,6 +1199,7 @@ instance ToJSON SubmissionView where
     , "isReevaluable" .= submissionViewIsReevaluable s
     , "isVisible" .= submissionViewIsVisible s
     , "isPublic" .= submissionViewIsPublic s
+    , "team" .= submissionViewTeam s
     ]
 
 instance ToSchema SubmissionView where
@@ -1222,6 +1227,7 @@ instance ToSchema SubmissionView where
                      , ("isReevaluable", boolSchema)
                      , ("isVisible", boolSchema)
                      , ("isPublic", boolSchema)
+                     , ("team", stringSchema)
                     ]
         & required .~ [ "id", "variant", "rank", "submitter", "when", "version",
                         "description", "tags", "hash", "evaluations",
