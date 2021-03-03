@@ -434,7 +434,9 @@ getChallengeSubmissionR challengeName = do
    let defaultUrl = fromMaybe (defaultRepo scheme repoHost challenge repo maybeUser)
                               ((<> challengeName) <$> (join $ userAltRepoScheme <$> entityVal <$> maybeUser))
 
-   (formWidget, formEnctype) <- generateFormPost $ submissionForm (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo)
+   Entity userId _ <- requireAuth
+
+   (formWidget, formEnctype) <- generateFormPost $ submissionForm userId (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
 
@@ -520,7 +522,7 @@ postChallengeSubmissionJsonR challengeName = do
     Entity userId _ <- requireAuthPossiblyByToken
 
     challengeEnt@(Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
-    ((result, _), _) <- runFormPostNoToken $ submissionForm Nothing Nothing Nothing
+    ((result, _), _) <- runFormPostNoToken $ submissionForm userId Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
           _ -> Nothing
@@ -558,7 +560,7 @@ postChallengeSubmissionR challengeName = do
     userId <- requireAuthId
 
     (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
-    ((result, _), _) <- runFormPost $ submissionForm Nothing Nothing Nothing
+    ((result, _), _) <- runFormPost $ submissionForm userId Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
           _ -> Nothing
@@ -750,7 +752,10 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                                                 extractionOptionsExternalLinks = Nothing,
                                                                 extractionOptionsDependencies = Nothing })
 
+      let mTeamId = challengeSubmissionDataTeam challengeSubmissionData
+
       submissionId <- getSubmission userId
+                                   mTeamId
                                    repoId
                                    (repoCurrentCommit repo)
                                    challengeId
@@ -876,8 +881,8 @@ getScoreForOut mainTestId out = do
              Just evaluation -> evaluationScore $ entityVal evaluation
              Nothing -> Nothing
 
-getSubmission :: UserId -> Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
-getSubmission userId repoId commit challengeId subDescription chan = do
+getSubmission :: UserId -> Maybe TeamId -> Key Repo -> SHA1 -> Key Challenge -> Text -> Channel -> Handler (Key Submission)
+getSubmission userId mTeamId repoId commit challengeId subDescription chan = do
   challenge <- runDB $ get404 challengeId
   maybeSubmission <- runDB $ getBy $ UniqueSubmissionRepoCommitChallenge repoId commit challengeId
   case maybeSubmission of
@@ -897,7 +902,7 @@ getSubmission userId repoId commit challengeId subDescription chan = do
         submissionIsPublic=False,
         submissionIsHidden=False,
         submissionVersion=challengeVersion challenge,
-        submissionTeam=Nothing }
+        submissionTeam=mTeamId }
 
 getSubmissionRepo :: UserId -> Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo userId challengeId repoSpec chan = getPossiblyExistingRepo checkRepoAvailibility userId challengeId repoSpec chan
@@ -925,16 +930,28 @@ challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "chall
 data ChallengeSubmissionData = ChallengeSubmissionData {
   challengeSubmissionDataDescription :: Maybe Text,
   challengeSubmissionDataTags :: Maybe Text,
-  challengeSubmissionDataRepo :: RepoSpec }
+  challengeSubmissionDataRepo :: RepoSpec,
+  challengeSubmissionDataTeam :: Maybe TeamId }
 
 
-submissionForm :: Maybe Text -> Maybe Text -> Maybe Text -> Form ChallengeSubmissionData
-submissionForm defaultUrl defBranch defaultGitAnnexRemote = renderBootstrap3 BootstrapBasicForm $ ChallengeSubmissionData
+
+submissionForm userId defaultUrl defBranch defaultGitAnnexRemote = renderBootstrap3 BootstrapBasicForm $ ChallengeSubmissionData
     <$> aopt textField (fieldWithTooltip MsgSubmissionDescription MsgSubmissionDescriptionTooltip) Nothing
     <*> aopt textField (tagsfs MsgSubmissionTags) Nothing
     <*> (RepoSpec <$> areq textField (bfs MsgSubmissionUrl) defaultUrl
                   <*> areq textField (bfs MsgSubmissionBranch) defBranch
                   <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) (Just defaultGitAnnexRemote))
+    <*> aopt (selectField teams) (bfs MsgAsTeam) Nothing
+    where teams = do
+            myTeams <- runDB $ E.select $ E.from $ \(team, teamMember) -> do
+              E.where_ (teamMember ^. TeamMemberTeam E.==. team ^. TeamId
+                        E.&&. teamMember ^. TeamMemberUser E.==. E.val userId)
+              E.orderBy [E.asc (team ^. TeamIdent)]
+              E.limit 1
+              return team
+
+            optionsPairs $ map (\t -> (teamIdent $ entityVal t, entityKey t)) myTeams
+
 
 getUserInfoR :: Handler Value
 getUserInfoR = do

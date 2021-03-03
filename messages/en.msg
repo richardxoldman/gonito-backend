@@ -102,3 +102,4 @@ Heal: Heal
 TeamIdent: Team name
 TeamIdentTooltip: Note that it cannot be changed later
 YourTeams: your teams
+AsTeam: As team
