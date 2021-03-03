@@ -647,7 +647,8 @@ trigger userId challengeName theUrl mBranch mGitAnnexRemote = do
         challengeSubmissionDataRepo = RepoSpec {
             repoSpecUrl=theUrl,
             repoSpecBranch=branch,
-            repoSpecGitAnnexRemote=mGitAnnexRemote}
+            repoSpecGitAnnexRemote=mGitAnnexRemote},
+        challengeSubmissionDataTeam = Nothing
         }
 
   case mChallengeEnt of
@@ -1356,8 +1357,8 @@ getTestProgressR m d = runViewProgress $ doTestProgress m d
 
 doTestProgress :: Int -> Int -> Channel -> Handler ()
 doTestProgress m d chan = do
-  forM [1..m] $ (\i -> do
-                    msg chan $ (Data.Text.pack $ ("GO\n" ++ show i))
-                    liftIO $ threadDelay (d * 1000000)
-                    return ())
+  _ <- forM [1..m] $ (\i -> do
+                       msg chan $ (Data.Text.pack $ ("GO\n" ++ show i))
+                       liftIO $ threadDelay (d * 1000000)
+                       return ())
   return ()
