@@ -1,3 +1,17 @@
+## 2.0.0
+
+New features:
+
+* users can be organized into teams
+
+Enhancements:
+
+* add end-point for listing tags
+
+Breaking compatibility:
+
+* switch to a different DB schema
+
 ## 1.2.0
 
 Enhancements:
