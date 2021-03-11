@@ -1,3 +1,12 @@
+
+<h2>Your teams
+
+$forall team <- teams
+  <h3>#{teamViewIdent team}
+  $forall member <- teamViewMembers team
+     <ul>
+       <li>#{teamMemberViewName member}
+
 <hr>
 
 <h2>Create a new team

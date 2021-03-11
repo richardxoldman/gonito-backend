@@ -7,6 +7,7 @@ import Handler.ListChallenges
 import Handler.ShowChallenge
 import Handler.Query
 import Handler.Tags
+import Handler.Team
 
 
 import Control.Lens hiding ((.=))
@@ -25,6 +26,7 @@ apiDescription = generalApi
                  <> challengeSubmissionApi
                  <> versionInfoApi
                  <> listTagsApi
+                 <> myTeamsApi
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)
