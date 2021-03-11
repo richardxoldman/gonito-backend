@@ -25,6 +25,7 @@
 /api/query/#Text QueryJsonR GET
 /api/challenge-info/#Text ChallengeInfoJsonR GET
 /api/version-info/#Text VersionInfoJsonR GET
+/api/list-tags ListTagsJsonR GET
 /list-archived-challenges ListArchivedChallengesR GET
 
 /my-teams MyTeamsR GET

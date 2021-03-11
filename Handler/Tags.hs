@@ -1,12 +1,63 @@
+{-# LANGUAGE OverloadedLists #-}
+
 module Handler.Tags where
 
-import Import
+import Import hiding (fromList, get)
 import Handler.Common (checkIfAdmin)
 import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
 import qualified Yesod.Table as Table
 
 import Handler.TagUtils
+
+import Data.Swagger.Declare
+import Data.Swagger hiding (Tag, tags)
+import Data.Proxy as DPR
+import Control.Lens hiding ((.=))
+import Data.HashMap.Strict.InsOrd (fromList)
+
+instance ToJSON (Entity Tag) where
+    toJSON v = object
+        [ "name" .= (tagName $ entityVal v)
+        , "description" .= (tagDescription $ entityVal v)
+        , "id" .= (entityKey v)
+        ]
+
+instance ToSchema (Entity Tag) where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
+    return $ NamedSchema (Just "Tag") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("name", stringSchema)
+                     , ("description", stringSchema)
+                     , ("id", intSchema)
+                    ]
+        & required .~ [ "name", "description", "id" ]
+
+listTagsApi :: Swagger
+listTagsApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareListTagsSwagger mempty
+
+declareListTagsSwagger :: Declare (Definitions Schema) Swagger
+declareListTagsSwagger = do
+  listTagsResponse      <- declareResponse (DPR.Proxy :: DPR.Proxy [Entity Tag])
+
+  return $ mempty
+    & paths .~
+        [ ("/api/list-tags", mempty & get ?~ (mempty
+                                              & produces ?~ MimeList ["application/json"]
+                                              & description ?~ "Returns the list of all tags"
+                                              & at 200 ?~ Inline listTagsResponse))
+        ]
+
+
+getListTagsJsonR :: Handler Value
+getListTagsJsonR = do
+  allTags <- fetchAllTags
+  return $ toJSON allTags
 
 getTagsR :: Handler Html
 getTagsR = do
@@ -39,8 +90,14 @@ canAddTags = do
     EverybodyCanAddNewTags -> return $ isJust mUser
 
 
+fetchAllTags :: (PersistQueryRead (YesodPersistBackend site),
+                YesodPersist site,
+                BaseBackend (YesodPersistBackend site) ~ SqlBackend)
+               => HandlerFor site [Entity Tag]
+fetchAllTags = runDB $ selectList [] [Asc TagName]
+
 doTags formWidget formEnctype = do
-  tags <- runDB $ selectList [] [Asc TagName]
+  tags <- fetchAllTags
   canTagsBeAdded <- canAddTags
   defaultLayout $ do
     setTitle "Tags"
