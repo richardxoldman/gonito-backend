@@ -8,6 +8,7 @@ import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
 
 import Handler.Shared (fieldWithTooltip)
 import Handler.JWT
+import Handler.AccountReset
 
 import PersistTeamActionType
 
@@ -23,6 +24,8 @@ import Data.Swagger hiding (Tag, tags)
 import Data.Proxy as DPR
 import Control.Lens hiding ((.=), (^.))
 import Data.HashMap.Strict.InsOrd (fromList)
+
+import qualified Data.Text as T
 
 getMyTeamsR :: Handler Html
 getMyTeamsR = do
@@ -60,21 +63,7 @@ createTeam userId teamCreationData = do
     teamIdent = theIdent,
     teamAvatar = avatarBytes }
 
-  _ <- insert TeamMember {
-    teamMemberUser = userId,
-    teamMemberTeam = newTeamId,
-    teamMemberIsCaptain = True
-  }
-
-  theNow <- liftIO getCurrentTime
-
-  _ <- insert TeamLog {
-     teamLogStamp = theNow,
-     teamLogActionType = TeamCreation,
-     teamLogAgens = userId,
-     teamLogPatiens = Nothing,
-     teamLogVerificationKey = Nothing
-  }
+  addMemberToTeam userId newTeamId True
 
   return ()
 
@@ -102,6 +91,7 @@ instance ToSchema TeamMemberView where
         & required .~ [ "name", "isCaptain" ]
 
 data TeamView = TeamView {
+  teamViewId :: TeamId,
   teamViewIdent :: Text,
   teamViewMembers :: [TeamMemberView]
 } deriving (Eq, Show)
@@ -124,9 +114,15 @@ instance ToSchema TeamView where
                     ]
         & required .~ [ "ident", "members" ]
 
+invitation :: TeamId -> WidgetFor App ()
+invitation teamId = do
+  (formWidget, formEnctype) <- handlerToWidget $ generateFormPost $ teamInvitationForm $ Just teamId
+  $(widgetFile "team-invitation-form")
+
 doMyTeams :: Handler Html
 doMyTeams = do
   (formWidget, formEnctype) <- generateFormPost createTeamForm
+
   teams <- fetchMyTeams
   defaultLayout $ do
     setTitle "Teams"
@@ -160,9 +156,9 @@ fetchMyTeams :: Handler [TeamView]
 fetchMyTeams = do
   Entity userId _ <- requireAuthPossiblyByToken
 
-  myTeams <- runDB $ E.select $ E.from $ \(team, member) -> do
-              E.where_ (member ^. TeamMemberTeam E.==. team ^. TeamId
-                        E.&&. member ^. TeamMemberUser E.==. E.val userId)
+  myTeams <- runDB $ E.select $ E.from $ \(team, tmember) -> do
+              E.where_ (tmember ^. TeamMemberTeam E.==. team ^. TeamId
+                        E.&&. tmember ^. TeamMemberUser E.==. E.val userId)
               E.orderBy [E.asc (team ^. TeamIdent)]
               return team
 
@@ -173,13 +169,14 @@ fetchTeamInfo :: (YesodPersist site,
                  PersistQueryRead (YesodPersistBackend site), PersistUniqueRead (YesodPersistBackend site))
                 => Entity Team -> HandlerFor site TeamView
 fetchTeamInfo (Entity teamId team) = do
-  members <- runDB $ E.select $ E.from $ \(user, member) -> do
-                    E.where_ (member ^. TeamMemberTeam E.==. E.val teamId
-                              E.&&. member ^. TeamMemberUser E.==. user ^. UserId)
+  members <- runDB $ E.select $ E.from $ \(user, tmember) -> do
+                    E.where_ (tmember ^. TeamMemberTeam E.==. E.val teamId
+                              E.&&. tmember ^. TeamMemberUser E.==. user ^. UserId)
                     E.orderBy [E.asc (user ^. UserIdent)]
-                    return (user, member)
+                    return (user, tmember)
 
   return $ TeamView {
+    teamViewId = teamId,
     teamViewIdent = teamIdent team,
     teamViewMembers = map (\(u, m) -> TeamMemberView {
                               teamMemberViewName = userIdent $ entityVal u,
@@ -191,3 +188,124 @@ createTeamForm :: Form TeamCreationData
 createTeamForm = renderBootstrap3 BootstrapBasicForm $ TeamCreationData
     <$> areq textField (fieldWithTooltip MsgTeamIdent MsgTeamIdentTooltip) Nothing
     <*> fileAFormOpt (bfs MsgAvatar)
+
+teamInvitationForm :: Maybe TeamId -> Form (Text, TeamId)
+teamInvitationForm teamId = renderBootstrap3 BootstrapBasicForm $ (,)
+  <$> areq textField (bfs MsgInviteToTeam) Nothing
+  <*> areq hiddenField "" teamId
+
+createTeamInvitationLink :: Key User -> Text -> Key Team -> HandlerFor App (Maybe Text)
+createTeamInvitationLink userId ident teamId = do
+  result <- runDB $ selectList [TeamMemberUser ==. userId, TeamMemberIsCaptain ==. True, TeamMemberTeam ==. teamId] []
+  case result of
+    [] -> return Nothing
+    _ -> do
+      (key, expirationMoment) <- createLinkToken
+      theNow <- liftIO getCurrentTime
+
+      mInvitee <- runDB $ getBy $ UniqueUser ident
+
+      case mInvitee of
+        Nothing -> do
+          -- we do this quietly not to leak username IDs
+          return ()
+        Just (Entity inviteeId _) -> do
+          _ <- runDB $ insert $ TeamLog {
+                teamLogStamp = theNow,
+                teamLogActionType = TeamInvitation,
+                teamLogAgens = userId,
+                teamLogPatiens = Just inviteeId,
+                teamLogTeam = Just teamId,
+                teamLogVerificationKey = Just key,
+                teamLogKeyExpirationDate = Just expirationMoment }
+          return ()
+
+      return $ Just key
+
+postCreateTeamInvitationLinkR :: Handler Html
+postCreateTeamInvitationLinkR = do
+  Entity userId _ <- requireAuthPossiblyByToken
+  ((result, _), _) <- runFormPost $ teamInvitationForm Nothing
+
+  let FormSuccess (ident', teamId) = result
+
+  let ident = T.strip ident'
+
+  mToken <- createTeamInvitationLink userId ident teamId
+
+  case mToken of
+    Just token -> do
+      defaultLayout $ do
+        setTitle "Invitation link"
+        $(widgetFile "invitation-link-created")
+    Nothing -> do
+      setMessage $ toHtml ("You must be a team captain to invite other people" :: Text)
+      doMyTeams
+
+checkTeamInvitationKey :: UserId -> Text -> Handler (Maybe (Entity Team, Entity User))
+checkTeamInvitationKey userId key = do
+  theNow <- liftIO getCurrentTime
+  teamLogEntry <- runDB $ selectList [TeamLogVerificationKey ==. Just key,
+                                     TeamLogPatiens ==. Just userId,
+                                     TeamLogKeyExpirationDate >. Just theNow] []
+  case teamLogEntry of
+    [Entity _ entry] -> do
+      let inviterId = teamLogAgens entry
+      inviter <- runDB $ get404 inviterId
+      let (Just teamId) = teamLogTeam entry
+      team <- runDB $ get404 teamId
+      return $ Just ((Entity teamId team), (Entity inviterId inviter))
+    _ -> return Nothing
+
+addMemberToTeam :: (MonadIO m, PersistStoreWrite backend, BaseBackend backend ~ SqlBackend)
+                  => Key User -> Key Team -> Bool -> ReaderT backend m ()
+addMemberToTeam userId teamId isCaptain = do
+  _ <- insert TeamMember {
+    teamMemberUser = userId,
+    teamMemberTeam = teamId,
+    teamMemberIsCaptain = isCaptain
+  }
+
+  theNow <- liftIO getCurrentTime
+
+  _ <- insert TeamLog {
+     teamLogStamp = theNow,
+     teamLogActionType = TeamCreation,
+     teamLogAgens = userId,
+     teamLogPatiens = Nothing,
+     teamLogTeam = Just teamId,
+     teamLogVerificationKey = Nothing,
+     teamLogKeyExpirationDate = Nothing
+  }
+
+  return ()
+
+getTeamInvitationLinkR :: Text -> Handler Html
+getTeamInvitationLinkR key = do
+  Entity userId _ <- requireAuthPossiblyByToken
+
+  result <- checkTeamInvitationKey userId key
+
+  case result of
+    Just (team, inviter) -> do
+      defaultLayout $ do
+        setTitle "Invitation link"
+        $(widgetFile "receive-invitation-link")
+    Nothing -> do
+      setMessage $ toHtml ("There is something wrong with this invitation link" :: Text)
+      doMyTeams
+
+postTeamInvitationLinkR :: Text -> Handler Html
+postTeamInvitationLinkR key = do
+  Entity userId _ <- requireAuthPossiblyByToken
+
+  result <- checkTeamInvitationKey userId key
+
+  case result of
+    Just (team, _) -> do
+      runDB $ addMemberToTeam userId (entityKey team) False
+      setMessage $ toHtml ("You joined " <> (teamIdent $ entityVal team))
+    Nothing -> do
+      setMessage $ toHtml ("There is something wrong with this invitation link" :: Text)
+
+  doMyTeams

@@ -31,6 +31,8 @@
 
 /my-teams MyTeamsR GET
 /create-team CreateTeamR POST
+/create-team-invitation-link CreateTeamInvitationLinkR POST
+/invitation-link/#Text TeamInvitationLinkR GET POST
 
 /challenge/#Text ShowChallengeR GET
 /challenge-readme/#Text ChallengeReadmeR GET

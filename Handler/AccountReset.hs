@@ -28,6 +28,13 @@ postCreateResetLinkR = do
                  _ -> Nothing
   doCreateResetLink mUserIdentifier mCourseId
 
+createLinkToken :: Handler (Text, UTCTime)
+createLinkToken = do
+  key <- newToken
+  theNow <- liftIO getCurrentTime
+  let expirationMoment = addUTCTime (60*60*24) theNow
+  return (key, expirationMoment)
+
 doCreateResetLink :: Maybe Text -> Maybe CourseId -> Handler Html
 doCreateResetLink (Just userIdentifier) mCourseId  = do
   mUserEnt <- runDB $ getBy $ UniqueUser userIdentifier
@@ -35,9 +42,7 @@ doCreateResetLink (Just userIdentifier) mCourseId  = do
 
   addParticipant userId mCourseId
 
-  key <- newToken
-  theNow <- liftIO getCurrentTime
-  let expirationMoment = addUTCTime (60*60*24) theNow
+  (key, expirationMoment) <- createLinkToken
   runDB $ update userId [UserVerificationKey =. Just key, UserKeyExpirationDate =. Just expirationMoment]
 
   defaultLayout $ do

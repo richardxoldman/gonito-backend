@@ -5,7 +5,7 @@ import Database.Persist.Sql
 
 import qualified Data.Text as T
 
-data TeamActionType = TeamCreation | TeamJoining | TeamLeaving
+data TeamActionType = TeamCreation | TeamJoining | TeamLeaving | TeamInvitation
   deriving (Eq, Show, Read)
 
 instance PersistField TeamActionType where

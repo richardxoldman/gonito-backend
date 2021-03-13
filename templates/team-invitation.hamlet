@@ -1,0 +1,4 @@
+<form method=post action=@{CreateTeamInvitationLinkR}#form enctype=#{invitationFormEnctype}>
+   ^{invitationFormWidget}
+   <button .btn .btn-primary type="submit">
+     _{MsgSubmit} <span class="glyphicon glyphicon-upload"></span>

@@ -1,0 +1,4 @@
+<p>Send this link to #{ident}
+
+<p>
+  <a href=@{TeamInvitationLinkR token}>@{TeamInvitationLinkR token}

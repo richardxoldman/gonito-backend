@@ -25,7 +25,9 @@ TeamLog
     actionType TeamActionType
     agens UserId
     patiens UserId Maybe
+    team TeamId Maybe
     verificationKey Text Maybe
+    keyExpirationDate UTCTime Maybe
 PublicKey
     user UserId
     pubkey Text

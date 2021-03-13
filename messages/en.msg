@@ -103,3 +103,5 @@ TeamIdent: Team name
 TeamIdentTooltip: Note that it cannot be changed later
 YourTeams: your teams
 AsTeam: As team
+InviteToTeam: Invite to team (give the identifier/login of a user)
+Join: Join

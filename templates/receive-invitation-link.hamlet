@@ -1,0 +1,4 @@
+<p>You are invited by #{userIdent $ entityVal inviter} to join the team #{teamIdent $ entityVal team}.
+
+<form method=post action=@{TeamInvitationLinkR key}#form enctype="text/plain">
+   <button>_{MsgJoin}
