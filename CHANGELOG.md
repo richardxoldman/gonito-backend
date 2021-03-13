@@ -1,3 +1,9 @@
+## 2.1.0
+
+New features:
+
+* A team captain can invite other members
+
 ## 2.0.0
 
 New features:
