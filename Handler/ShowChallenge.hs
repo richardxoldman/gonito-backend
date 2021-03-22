@@ -139,10 +139,8 @@ instance ToSchema LeaderboardView where
 
 getLeaderboardJsonR :: Text -> Handler Value
 getLeaderboardJsonR challengeName = do
-  app <- getYesod
-  let leaderboardStyle = appLeaderboardStyle $ appSettings app
-
-  Entity challengeId _ <- runDB $ getBy404 $ UniqueName challengeName
+  Entity challengeId challenge <- runDB $ getBy404 $ UniqueName challengeName
+  leaderboardStyle <- determineLeaderboardStyle challenge
   (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
   return $ toJSON $ LeaderboardView {
     leaderboardViewTests = tests,
@@ -192,12 +190,19 @@ toLeaderboardEntryView tests entry = LeaderboardEntryView {
                                     map (convertEvaluationToView (leaderboardEvaluationMap entry)) tests
   }
 
+determineLeaderboardStyle :: Challenge -> Handler LeaderboardStyle
+determineLeaderboardStyle challenge = do
+  app <- getYesod
+  let leaderboardStyle = appLeaderboardStyle $ appSettings app
+  return $ case challengeIsCompetition challenge of
+             Just True -> BySubmitter
+             _ -> leaderboardStyle
+
 getShowChallengeR :: Text -> Handler Html
 getShowChallengeR challengeName = do
   app <- getYesod
-  let leaderboardStyle = appLeaderboardStyle $ appSettings app
-
   challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName challengeName
+  leaderboardStyle <- determineLeaderboardStyle challenge
 
   isHealthy <- isChallengeHealthy challenge
 

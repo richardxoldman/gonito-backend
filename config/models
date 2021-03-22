@@ -59,6 +59,8 @@ Challenge
     archived Bool Maybe
     version SHA1
     sensitive Bool Maybe
+    -- forces BySubmitter leaderboard style
+    isCompetition Bool Maybe
 -- challenge version
 Version
     -- introduced later, hence Maybe
