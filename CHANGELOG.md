@@ -1,3 +1,14 @@
+## 2.2.0
+
+Bug fixes:
+
+* UTF-8 locale is set in the container
+
+New features:
+
+* A challenge can marked as competition (sorting by submitter/team is enforced then)
+
+
 ## 2.1.0
 
 New features:
