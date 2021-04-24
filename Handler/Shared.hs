@@ -178,7 +178,10 @@ getViewProgressWithWebSocketsR jobId = do
                 wait = document.getElementById("wait"),
                 conn;
 
-            url = url.replace("http:", "ws:").replace("https:", "wss:");
+            var anchor_name_regex = /\#.*$/;
+            url = url.replace("http:", "ws:").replace("https:", "wss:").replace(anchor_name_regex, "")
+
+
             conn = new WebSocket(url);
 
             conn.onmessage = function(e) {
