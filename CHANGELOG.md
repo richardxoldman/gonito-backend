@@ -1,3 +1,10 @@
+## 2.2.1
+
+Bug fixes:
+
+* Logging is fully working now with Nginx
+* Add git-annex to the container
+
 ## 2.2.0
 
 Bug fixes:
