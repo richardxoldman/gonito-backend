@@ -68,6 +68,46 @@ Gonito will be available at <https://127.0.0.1/>. Of course, your
 browser will complain about "Potential Security Risk" as these are
 local certificates.
 
+Gonito as backend
+-----------------
+
+On the one hand, Gonito is a monolithic Web application without front-
+and back-end separated. On the other, some features are provided as
+end-points, so that Gonito could be used with whatever front-end. The
+documentation in the Swagger format is provided at `/static/swagger-ui/index.html`.
+(see <https://gonito.net/static/swagger-ui/index.html> for this at the main instance).
+
+Keycloak is assumed as the identity provider here for those end-points that
+require authorization.
+
+Integration with Keycloak
+-------------------------
+
+Gonito can be easily integrated with Keycloak for the back-end
+end-points (but not yet for signing in Gonito as the monolithic Web
+application, this feature is on the way).
+
+1. Let's assume that you have a Keycloak instance. A simple way to run
+   for development and testing is: `docker run -e KEYCLOAK_USER=admin -e KEYCLOAK_PASSWORD=admin -p 8080:8080 jboss/keycloak`.
+
+2. You need to set up the JWK key from your Keycloak instance.
+   Go to `https://<KEYCLOAK-HOST>/auth/realms/<KEYCLOAK-REALM>/protocol/openid-connect/certs`
+   and copy the contents of the key from the JSON the (key/0 element
+   not the whole JSON!).
+
+3. Create `gonito` client in Keycloak (_Clients_ / _Create_).
+
+4. Set _Valid Redirect URIs_ for the `gonito` client in Keycloak (e.g. simply add `*` there).
+
+5. Set _Web Origin_ for the `gonito` client in Keycloak (e.g. simply add `*` there).
+
+6. Set `JSON_WEB_KEY` variable to the content of the JWK key (or `GONITO_JSON_WEB_KEY` when using docker-compose)
+   and run Gonito.
+
+If you create a new user, you need to run `/api/add-info` GET
+end-point. No parameters are needed it just read the user's data from
+the token and adds a record to the Gonito database.
+
 Gonito & git
 ------------
 
