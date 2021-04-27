@@ -1,3 +1,9 @@
+## 2.2.2
+
+Improvements:
+
+* Improve swagger and documentation
+
 ## 2.2.1
 
 Bug fixes:
