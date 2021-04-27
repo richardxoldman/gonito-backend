@@ -17,6 +17,8 @@ See the home page (and an instance of Gonito) at https://gonito.net .
 Installation
 ------------
 
+## For development
+
 [Gonito](https://gonito.net) is written in [Haskell](https://www.haskell.org) and uses
 [Yesod Web Framework](http://www.yesodweb.com/), but all you need is
 just [the Stack tool](https://github.com/commercialhaskell/stack). See https://github.com/commercialhaskell/stack
@@ -38,6 +40,33 @@ After installing Stack:
 
 The last command will start the Web server with Gonito (go to
 http://127.0.0.1:3000 in your browser).
+
+## With docker-compose
+
+The easiest way to run Gonito is with docker-compose.
+
+    git clone https://gitlab.com/filipg/gonito
+    cd gonito
+    cp sample.env .env
+    # now you need to edit .env manually,
+    # in particular, you need to set up the administrator's
+    # password and paths to volumes for the volumes,
+    # cloned data ("arena"), certificates and SSH data;
+    # also you need to set up your certificate
+    # here is an easy way to do it just for local
+    # testing
+    mkdir certs
+    cd certs
+    # generating certificates for HTTPS, remember to
+    # set the `NGINX_CERTIFICATE_DIR` variable in `.env`
+    # so that it would point to `certs` here
+    openssl req -x509 -newkey rsa:4096 -keyout privkey.pem -out fullchain.pem -days 365 -nodes
+    cd ..
+    docker-compose up
+
+Gonito will be available at <https://127.0.0.1/>. Of course, your
+browser will complain about "Potential Security Risk" as these are
+local certificates.
 
 Gonito & git
 ------------
