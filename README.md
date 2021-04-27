@@ -108,6 +108,8 @@ If you create a new user, you need to run `/api/add-info` GET
 end-point. No parameters are needed it just read the user's data from
 the token and adds a record to the Gonito database.
 
+You can simulate a front-end by going to `/static/test-gonito-as-backend.html`.
+
 Gonito & git
 ------------
 

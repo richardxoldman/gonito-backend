@@ -17,6 +17,8 @@ getSwaggerR = return $ toJSON apiDescription
 
 apiDescription :: Swagger
 apiDescription = generalApi
+                 <> addUserApi
+                 <> userInfoApi
                  <> listChallengesApi
                  <> leaderboardApi
                  <> allSubmissionsApi

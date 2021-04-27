@@ -992,6 +992,49 @@ getAddUserR = do
           return $ Bool True
     Nothing -> return $ Bool False
 
+addUserApi :: Swagger
+addUserApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareAddUserApi mempty
+
+declareAddUserApi :: Declare (Definitions Schema) Swagger
+declareAddUserApi = do
+  -- param schemas
+  response <- declareResponse (Proxy :: Proxy Bool)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/add-user",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Creates a new user"
+                                        & at 200 ?~ Inline response))
+                 ]
+
+
+userInfoApi :: Swagger
+userInfoApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareUserInfoApi mempty
+
+declareUserInfoApi :: Declare (Definitions Schema) Swagger
+declareUserInfoApi = do
+  -- param schemas
+  response <- declareResponse (Proxy :: Proxy String)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/user-info",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Returns the identifier of the user"
+                                        & at 200 ?~ Inline response))
+                 ]
+
+
+
 declareAllSubmissionsApi :: String -> String -> Declare (Definitions Schema) Swagger
 declareAllSubmissionsApi q d = do
   -- param schemas

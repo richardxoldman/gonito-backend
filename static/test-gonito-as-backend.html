@@ -8,7 +8,7 @@
             keycloak = new Keycloak({
                 url: 'http://127.0.0.1:8080/auth',
                 realm: 'master',
-                clientId: 'myapp',
+                clientId: 'gonito',
                 "enable-cors": true
             })
             keycloak.init({
@@ -23,7 +23,7 @@
 
             var loadData = function (target) {
 
-                var url = 'http://127.0.0.1:3000/api/' + target;
+                var url = '/api/' + target;
 
                 var req = new XMLHttpRequest();
                 req.open('GET', url, true);
@@ -60,12 +60,11 @@
               }
               xhr.setRequestHeader('Authorization', 'Bearer ' +
                  keycloak.token);
-              //xhr.setRequestHeader('Xyz', 'Blabla');
               xhr.setRequestHeader('Accept', 'application/json');
               return xhr;
           };
 
-          var url = 'http://127.0.0.1:3000/api/list-challenges';
+          var url = '/api/list-challenges';
           var method = 'GET';
           var xhr = createCORSRequest(method, url);
 
@@ -86,9 +85,10 @@
 
   <p><button onclick="loadData('add-user')">Add user</button></p>
 
-  <p><button onclick="loadData('user-info')">Check user</button></p>
+  <p><button onclick="loadData('user-info')">Check user info</button></p>
 
-  <p><button onclick="loadData('challenge-my-submissions/retroc2')">Other test</button></p>
+  <p><input type="text" id="challengeId" value="specify challenge ID here"/><button onclick="loadData('challenge-my-submissions/' +  document.getElementById('challengeId').value)">Test
+  showing user's submissions</button></p>
 
   <p><button onclick="loadData('list-challenges')">Yet another
       test</button></p>
