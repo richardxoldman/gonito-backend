@@ -73,7 +73,7 @@ postCreateChallengeR = do
           then
             runViewProgress $ doCreateChallenge challengeData
           else
-            runViewProgress $ (flip err) "unexpected challenge ID (use only lower-case letters, digits and hyphens, start with a letter)"
+            runViewProgress $ (flip err) "unexpected challenge ID (use only lower-case letters, digits and hyphens, start with a letter or a digit)"
       else
         runViewProgress $ (flip err) "MUST BE AN ADMIN TO CREATE A CHALLENGE"
 

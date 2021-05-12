@@ -19,7 +19,7 @@ AboutMe: about me
 AccountName: name
 AccountNameTooltip: your human-readable name (to be shown on the leaderboard)
 Id: ID
-IdTooltip: to be used in the URLs for your repos (only lower-case letters, digits or hyphens, must start with a lower-case letter), once set cannot be changed!
+IdTooltip: to be used in the URLs for your repos (only lower-case letters, digits or hyphens, must start with a lower-case letter or a digit), once set cannot be changed!
 SshPubKey: your SSH public key
 SshPubKeyTooltip: needed if you want to access repos hosted on Gonito.net (usually ".ssh/id_rsa.pub" in your home directory after you generated private/public key pair)
 Home: home
@@ -65,7 +65,7 @@ RestoreSubmission: restore submission
 ParameterName: parameter name
 ParameterValue: parameter value
 ChallengeName: computer-friendly name ("slug")
-ChallengeNameTooltip: to be used in the URLs (only lower-case letters, digits or hyphens, must start with a lower-case letter), once set cannot be changed!
+ChallengeNameTooltip: to be used in the URLs (only lower-case letters, digits or hyphens, must start with a lower-case letter or a digit), once set cannot be changed!
 FilterCondition: filter condition
 FilterConditionTooltip: the condition used to pre-select all submission — an extra graph will be drawed for all submissions matching this condition (not necessarily the target condition)
 TargetCondition: target condition

@@ -642,7 +642,7 @@ findFilePossiblyCompressed baseFilePath = do
     (h:_) -> Just h
 
 localIdRegexp :: Regex
-localIdRegexp = makeRegexOpts defaultCompOpt{newSyntax=True} defaultExecOpt ("\\`[a-z][-a-z0-9]{0,63}\\'" ::String)
+localIdRegexp = makeRegexOpts defaultCompOpt{newSyntax=True} defaultExecOpt ("\\`[a-z0-9][-a-z0-9]{0,63}\\'" ::String)
 
 unwantedLocalIds :: [Text]
 unwantedLocalIds = ["git",
