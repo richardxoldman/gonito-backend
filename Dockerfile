@@ -6,13 +6,25 @@ WORKDIR /root/
 
 RUN apt-get -y update && apt-get -y install libfcgi-dev && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN git clone git://gonito.net/geval && cd geval && git reset --hard a49abb560bd5e5f11f291f50176934fef5352c6c
-RUN git clone git://gonito.net/gonito && cd gonito && git reset --hard 0bad9b3e582c4807cf9bf1c70eae53489a1302a4
+COPY stack.yaml gonito.cabal /root/pre-build/
 
+COPY geval /root/pre-build/geval
 
-WORKDIR gonito
+WORKDIR /root/pre-build
 
-RUN stack install && rm -rf /root/.stack
+RUN ls /root
+
+RUN stack upgrade
+
+RUN stack --version
+
+RUN stack build --system-ghc --only-dependencies
+
+COPY . /root/gonito/
+
+WORKDIR /root/gonito
+
+RUN stack install --system-ghc && rm -rf /root/.stack
 
 FROM ubuntu:16.04 AS gonito-run
 

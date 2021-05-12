@@ -6,3 +6,6 @@
 	path = test/fake-git-repos/with-gonito-yaml
 	url = git://gonito.net/gonito-fake-repo-for-tests
 	branch = with-gonito-yaml
+[submodule "geval"]
+	path = geval
+	url = git://gonito.net/geval
