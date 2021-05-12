@@ -34,4 +34,4 @@ generalApi :: Swagger
 generalApi = (mempty :: Swagger)
   & info .~ (mempty &
               title .~ "Gonito API" &
-              version .~ "2.1.0")
+              version .~ "2.3.0")

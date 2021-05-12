@@ -1,3 +1,10 @@
+## 2.3.0
+
+Changes:
+
+* Switch to new style of Dockerfile
+* Challenge slugs can start with a digit
+
 ## 2.2.2
 
 Improvements:
