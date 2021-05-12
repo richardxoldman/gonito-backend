@@ -91,5 +91,6 @@ createUser ident = runDB $ do
         , userVerificationKey = Nothing
         , userKeyExpirationDate = Nothing
         , userTriggerToken = Nothing
+        , userAltRepoScheme = Nothing
         }
     return user
