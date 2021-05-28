@@ -59,9 +59,9 @@ getListArchivedChallengesR :: Handler Html
 getListArchivedChallengesR = generalListChallenges [ChallengeArchived ==. Just True]
 
 imageUrl :: Entity Challenge -> Maybe (Route App)
-imageUrl (Entity challengeId challenge) =
+imageUrl (Entity _ challenge) =
   case challengeImage challenge of
-    Just _ -> Just $ ChallengeImageR challengeId
+    Just _ -> Just $ ChallengeImgR $ challengeName challenge
     Nothing -> Nothing
 
 instance ToJSON (Entity Challenge) where
@@ -134,8 +134,7 @@ instance ToJSON (Entity Version) where
 instance ToSchema (Entity Version) where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (Proxy :: Proxy String)
-    booleanSchema <- declareSchemaRef (Proxy :: Proxy Bool)
-    return $ NamedSchema (Just "Challenge") $ mempty
+    return $ NamedSchema (Just "Version") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
            fromList [  ("deadline", stringSchema)
@@ -176,11 +175,36 @@ getVersionInfoJsonR versionHash = do
   return $ toJSON theVersion
 
 
-getChallengeImageR :: ChallengeId -> Handler Html
-getChallengeImageR challengeId = do
-   challenge <- runDB $ get404 challengeId
+getChallengeImgR :: Text -> Handler Html
+getChallengeImgR chName = do
+   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName chName
    case challengeImage challenge of
      Just image -> do
        addHeader "Content-Disposition" "attachment; filename=\"image.png\""
        sendResponse (typePng, toContent image)
      Nothing -> sendResponseStatus status202 ()
+
+
+declareChallengeImgSwagger :: Declare (Definitions Schema) Swagger
+declareChallengeImgSwagger = do
+  -- param schemas
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+
+  return $ mempty
+    & paths .~
+        [ ("/api/challenge-img/{challengeName}",
+            mempty & get ?~ (mempty
+                                 & parameters .~ [ Inline $ mempty
+                                                   & name .~ "challengeName"
+                                                   & required ?~ True
+                                                   & schema .~ ParamOther (mempty
+                                                                            & in_ .~ ParamPath
+                                                                            & paramSchema .~ challengeNameSchema) ]
+                                        & produces ?~ MimeList ["image/png"]
+                                        & description ?~ "Return the main image for a challenge"))
+        ]
+
+challengeImgApi :: Swagger
+challengeImgApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareChallengeImgSwagger mempty
