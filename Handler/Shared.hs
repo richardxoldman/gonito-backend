@@ -520,14 +520,20 @@ gatherSHA1ForCollectionOfFiles files = do
   contentss <- mapM readFile $ sort files
   return $ CHS.finalize $ foldl' CHS.update CHS.init contentss
 
+anonymizedLabel :: Text
+anonymizedLabel = "[anonymized]"
+
+nameNotGivenLabel :: Text
+nameNotGivenLabel = "[name not given]"
+
 formatSubmitter :: User -> Text
 formatSubmitter user = if userIsAnonymous user
                           then
-                            "[anonymised]"
+                            anonymizedLabel
                           else
                             case userName user of
                               Just name -> name
-                              Nothing -> "[name not given]"
+                              Nothing -> nameNotGivenLabel
 
 fieldWithTooltip :: forall master msg msg1. (RenderMessage master msg, RenderMessage master msg1) => msg -> msg1 -> FieldSettings master
 fieldWithTooltip name tooltip = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }

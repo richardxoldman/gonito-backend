@@ -75,7 +75,7 @@ instance ToJSON LeaderboardEntry where
         [ "submitter" .= (formatSubmitter $ leaderboardUser entry)
         , "team" .= (teamIdent <$> entityVal <$> leaderboardTeam entry)
         , "when" .= (submissionStamp $ leaderboardBestSubmission entry)
-        , "version" .= (formatVersion $ leaderboardVersion entry)
+        , "version" .= leaderboardVersion entry
         , "description" .= descriptionToBeShown (leaderboardBestSubmission entry)
                                                 (leaderboardBestVariant entry)
                                                 (leaderboardParams entry)
@@ -84,6 +84,8 @@ instance ToJSON LeaderboardEntry where
         , "isPublic" .= (submissionIsPublic $ leaderboardBestSubmission entry)
         , "isReevaluable" .= (leaderboardIsReevaluable entry)
         , "isVisible" .= (leaderboardIsVisible entry)
+        , "id" .= (leaderboardBestSubmissionId entry)
+        , "variant" .= (leaderboardBestVariantId entry)
         ]
 
 declareLeaderboardSwagger :: Declare (Definitions Schema) Swagger
@@ -155,6 +157,44 @@ addJsonKey :: Text -> Value -> Value -> Value
 addJsonKey key val (Object xs) = Object $ HMS.insert key val xs
 addJsonKey _ _ xs = xs
 
+
+-- Helper definitions for properties used in more than one place
+
+isVisibleSchema :: Referenced Schema
+isVisibleSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy Bool)
+  & description .~ Just "Whether the details of the submissions are visible (i.e. either the submission is public or the user has the right permissions)"
+
+isPublicSchema :: Referenced Schema
+isPublicSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy Bool)
+  & description .~ Just "Whether the submissions is public (i.e. whether its details are available to everyone)"
+
+hashSchema :: Referenced Schema
+hashSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy String)
+  & description .~ Just "Git SHA1 commit hash; could be used as an argument for queries (if the submission is visible)"
+  & example .~ Just "ec41f0e2636bfedbd765c9871c813f7c5b896c51"
+
+versionSchema :: Referenced Schema
+versionSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy [Int])
+  & description .~ Just "Challenge version under which the submission was done"
+  & example .~ Just (toJSON [2 :: Int, 0, 1])
+
+submitterSchema :: Referenced Schema
+submitterSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy String)
+  & description .~ Just ("Name of the submitter, might be a special value in square brackets, e.g. " <> anonymizedLabel <> " or " <> nameNotGivenLabel)
+  & example .~ Just "John Smith"
+
+submissionIdSchema :: Referenced Schema
+submissionIdSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy Int)
+  & description .~ Just "Internal database identifier of the submission"
+  & example .~ Just(toJSON (42 :: Int))
+
+variantIdSchema :: Referenced Schema
+variantIdSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy Int)
+  & description .~ Just "Internal database identifier of the submission variant"
+  & example .~ Just (toJSON (53 :: Int))
+
+
+
 instance ToJSON LeaderboardEntryView where
     toJSON v = addJsonKey "evaluations"
                            (toJSON $ leaderboardEntryViewEvaluations v)
@@ -163,23 +203,28 @@ instance ToJSON LeaderboardEntryView where
 instance ToSchema LeaderboardEntryView where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
-    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
     boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
     evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+
     return $ NamedSchema (Just "LeaderboardEntry") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
-           fromList [  ("submitter", stringSchema)
+           fromList [  ("submitter", submitterSchema)
                      , ("team", stringSchema)
                      , ("when", stringSchema)
-                     , ("version", stringSchema)
+                     , ("version", versionSchema)
                      , ("description", stringSchema)
-                     , ("times", intSchema)
-                     , ("hash", stringSchema)
+                     , ("times", Inline $ toSchema (DPR.Proxy :: DPR.Proxy Int)
+                                           & description .~ Just "How many times a submission from the same user/of the same tag was submitted"
+                                           & minProperties .~ Just 1
+                                           & example .~ Just (toJSON (2:: Int)))
+                     , ("hash", hashSchema)
                      , ("evaluations", evaluationsSchema)
-                     , ("isPublic", boolSchema)
+                     , ("isPublic", isPublicSchema)
                      , ("isReevaluable", boolSchema)
-                     , ("isVisible", boolSchema)
+                     , ("isVisible", isVisibleSchema)
+                     , ("id", submissionIdSchema)
+                     , ("variantId", variantIdSchema)
                     ]
         & required .~ [ "submitter", "when", "version", "description", "times", "hash", "evaluations" ]
 
@@ -1255,26 +1300,25 @@ instance ToSchema SubmissionView where
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
     intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
-    intsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Int])
     tagsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TagView])
     evalsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
     return $ NamedSchema (Just "SubmissionView") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
-           fromList [  ("id", intSchema)
-                     , ("variant", intSchema)
+           fromList [  ("id", submissionIdSchema)
+                     , ("variant", variantIdSchema)
                      , ("rank", intSchema)
-                     , ("submitter", stringSchema)
+                     , ("submitter", submitterSchema)
                      , ("when", stringSchema)
-                     , ("version", intsSchema)
+                     , ("version", versionSchema)
                      , ("description", stringSchema)
                      , ("tags", tagsSchema)
-                     , ("hash", stringSchema)
+                     , ("hash", hashSchema)
                      , ("evaluations", evalsSchema)
                      , ("isOwner", boolSchema)
                      , ("isReevaluable", boolSchema)
-                     , ("isVisible", boolSchema)
-                     , ("isPublic", boolSchema)
+                     , ("isVisible", isVisibleSchema)
+                     , ("isPublic", isPublicSchema)
                      , ("team", stringSchema)
                     ]
         & required .~ [ "id", "variant", "rank", "submitter", "when", "version",
