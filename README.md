@@ -28,9 +28,8 @@ By default, Gonito uses [Postgresql](http://www.postgresql.org/), so it needs to
 
 After installing Stack:
 
-    createdb -E utf8 gonito
-    git clone git://gonito.net/geval
-    git clone git://gonito.net/gonito
+    createdb -E utf8 gonito   # Postgres needs to be configured
+    git clone --recurse-submodules git://gonito.net/gonito
     cd gonito
     stack setup
     # before starting the build you might need some non-Haskell dependencies, e.g. in Ubuntu:
@@ -45,7 +44,7 @@ http://127.0.0.1:3000 in your browser).
 
 The easiest way to run Gonito is with docker-compose.
 
-    git clone https://gitlab.com/filipg/gonito
+    git clone --recurse-submodules https://gitlab.com/filipg/gonito
     cd gonito
     cp sample.env .env
     # now you need to edit .env manually,
