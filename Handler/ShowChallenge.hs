@@ -1203,7 +1203,7 @@ instance ToSchema TagView where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
-    return $ NamedSchema (Just "Tag") $ mempty
+    return $ NamedSchema (Just "TagView") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
            fromList [  ("name", stringSchema)
@@ -1296,7 +1296,7 @@ instance ToSchema SubmissionsView where
   declareNamedSchema _ = do
     submissionViewsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [SubmissionView])
     testRefsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TestReference])
-    return $ NamedSchema (Just "Tag") $ mempty
+    return $ NamedSchema (Just "SubmissionsView") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
            fromList [  ("submissions", submissionViewsSchema)
