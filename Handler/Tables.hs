@@ -9,6 +9,8 @@ import Handler.SubmissionView
 import Handler.TagUtils
 import Handler.JWT
 
+import Prelude (read)
+
 import Data.Diff
 
 import qualified Yesod.Table as Table
@@ -41,7 +43,7 @@ data TestReference = TestReference Text Text
 instance ToJSON TestReference where
     toJSON (TestReference metric n) = object
         [ "name" .= n,
-          "metric" .= metric
+          "metric" .= (Data.Text.pack $ evaluationSchemeName $ read $ Data.Text.unpack metric)
         ]
 
 instance ToSchema TestReference where
