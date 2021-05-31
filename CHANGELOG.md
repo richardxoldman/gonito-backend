@@ -1,3 +1,15 @@
+## 3.0.0
+
+Breaking compatibility:
+
+* "version" property is always a list of integers
+
+Improvements:
+
+* Clean up Swagger documentation
+* Fix metric names to be shown
+* Add the proper end-point for images
+
 ## 2.3.0
 
 Changes:
