@@ -134,7 +134,7 @@ library
                  , filemanip
                  , cryptohash
                  , markdown
-                 , geval >= 1.37.2 && < 1.40
+                 , geval >= 1.37.2 && < 1.41
                  , filepath
                  , yesod-table
                  , regex-tdfa
