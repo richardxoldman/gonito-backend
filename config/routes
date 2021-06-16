@@ -24,6 +24,7 @@
 /api/challenge-img/#Text ChallengeImgR GET
 /api/query/#Text QueryJsonR GET
 /api/challenge-info/#Text ChallengeInfoJsonR GET
+/api/challenge-repo/#Text ChallengeRepoJsonR GET
 /api/version-info/#Text VersionInfoJsonR GET
 /api/list-tags ListTagsJsonR GET
 /api/my-teams MyTeamsJsonR GET

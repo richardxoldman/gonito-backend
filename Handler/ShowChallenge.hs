@@ -421,6 +421,61 @@ getRepoLink repo = case getHttpLink repo of
         theUrl = repoUrl repo
         bareRepoName = drop sitePrefixLen theUrl
 
+instance ToJSON (Repo) where
+    toJSON repo = object
+        [ "url"  .= repoUrl repo
+        , "branch" .= repoBranch repo
+        , "browsableUrl" .= getRepoLink repo
+        ]
+
+instance ToSchema (Repo) where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (Proxy :: Proxy String)
+    return $ NamedSchema (Just "DataRepository") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [ ("url", Inline $ toSchema (DPR.Proxy :: DPR.Proxy String)
+                              & description .~ Just "Git URL to be cloned (https://, git:// or ssh:// protocol)"
+                              & example .~ Just (toJSON ("git://gonito.net/fiszki-ocr" :: String)))
+                    , ("branch", stringSchema)
+                    , ("browsableUrl", Inline $ toSchema (DPR.Proxy :: DPR.Proxy String)
+                                           & description .~ Just "An URL address that your browser can open; usually, but not always available"
+                                           & example .~ Just (toJSON ("https://github.com/applicaai/kleister-charity/tree/master" :: String)))
+
+                    ]
+        & required .~ [ "url", "branch" ]
+
+getChallengeRepoJsonR :: Text -> Handler Value
+getChallengeRepoJsonR chName = do
+  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName chName
+  repo <- runDB $ get404 $ challengePublicRepo challenge
+  return $ toJSON repo
+
+declareChallengeRepoSwagger :: Declare (Definitions Schema) Swagger
+declareChallengeRepoSwagger = do
+  -- param schemas
+  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/challenge-repo/{challengeName}",
+            mempty & DS.get ?~ (mempty
+                                 & parameters .~ [ Inline $ mempty
+                                                   & name .~ "challengeName"
+                                                   & required ?~ True
+                                                   & schema .~ ParamOther (mempty
+                                                                            & in_ .~ ParamPath
+                                                                            & paramSchema .~ challengeNameSchema) ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Return metadata for the challenge repository"))
+        ]
+
+challengeRepoApi :: Swagger
+challengeRepoApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareChallengeRepoSwagger mempty
+
+
 getChallengeHowToR :: Text -> Handler Html
 getChallengeHowToR challengeName = do
   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName

@@ -30,6 +30,7 @@ apiDescription = generalApi
                  <> listTagsApi
                  <> myTeamsApi
                  <> challengeImgApi
+                 <> challengeRepoApi
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)

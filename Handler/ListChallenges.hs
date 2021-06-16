@@ -82,7 +82,7 @@ instance ToSchema (Entity Challenge) where
     return $ NamedSchema (Just "Challenge") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
-           fromList [  ("name", stringSchema)
+           fromList [ ("name", stringSchema)
                     , ("title", stringSchema)
                     , ("description", stringSchema)
                     , ("starred", booleanSchema)
