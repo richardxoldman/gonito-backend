@@ -408,7 +408,7 @@ getHttpLink repo = case guessGitServer bareUrl of
         stripPrefixFrom pref t = if pref `isPrefixOf` t
                                    then drop (length pref) t
                                    else t
-        fixGonito t = T.replace "https://gonito.net" "https://gonito.net/gitlist" t
+        fixGonito t = (T.replace "https://gonito.net" "https://gonito.net/gitlist" t) <> ".git"
 
 getRepoLink :: Repo -> Maybe Text
 getRepoLink repo = case getHttpLink repo of
