@@ -1,3 +1,11 @@
+## 3.1.0
+
+Enhancements:
+
+* Update to new version of GEval (Haversine and BIO-Weighted-F1 metrics added)
+* Add challenge-repo end-point
+* Improve generating browsable links
+
 ## 3.0.0
 
 Breaking compatibility:
