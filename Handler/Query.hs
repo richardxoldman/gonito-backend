@@ -683,25 +683,6 @@ adjustNumberOfColumnsShown maximumNumberOfColumns tests = adjustNumberOfColumnsS
 
         minimumNumberOfTests = 2
 
-data GitServer = Gogs | GitLab
-  deriving (Eq, Show)
-
-guessGitServer :: Text -> Maybe GitServer
-guessGitServer bareUrl
-  | "git.wmi.amu.edu.pl" `isPrefixOf` bareUrl = Just Gogs
-  | "gitlab." `isPrefixOf` bareUrl = Just GitLab
-  | "git." `isPrefixOf` bareUrl = Just GitLab
-  | otherwise = Nothing
-
-getHttpLink :: Repo -> Maybe (Text, Text)
-getHttpLink repo = case guessGitServer bareUrl of
-  Just Gogs -> Just (convertToHttpLink bareUrl, "/src/" <> branch)
-  Just GitLab -> Just (convertToHttpLink bareUrl, "/-/tree/" <> branch)
-  Nothing -> Nothing
-  where bareUrl = T.replace "git@" "" url
-        url = repoUrl repo
-        branch = repoBranch repo
-        convertToHttpLink = ("https://" <>) . (T.replace ":" "/") . (T.replace ".git" "")
 
 submissionHeader :: Diff (FullSubmissionInfo, Maybe Text) -> WidgetFor App ()
 submissionHeader param =

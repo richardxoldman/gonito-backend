@@ -376,10 +376,46 @@ showChallengeWidget mUserEnt
         higherTheBetterArray = getIsHigherTheBetterArray $ map entityVal tests
         mUserId = entityKey <$> mUserEnt
 
-getRepoLink :: Repo -> Maybe Text
-getRepoLink repo
-  | sitePrefix `isPrefixOf` theUrl = Just $ (browsableGitRepo bareRepoName) ++ "/" ++ (repoBranch repo)
+data GitServer = Gogs | GitLab | GitHub | Gonito
+  deriving (Eq, Show)
+
+guessGitServer :: Text -> Maybe GitServer
+guessGitServer bareUrl
+  | "git.wmi.amu.edu.pl" `isPrefixOf` bareUrl = Just Gogs
+  | "gitlab." `isPrefixOf` bareUrl = Just GitLab
+  | "git." `isPrefixOf` bareUrl = Just GitLab
+  | "github." `isPrefixOf` bareUrl = Just GitHub
+  | "gonito.net" `isPrefixOf` bareUrl = Just Gonito
   | otherwise = Nothing
+
+getHttpLink :: Repo -> Maybe (Text, Text)
+getHttpLink repo = case guessGitServer bareUrl of
+  Just Gogs -> Just (convertToHttpLink bareUrl, "/src/" <> branch)
+  Just GitLab -> Just (convertToHttpLink bareUrl, "/-/tree/" <> branch)
+  Just GitHub -> Just (convertToHttpLink bareUrl, "/tree/" <> branch)
+  Just Gonito -> Just (fixGonito $ convertToHttpLink bareUrl, "/" <> branch)
+  Nothing -> Nothing
+  where bareUrl = removeProtocol $ removeLogin rurl
+        removeLogin t = r
+          where (_, r) = T.breakOnEnd "@" t
+        rurl = repoUrl repo
+        branch = repoBranch repo
+        convertToHttpLink = ("https://" <>) . (T.replace ":" "/") . (T.replace ".git" "")
+        removeProtocol = stripPrefixes ["https://", "http://", "git://", "ssh://",
+                                        "ssh." -- when a domain with ssh. prefix is used
+                                       ]
+        stripPrefixes prefixes t = foldr stripPrefixFrom t prefixes
+        stripPrefixFrom pref t = if pref `isPrefixOf` t
+                                   then drop (length pref) t
+                                   else t
+        fixGonito t = T.replace "https://gonito.net" "https://gonito.net/gitlist" t
+
+getRepoLink :: Repo -> Maybe Text
+getRepoLink repo = case getHttpLink repo of
+  Just (hostname, linkRest) -> Just $ hostname <> linkRest
+  Nothing -> if sitePrefix `isPrefixOf` theUrl
+            then Just $ (browsableGitRepo bareRepoName) ++ "/" ++ (repoBranch repo)
+            else Nothing
   where sitePrefix = "git://gonito.net/" :: Text
         sitePrefixLen = length sitePrefix
         theUrl = repoUrl repo

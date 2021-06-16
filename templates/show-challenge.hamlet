@@ -1,6 +1,6 @@
 <p> Git repo URL: <tt>#{repoUrl repo}</tt> / Branch: <tt> #{repoBranch repo}</tt>
 $maybe repoLink  <- maybeRepoLink
-  (Browse at <tt><a href="#{repoLink}">#{repoLink}</a></tt>)
+  Browse at <tt><a href="#{repoLink}">#{repoLink}</a></tt>
 $nothing
 
 $if (challengeArchived challenge == Just True)
