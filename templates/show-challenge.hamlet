@@ -1,7 +1,8 @@
-<p> Git repo URL: <tt>#{repoUrl repo}</tt> / Branch: <tt> #{repoBranch repo}</tt>
-$maybe repoLink  <- maybeRepoLink
-  Browse at <tt><a href="#{repoLink}">#{repoLink}</a></tt>
-$nothing
+<p> Git repo URL: <tt style="background-color: #eeeeee";>#{repoUrl repo}</tt> / Branch: <tt style="background-color: #eeeeee";> #{repoBranch repo}</tt>
+  <br>Run <tt style="background-color: #eeeeee";>git clone --single-branch #{repoUrl repo} -b #{repoBranch repo}</tt> to get the challenge data
+    $maybe repoLink  <- maybeRepoLink
+      <br>Browse at <tt><a href="#{repoLink}">#{repoLink}</a></tt>
+    $nothing
 
 $if (challengeArchived challenge == Just True)
   <p><b>_{MsgChallengeIsArchived}
