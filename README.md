@@ -91,6 +91,7 @@ application, this feature is on the way).
 
 2. You need to set up the JWK key from your Keycloak instance.
    Go to `https://<KEYCLOAK-HOST>/auth/realms/<KEYCLOAK-REALM>/protocol/openid-connect/certs`
+   (e.g. for the Docker run as given in (1): <http://127.0.0.1:8080/auth/realms/master/protocol/openid-connect/certs>)
    and copy the contents of the key from the JSON the (key/0 element
    not the whole JSON!).
 
