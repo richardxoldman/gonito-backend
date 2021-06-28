@@ -71,4 +71,9 @@ location: "_env:LOCATION:"
 # Note: at the moment, only RS256 is handled.
 json-web-key: "_env:JSON_WEB_KEY"
 
+# Take the team name of a user from a given metadata field. Currently
+# handled only when JWK is used, family_name and given_name are handled.
+# If one of these is set, it is not considered a part of the username.
+team-field: "_env:TEAM_FIELD"
+
 #analytics: UA-YOURCODE

@@ -27,6 +27,7 @@ import Handler.Dashboard
 import Handler.Common
 import Handler.Evaluate
 import Handler.JWT
+import Handler.Team
 
 import Database.Persist.Sql (fromSqlKey)
 
@@ -1112,10 +1113,32 @@ getAddUserR = do
       case x of
         Just _ -> return $ Bool False
         Nothing -> do
-          _ <- runDB $ insert User
+          -- family or given name can be used for a team name
+          -- (as an ugly work-around...), hence we look at TEAM_FIELD and when
+          -- it is set to "given_name" or "family_name" it is not
+          -- considered a part of the user's
+          -- name
+
+          app <- getYesod
+          let teamField = appTeamField $ appSettings app
+
+          let uname = intercalate " " $ catMaybes (
+                [if teamField /= (Just "given_name")
+                 then jwtAuthInfoGivenName infos
+                 else Nothing,
+                 if teamField /= (Just "family_name")
+                 then jwtAuthInfoFamilyName infos
+                 else Nothing])
+
+
+          let mUName = if (null uname)
+                      then Nothing
+                      else (Just uname)
+
+          userId <- runDB $ insert User
             { userIdent = ident
             , userPassword = Nothing
-            , userName = Nothing
+            , userName = mUName
             , userIsAdmin = False
             , userLocalId = Nothing
             , userIsAnonymous = False
@@ -1125,6 +1148,23 @@ getAddUserR = do
             , userTriggerToken = Nothing
             , userAltRepoScheme = Nothing
             }
+
+          case teamField of
+            Just teamFieldName -> do
+              case jwtAuthInfoCustomField teamFieldName infos of
+                Just team -> do
+                  t <- runDB $ getBy $ UniqueTeam team
+                  (teamId, isCaptain) <- case t of
+                    Just (Entity existingTeamId _) -> return (existingTeamId, False)
+                    Nothing -> do
+                      newTeamId <- runDB $ insert $ Team {teamIdent = team,
+                                                         teamAvatar = Nothing}
+                      return (newTeamId, True)
+                  runDB $ addMemberToTeam userId teamId isCaptain
+                  return ()
+                Nothing -> return ()
+            Nothing -> return ()
+
           return $ Bool True
     Nothing -> return $ Bool False
 

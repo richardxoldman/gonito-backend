@@ -19,7 +19,6 @@ import Yesod.Default.Util          (WidgetFileSettings, widgetFileNoReload,
                                     widgetFileReload)
 
 import qualified Jose.Jwk as JWK
-import Data.Aeson
 
 data RepoScheme = SelfHosted | Branches
                   deriving (Eq, Show)
@@ -108,6 +107,9 @@ data AppSettings = AppSettings
     , appIsPublic :: Bool
     , appJSONWebKey :: Maybe JWK.Jwk
     , appViewingProgressStyle   :: ViewingProgressStyle
+    -- ^ Take the team name from a given metadata field
+    -- Currently makes sense only when JWT token is used
+    , appTeamField :: Maybe Text
     }
 
 instance FromJSON AppSettings where
@@ -156,6 +158,8 @@ instance FromJSON AppSettings where
         appJSONWebKey             <- o .:? "json-web-key"
 
         appViewingProgressStyle   <- toViewingProgressStyle <$> o .: "viewing-progress-style"
+
+        appTeamField             <- o .:? "team-field"
 
         return AppSettings {..}
 

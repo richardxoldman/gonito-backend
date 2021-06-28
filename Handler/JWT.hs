@@ -10,16 +10,28 @@ import qualified Jose.Jwa as JWA
 
 import Data.Aeson
 
-data JwtAuthInfo = JwtAuthInfo Text
+data JwtAuthInfo = JwtAuthInfo {
+     jwtAuthInfoUsername :: Text,
+     jwtAuthInfoFamilyName :: Maybe Text,
+     jwtAuthInfoGivenName :: Maybe Text
+  }
+
   deriving (Show, Eq)
 
 instance FromJSON JwtAuthInfo where
  parseJSON (Object v) =
     JwtAuthInfo <$> v .: "preferred_username"
+                <*> v .: "family_name"
+                <*> v .: "given_name"
  parseJSON _ = mzero
 
 jwtAuthInfoIdent :: JwtAuthInfo -> Text
-jwtAuthInfoIdent (JwtAuthInfo ident) = ident
+jwtAuthInfoIdent jwtAuthInfo = jwtAuthInfoUsername jwtAuthInfo
+
+jwtAuthInfoCustomField :: Text -> JwtAuthInfo -> Maybe Text
+jwtAuthInfoCustomField "given_name" jwt = jwtAuthInfoGivenName jwt
+jwtAuthInfoCustomField "family_name" jwt = jwtAuthInfoFamilyName jwt
+jwtAuthInfoCustomField _ _ = Nothing
 
 authorizationTokenAuth :: Handler (Maybe JwtAuthInfo)
 authorizationTokenAuth = do
