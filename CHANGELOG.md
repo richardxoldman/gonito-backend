@@ -1,3 +1,12 @@
+## 3.2.0
+
+Enhancements:
+
+* Add TEAM_FIELD configuration variable to choose a metadata field from
+  which to take the team name of a user
+* Add AUTO_TEAM configuration variable to automatically set
+  the default team for a submission
+
 ## 3.1.0
 
 Enhancements:
@@ -5,6 +14,7 @@ Enhancements:
 * Update to new version of GEval (Haversine and BIO-Weighted-F1 metrics added)
 * Add challenge-repo end-point
 * Improve generating browsable links
+
 
 ## 3.0.0
 
