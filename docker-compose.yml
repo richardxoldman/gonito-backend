@@ -27,6 +27,8 @@ services:
       - IS_PUBLIC=${GONITO_IS_PUBLIC:-true}
       - JSON_WEB_KEY=${JSON_WEB_KEY}
       - VIEWING_PROGRESS_STYLE=${GONITO_VIEWING_PROGRESS_STYLE:-with-web-sockets}
+      - AUTO_TEAM=${GONITO_AUTO_TEAM:-false}
+      - TEAM_FIELD=$GONITO_TEAM_FIELD
     expose:
       - "3000"
     volumes:
