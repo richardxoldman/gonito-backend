@@ -110,6 +110,10 @@ data AppSettings = AppSettings
     -- ^ Take the team name from a given metadata field
     -- Currently makes sense only when JWT token is used
     , appTeamField :: Maybe Text
+    -- ^ Automatically assign the team.
+    -- The team for which the user is the captain
+    -- will be preferred
+    , appAutoTeam :: Bool
     }
 
 instance FromJSON AppSettings where
@@ -160,6 +164,8 @@ instance FromJSON AppSettings where
         appViewingProgressStyle   <- toViewingProgressStyle <$> o .: "viewing-progress-style"
 
         appTeamField             <- o .:? "team-field"
+
+        appAutoTeam              <- o .:? "auto-team" .!= False
 
         return AppSettings {..}
 

@@ -580,7 +580,9 @@ getChallengeSubmissionR challengeName = do
 
    Entity userId _ <- requireAuth
 
-   (formWidget, formEnctype) <- generateFormPost $ submissionForm userId (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo)
+   defaultTeam <- fetchDefaultTeam userId
+
+   (formWidget, formEnctype) <- generateFormPost $ submissionForm userId (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo) (Just defaultTeam)
    challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
 
 
@@ -666,7 +668,7 @@ postChallengeSubmissionJsonR challengeName = do
     Entity userId _ <- requireAuthPossiblyByToken
 
     challengeEnt@(Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
-    ((result, _), _) <- runFormPostNoToken $ submissionForm userId Nothing Nothing Nothing
+    ((result, _), _) <- runFormPostNoToken $ submissionForm userId Nothing Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
           _ -> Nothing
@@ -704,7 +706,7 @@ postChallengeSubmissionR challengeName = do
     userId <- requireAuthId
 
     (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
-    ((result, _), _) <- runFormPost $ submissionForm userId Nothing Nothing Nothing
+    ((result, _), _) <- runFormPost $ submissionForm userId Nothing Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
           _ -> Nothing
@@ -897,7 +899,9 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                                                 extractionOptionsExternalLinks = Nothing,
                                                                 extractionOptionsDependencies = Nothing })
 
-      let mTeamId = challengeSubmissionDataTeam challengeSubmissionData
+      mTeamId <- case challengeSubmissionDataTeam challengeSubmissionData of
+                  Just tid -> return $ Just tid
+                  Nothing -> fetchDefaultTeam userId
 
       submissionId <- getSubmission userId
                                    mTeamId
@@ -1079,22 +1083,34 @@ data ChallengeSubmissionData = ChallengeSubmissionData {
   challengeSubmissionDataTeam :: Maybe TeamId }
 
 
+fetchUserTeams :: (YesodPersist site, BackendCompatible SqlBackend (YesodPersistBackend site), PersistQueryRead (YesodPersistBackend site), PersistUniqueRead (YesodPersistBackend site)) => Key User -> HandlerFor site [Entity Team]
+fetchUserTeams userId = runDB $ E.select $ E.from $ \(team, teamMember) -> do
+                                E.where_ (teamMember ^. TeamMemberTeam E.==. team ^. TeamId
+                                          E.&&. teamMember ^. TeamMemberUser E.==. E.val userId)
+                                E.orderBy [E.desc (teamMember ^. TeamMemberIsCaptain), E.asc (team ^. TeamIdent)]
+                                return team
 
-submissionForm userId defaultUrl defBranch defaultGitAnnexRemote = renderBootstrap3 BootstrapBasicForm $ ChallengeSubmissionData
+fetchDefaultTeam :: Key User -> HandlerFor App (Maybe (Key Team))
+fetchDefaultTeam userId = do
+  myTeams <- fetchUserTeams userId
+  app <- getYesod
+  let autoTeam = appAutoTeam $ appSettings app
+  if autoTeam
+    then
+      return $ entityKey <$> listToMaybe myTeams
+    else
+      return Nothing
+
+
+submissionForm userId defaultUrl defBranch defaultGitAnnexRemote defaultTeam = renderBootstrap3 BootstrapBasicForm $ ChallengeSubmissionData
     <$> aopt textField (fieldWithTooltip MsgSubmissionDescription MsgSubmissionDescriptionTooltip) Nothing
     <*> aopt textField (tagsfs MsgSubmissionTags) Nothing
     <*> (RepoSpec <$> areq textField (bfs MsgSubmissionUrl) defaultUrl
                   <*> areq textField (bfs MsgSubmissionBranch) defBranch
                   <*> aopt textField (bfs MsgSubmissionGitAnnexRemote) (Just defaultGitAnnexRemote))
-    <*> aopt (selectField teams) (bfs MsgAsTeam) Nothing
+    <*> aopt (selectField teams) (bfs MsgAsTeam) defaultTeam
     where teams = do
-            myTeams <- runDB $ E.select $ E.from $ \(team, teamMember) -> do
-              E.where_ (teamMember ^. TeamMemberTeam E.==. team ^. TeamId
-                        E.&&. teamMember ^. TeamMemberUser E.==. E.val userId)
-              E.orderBy [E.asc (team ^. TeamIdent)]
-              E.limit 1
-              return team
-
+            myTeams <- fetchUserTeams userId
             optionsPairs $ map (\t -> (teamIdent $ entityVal t, entityKey t)) myTeams
 
 

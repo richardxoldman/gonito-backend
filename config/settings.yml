@@ -76,4 +76,7 @@ json-web-key: "_env:JSON_WEB_KEY"
 # If one of these is set, it is not considered a part of the username.
 team-field: "_env:TEAM_FIELD"
 
+# Whether to automatically assign teams for submissions.
+auto-team: "_env:AUTO_TEAM:false"
+
 #analytics: UA-YOURCODE
