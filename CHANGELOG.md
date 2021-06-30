@@ -1,3 +1,9 @@
+## 3.3.0
+
+Improvements:
+
+* Handle DOS/Windows end-of-lines
+
 ## 3.2.0
 
 Enhancements:
