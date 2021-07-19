@@ -1,3 +1,9 @@
+## 3.4.0
+
+Enhancements (with GEval):
+
+* Fuzzy matching can be used for Accuracy
+
 ## 3.3.0
 
 Improvements:
