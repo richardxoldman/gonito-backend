@@ -37,6 +37,8 @@ import Data.Proxy as DPR
 import Control.Lens hiding ((.=), (^.))
 import Data.HashMap.Strict.InsOrd (fromList)
 
+import qualified Data.Set as S
+
 data TestReference = TestReference Text Text
                      deriving (Show, Eq, Ord)
 
@@ -76,6 +78,21 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardIsReevaluable :: Bool,
   leaderboardTeam :: Maybe (Entity Team)
 }
+
+-- | Finds parameters shared by all entries (including values) and removes
+-- them from the entries
+extractCommonParams :: [TableEntry] -> ([Entity Parameter], [TableEntry])
+extractCommonParams [] = ([], [])
+extractCommonParams entries@(firstEntry:_) = (commonParams, map removeParams entries)
+  where commonParams = filter (\p -> paramToNameVal p `S.member` commonNameVals) $ tableEntryParams firstEntry
+        commonNameVals =
+          DL.foldl intersection hS tS
+        (hS:tS) = map (S.fromList
+                         . map paramToNameVal
+                         . tableEntryParams) entries
+        paramToNameVal (Entity _ p) = (parameterName p, parameterValue p)
+        removeParams e
+          = e { tableEntryParams = filter (\p -> paramToNameVal p `S.notMember` commonNameVals) $ tableEntryParams e }
 
 data TableEntry = TableEntry {
   tableEntrySubmission :: Entity Submission,

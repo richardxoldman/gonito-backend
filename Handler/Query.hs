@@ -651,11 +651,14 @@ resultTable (Entity submissionId submission) = do
                                                         id
                                                         (submissionChallenge submission)
 
+  let (commonParams', strippedTableEntries) = extractCommonParams tableEntries
+  let commonParams = map (\(Entity _ p) -> (parameterName p, OneThing $ parameterValue p)) commonParams'
+
   let paramNames =
         nub
         $ map (parameterName . entityVal)
         $ concat
-        $ map tableEntryParams tableEntries
+        $ map tableEntryParams strippedTableEntries
 
   let maximumNumberOfColumns = 10
 
