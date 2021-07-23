@@ -1102,6 +1102,7 @@ fetchDefaultTeam userId = do
       return Nothing
 
 
+submissionForm :: UserId -> Maybe Text -> Maybe Text -> Maybe Text -> Maybe (Maybe TeamId) -> Form ChallengeSubmissionData
 submissionForm userId defaultUrl defBranch defaultGitAnnexRemote defaultTeam = renderBootstrap3 BootstrapBasicForm $ ChallengeSubmissionData
     <$> aopt textField (fieldWithTooltip MsgSubmissionDescription MsgSubmissionDescriptionTooltip) Nothing
     <*> aopt textField (tagsfs MsgSubmissionTags) Nothing
@@ -1316,7 +1317,9 @@ convertTableEntryToView tests entry = do
     submissionViewSubmitter = formatSubmitter $ entityVal $ tableEntrySubmitter entry,
     submissionViewWhen = submissionStamp submission,
     submissionViewVersion = tableEntryVersion entry,
-    submissionViewDescription = submissionDescription submission,
+    submissionViewDescription = descriptionToBeShown submission
+                                                     (entityVal $ tableEntryVariant entry)
+                                                     (map entityVal $ tableEntryParams entry),
     submissionViewTags = Import.map convertTagInfoToView $ tableEntryTagsInfo entry,
     submissionViewHash = fromSHA1ToText $ submissionCommit submission,
     submissionViewEvaluations = catMaybes $ Import.map (convertEvaluationToView $ tableEntryMapping entry) tests,
