@@ -138,6 +138,12 @@ descriptionCell mauthId = Table.widget "description" (
                                                                                    (getInfoLink s mauthId)
                                                                                    tagEnts)
 
+formatListWithLimit :: Int -> (a -> Text) -> [a] -> Text
+formatListWithLimit limit fun l = (Data.Text.unwords $ map fun $ Import.take limit l) <>
+                                     (if length l <= limit
+                                      then ""
+                                      else " [...]")
+
 
 descriptionToBeShown :: Submission -> Variant -> [Parameter] -> Text
 descriptionToBeShown s v params = (submissionDescription s) ++ (Data.Text.pack vdescription) ++ " " ++ paramsShown
@@ -147,7 +153,8 @@ descriptionToBeShown s v params = (submissionDescription s) ++ (Data.Text.pack v
                            ""
                          else
                            " " ++ r
-        paramsShown = Data.Text.unwords $ map formatParameter params
+        maximumNumberOfParamsShown = 8
+        paramsShown = formatListWithLimit maximumNumberOfParamsShown formatParameter params
 
 extractScore :: TestReference -> TableEntry -> Maybe Evaluation
 extractScore k tableEntry = lookup k $ tableEntryMapping tableEntry
