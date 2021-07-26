@@ -1,3 +1,10 @@
+## 3.5.0 (2021-07-25)
+
+Improvements:
+
+* Improve handling MultiLabel-F1 when probs are given
+* Improve legitibility of submissions with a large number of parameters
+
 ## 3.4.0
 
 Enhancements (with GEval):
