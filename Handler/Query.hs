@@ -107,24 +107,28 @@ instance ToSchema VariantView where
 
 data QueryResultView = QueryResultView {
   queryResultViewSubmissionInfo :: FullSubmissionInfo,
-  queryResultViewVariants :: [VariantView]
+  queryResultViewVariants :: [VariantView],
+  queryResultSharedParams :: [Parameter]
 }
 
 instance ToJSON QueryResultView where
     toJSON entry = object
         [ "submissionInfo" .= queryResultViewSubmissionInfo entry,
-          "variants" .= queryResultViewVariants entry
+          "variants" .= queryResultViewVariants entry,
+          "sharedParams" .= queryResultSharedParams entry
         ]
 
 instance ToSchema QueryResultView where
   declareNamedSchema _ = do
     submissionInfoSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy FullSubmissionInfo)
-    variantViewsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [VariantView])
     return $ NamedSchema (Just "QueryResult") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
            fromList [  ("submissionInfo", submissionInfoSchema),
-                       ("variants", variantViewsSchema)
+                       ("variants", Inline $ toSchema (DPR.Proxy :: DPR.Proxy [VariantView])
+                                           & description .~ Just "A list of outputs (variants) associated with the given submission, usually one, but could be more"),
+                       ("sharedParams", Inline $ toSchema (DPR.Proxy :: DPR.Proxy [Parameter])
+                                           & description .~ Just "Parameters shared by all variants; if there is only one variant, all parameters will be given here")
                     ]
         & required .~ [ "submissionInfo", "variants" ]
 
@@ -167,10 +171,10 @@ fetchSubmissionByOut (Entity _ out) = do
 
 getApiTxtScoreR :: Text -> Handler Text
 getApiTxtScoreR query =
-  if T.null post
-  then getApiTxtScore Nothing pre
-  else getApiTxtScore (Just $ T.tail post) pre
-  where (pre, post) = T.breakOn "-" query
+  if T.null postT
+  then getApiTxtScore Nothing preT
+  else getApiTxtScore (Just $ T.tail postT) preT
+  where (preT, postT) = T.breakOn "-" query
 
 getApiTxtScore :: Maybe Text -> Text -> Handler Text
 getApiTxtScore mMetricName sha1Prefix = do
@@ -223,18 +227,18 @@ doGetScoreForOut mMetricName submission sha1code = do
   let submissionId = entityKey submission
 
   evals <- runDB $ E.select
-                $ E.from $ \(out, evaluation, variant, test, version) -> do
+                $ E.from $ \(out, evaluation, variant, test, theVersion) -> do
                   E.where_ (variant ^. VariantSubmission E.==. E.val submissionId
                             E.&&. out ^. OutVariant E.==. variant ^. VariantId
                             E.&&. out ^. OutTest E.==. test ^. TestId
                             E.&&. evaluation ^. EvaluationTest E.==. test ^. TestId
                             E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum
                             E.&&. out ^. OutChecksum E.==. E.val sha1code
-                            E.&&. (evaluation ^. EvaluationVersion E.==. version ^. VersionCommit))
+                            E.&&. (evaluation ^. EvaluationVersion E.==. theVersion ^. VersionCommit))
                   E.orderBy [E.asc (test ^. TestPriority),
-                             E.desc (version ^. VersionMajor),
-                             E.desc (version ^. VersionMinor),
-                             E.desc (version ^. VersionPatch)]
+                             E.desc (theVersion ^. VersionMajor),
+                             E.desc (theVersion ^. VersionMinor),
+                             E.desc (theVersion ^. VersionPatch)]
                   return (evaluation, test)
 
   let evalSelected = case evals of
@@ -288,7 +292,7 @@ toQueryResultView fsi = do
                                                         (const True)
                                                         id
                                                         (submissionChallenge submission)
-
+  let (commonParams, strippedTableEntries) = extractCommonParams tableEntries
 
   let evaluations = map (\entry ->
                            VariantView {
@@ -298,11 +302,12 @@ toQueryResultView fsi = do
                             variantViewEvaluations =  catMaybes $ Import.map (convertEvaluationToView $ tableEntryMapping entry) tests,
                             variantViewParams = Import.map entityVal $ tableEntryParams entry
 
-                            }) tableEntries
+                            }) strippedTableEntries
 
   return $ QueryResultView {
     queryResultViewSubmissionInfo = fsi,
-    queryResultViewVariants = evaluations }
+    queryResultViewVariants = evaluations,
+    queryResultSharedParams = map entityVal commonParams }
 
 getQueryJsonR :: Text -> Handler Value
 getQueryJsonR query = do
@@ -443,11 +448,11 @@ doViewVariantTestR variantId testId = do
     $(widgetFile "view-variant")
 
 mergeEntryParams :: Diff [Parameter] -> [(Text, Diff Text)]
-mergeEntryParams (OneThing u) = map (\(Parameter _ name val) -> (name, OneThing val)) u
+mergeEntryParams (OneThing u) = map (\(Parameter _ pname pval) -> (pname, OneThing pval)) u
 mergeEntryParams (TwoThings old new) = LM.toList $ diff ("", ()) oldMap newMap
    where oldMap = mapify old
          newMap = mapify new
-         mapify l = LM.fromList $ map (\(Parameter _ name val) -> (name, val)) l
+         mapify l = LM.fromList $ map (\(Parameter _ pname pval) -> (pname, pval)) l
 
 getViewVariantR :: VariantId -> Handler Html
 getViewVariantR variantId = do
@@ -476,10 +481,10 @@ getVariantTestLink (TwoThings old new) testId = ViewVariantDiffR old new testId
 crossTableDefinition :: Diff VariantId -> TableWithValues (Entity Test, Diff Text) -> Table.Table App (Text, [(Entity Test, Diff Text)])
 crossTableDefinition variantId (TableWithValues (headerH : headerR) _) = mempty
   ++ Table.text headerH fst
-  ++ mconcat (map (\(ix, h) -> linkedWithAnchor h
-                                               (snd . (!! ix) . snd)
-                                               ((\(e, _) -> getVariantTestLink variantId (entityKey e)) . (!! ix) . snd)
-                                               (("worst-items-" <>) . testName . entityVal . fst . (!! ix) . snd))
+  ++ mconcat (map (\(i, h) -> linkedWithAnchor h
+                                               (snd . (!! i) . snd)
+                                               ((\(e, _) -> getVariantTestLink variantId (entityKey e)) . (!! i) . snd)
+                                               (("worst-items-" <>) . testName . entityVal . fst . (!! i) . snd))
                $ zip [0..] headerR)
 crossTableDefinition _ _ = error $ "cross-tab of an unexpected size"
 
