@@ -121,7 +121,7 @@ consoleApp jobId = do
     case mchan of
         Nothing -> do
           sendTextData ("CANNOT FIND THE OUTPUT (ALREADY SHOWN??)" :: Text)
-          sendCloseE ("" :: Text)
+          _ <- sendCloseE ("" :: Text)
           return ()
         Just chan -> do
              let loop = do
@@ -131,7 +131,7 @@ consoleApp jobId = do
                          Just text -> do
                              sendTextData text
                              loop
-             loop
+             _ <- loop
              return ()
 
 
@@ -556,7 +556,7 @@ thenCmp :: Ordering -> Ordering -> Ordering
 thenCmp EQ o2 = o2
 thenCmp o1 _  = o1
 
-fetchMainTest :: (MonadIO m, PersistQueryRead backend, BaseBackend backend ~ SqlBackend) => Key Challenge -> ReaderT backend m (Entity Test)
+fetchMainTest :: (MonadIO m, PersistQueryRead backend, BaseBackend backend ~ SqlBackend) => Key Challenge -> ReaderT backend m (Maybe (Entity Test))
 fetchMainTest challengeId = do
   challenge <- get404 challengeId
 
@@ -568,9 +568,7 @@ fetchMainTest challengeId = do
 
 
 fetchTestByName :: (MonadIO m, PersistQueryRead backend, BaseBackend backend ~ SqlBackend) => Maybe Text -> Key Challenge -> ReaderT backend m (Maybe (Entity Test))
-fetchTestByName Nothing challengeId = do
-  mainTest <- fetchMainTest challengeId
-  return $ Just mainTest
+fetchTestByName Nothing challengeId = fetchMainTest challengeId
 fetchTestByName (Just tName) challengeId = do
   challenge <- get404 challengeId
 
@@ -583,8 +581,9 @@ fetchTestByName (Just tName) challengeId = do
 
 
 -- get the test with the highest priority
-getMainTest :: [Entity Test] -> Entity Test
-getMainTest tests = DL.maximumBy testComparator tests
+getMainTest :: [Entity Test] -> Maybe (Entity Test)
+getMainTest [] = Nothing
+getMainTest tests = Just $ DL.maximumBy testComparator tests
 
 -- get all the non-dev tests starting with the one with the highest priorty
 -- (or all the tests if there are no non-dev tests)

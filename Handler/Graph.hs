@@ -89,18 +89,22 @@ submissionsToJSON condition challengeName = do
                                                   (\entry -> [entityKey $ tableEntrySubmission entry])
 
 
-  entMainTest <- runDB $ fetchMainTest challengeId
-  let mainTestRef = getTestReference entMainTest
+  mEntMainTest <- runDB $ fetchMainTest challengeId
+  case mEntMainTest of
+    Just entMainTest -> do
+      let mainTestRef = getTestReference entMainTest
 
-  let naturalRange = getNaturalRange mainTestRef entries
-  let submissionIds = map leaderboardBestSubmissionId entries
+      let naturalRange = getNaturalRange mainTestRef entries
+      let submissionIds = map leaderboardBestSubmissionId entries
 
-  forks <- runDB $ selectList [ForkSource <-. submissionIds, ForkTarget <-. submissionIds] []
+      forks <- runDB $ selectList [ForkSource <-. submissionIds, ForkTarget <-. submissionIds] []
 
-  return $ object [ "nodes" .= (Data.Maybe.catMaybes
-                                $ map (auxSubmissionToNode mainTestRef naturalRange)
-                                $ entries),
-                    "edges" .= map forkToEdge forks ]
+      return $ object [ "nodes" .= (Data.Maybe.catMaybes
+                                    $ map (auxSubmissionToNode mainTestRef naturalRange)
+                                    $ entries),
+                        "edges" .= map forkToEdge forks ]
+    Nothing -> do
+      return $ object []
 
 getNaturalRange :: TestReference -> [LeaderboardEntry] -> Double
 getNaturalRange testRef entries = 2.0 * (interQuantile

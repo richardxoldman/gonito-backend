@@ -25,17 +25,20 @@ $if (checkIfAdmin mUserEnt)
 
 <h2>Leaderboard
 
-^{Table.buildBootstrap (leaderboardTable mUserId (challengeName challenge) scheme challengeRepo tests) leaderboardWithRanks}
+$if null tests
+  <p>_{MsgNoTests}
+$else
+  ^{Table.buildBootstrap (leaderboardTable mUserId (challengeName challenge) scheme challengeRepo tests) leaderboardWithRanks}
 
-$maybe altLeaderboardWithRanks <- mAltLeaderboardWithRanks
-  $maybe altTests <- mAltTests
-    ^{Table.buildBootstrap (altLeaderboardTable mUserId (challengeName challenge) scheme challengeRepo altTests) altLeaderboardWithRanks}
+  $maybe altLeaderboardWithRanks <- mAltLeaderboardWithRanks
+    $maybe altTests <- mAltTests
+      ^{Table.buildBootstrap (altLeaderboardTable mUserId (challengeName challenge) scheme challengeRepo altTests) altLeaderboardWithRanks}
+    $nothing
   $nothing
-$nothing
 
-<div id="graph-container">
+  <div id="graph-container">
 
-<script src="/static/js/sigma.min.js">
-<script src="/static/js/sigma.parsers.json.min.js">
+  <script src="/static/js/sigma.min.js">
+  <script src="/static/js/sigma.parsers.json.min.js">
 
-^{paramGraphsWidget challenge tests params}
+  ^{paramGraphsWidget challenge tests params}

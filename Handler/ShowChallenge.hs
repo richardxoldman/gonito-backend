@@ -851,16 +851,18 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
 
       relevantIndicators <- getOngoingTargets challengeId
 
-      (Entity mainTestId mainTest) <- runDB $ fetchMainTest challengeId
 
       (Entity _ currentVersion) <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
       let submittedMajorVersion = versionMajor currentVersion
 
-      let orderDirection = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
-            TheHigherTheBetter -> E.desc
-            TheLowerTheBetter -> E.asc
+      mMainEnt <- runDB $ fetchMainTest challengeId
+      bestScoreSoFar <- case mMainEnt of
+        Just (Entity _ mainTest) -> do
+          let orderDirection = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
+                TheHigherTheBetter -> E.desc
+                TheLowerTheBetter -> E.asc
 
-      bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out, test, theVersion) -> do
+          bestResultSoFar <- runDB $ E.select $ E.from $ \(evaluation, submission, variant, out, test, theVersion) -> do
               E.where_ (submission ^. SubmissionChallenge E.==. E.val challengeId
                         E.&&. submission ^. SubmissionIsHidden E.==. E.val False
                         E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId
@@ -878,7 +880,9 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
               E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
               E.limit 1
               return evaluation
-      let bestScoreSoFar = join (evaluationScore <$> entityVal <$> (listToMaybe bestResultSoFar))
+          let bestScoreSoFar' = join (evaluationScore <$> entityVal <$> (listToMaybe bestResultSoFar))
+          return bestScoreSoFar'
+        Nothing -> return Nothing
 
       case bestScoreSoFar of
         Just s -> msg chan ("best score so far is: " ++ (Data.Text.pack $ show s))
@@ -930,19 +934,21 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
 
       app <- getYesod
 
-      newScores <- mapM (getScoreForOut mainTestId) outs
-      let newScores' = catMaybes newScores
-      let newScores'' = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
-            TheHigherTheBetter -> reverse $ sort newScores'
-            TheLowerTheBetter -> sort newScores'
-      let compOp = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
-            TheLowerTheBetter -> (<)
-            TheHigherTheBetter -> (>)
-
       let submissionLink = slackLink app "submission" ("q/" ++ (fromSHA1ToText (repoCurrentCommit repo)))
 
-      case bestScoreSoFar of
-        Just b ->  case newScores'' of
+      case mMainEnt of
+        Just (Entity mainTestId mainTest) -> do
+          newScores <- mapM (getScoreForOut mainTestId) outs
+          let newScores' = catMaybes newScores
+          let newScores'' = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
+                TheHigherTheBetter -> reverse $ sort newScores'
+                TheLowerTheBetter -> sort newScores'
+          let compOp = case getMetricOrdering (evaluationSchemeMetric $ testMetric mainTest) of
+                TheLowerTheBetter -> (<)
+                TheHigherTheBetter -> (>)
+
+          case bestScoreSoFar of
+            Just b ->  case newScores'' of
                     (s:_) -> if compOp s b
                              then
                               do
@@ -972,6 +978,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                   Nothing -> return ()
                              else return ()
                     [] -> return ()
+            Nothing -> return ()
         Nothing -> return ()
 
       if appAutoOpening $ appSettings app

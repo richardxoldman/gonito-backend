@@ -276,6 +276,9 @@ theLimitedDiffTextCell h textFun = Table.widget h (
          OneThing u -> limitedWidget textCellSoftLimit textCellHardLimit u
          d@(TwoThings _ _) -> [whamlet|#{d}|])
 
+extractInt :: [PersistValue] -> Int64
+extractInt ((PersistInt64 x):_) = x
+
 statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, Maybe UserId) -> WidgetFor App ()
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, mauthId) = do
   isReevaluable <- handlerToWidget $ runDB $ canBeReevaluated submissionId
@@ -351,28 +354,31 @@ getLeaderboardEntriesByCriterion :: (Ord a) => Int
 getLeaderboardEntriesByCriterion maxPriority challengeId condition preselector selector = do
   (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos maxPriority condition (const True) preselector challengeId
   let mainTests = getMainTests tests
-  let mainTestEnt = getMainTest tests
-  let mainTestRef = getTestReference mainTestEnt
-  let (Entity _ mainTest) = mainTestEnt
-  let auxItems = concat
-                 $ map (\i -> map (\s -> (s, [i])) (selector i))
-                 $ filter (\entry -> member mainTestRef $ tableEntryMapping entry)
-                 $ evaluationMaps
-  let auxItemsMap = Map.fromListWith (++) auxItems
-  let entryComparator a b =
-        (compareMajorVersions (leaderboardVersion a) (leaderboardVersion b))
-        <>
-        ((compareResult mainTest) (evaluationScore $ leaderboardEvaluationMap a Map.! mainTestRef)
-         (evaluationScore $ leaderboardEvaluationMap b Map.! mainTestRef))
-        <>
-        (compareVersions (leaderboardVersion a) (leaderboardVersion b))
-  entries' <- mapM (toLeaderboardEntry challengeId mainTests)
-             $ filter (\ll -> not (null ll))
-             $ map snd
-             $ Map.toList auxItemsMap
-  let entries = DL.nubBy (\a b -> leaderboardBestVariantId a == leaderboardBestVariantId b)
-                $ sortBy (flip entryComparator) entries'
-  return (entries, (evaluationMaps, mainTests))
+  let mMainTestEnt = getMainTest tests
+  case mMainTestEnt of
+    Nothing -> return ([], ([], []))
+    Just mainTestEnt -> do
+      let mainTestRef = getTestReference mainTestEnt
+      let (Entity _ mainTest) = mainTestEnt
+      let auxItems = concat
+                     $ map (\i -> map (\s -> (s, [i])) (selector i))
+                     $ filter (\entry -> member mainTestRef $ tableEntryMapping entry)
+                     $ evaluationMaps
+      let auxItemsMap = Map.fromListWith (++) auxItems
+      let entryComparator a b =
+            (compareMajorVersions (leaderboardVersion a) (leaderboardVersion b))
+            <>
+            ((compareResult $ Just mainTest) (evaluationScore $ leaderboardEvaluationMap a Map.! mainTestRef)
+             (evaluationScore $ leaderboardEvaluationMap b Map.! mainTestRef))
+            <>
+            (compareVersions (leaderboardVersion a) (leaderboardVersion b))
+      entries' <- mapM (toLeaderboardEntry challengeId mainTests)
+                 $ filter (\ll -> not (null ll))
+                 $ map snd
+                 $ Map.toList auxItemsMap
+      let entries = DL.nubBy (\a b -> leaderboardBestVariantId a == leaderboardBestVariantId b)
+                    $ sortBy (flip entryComparator) entries'
+      return (entries, (evaluationMaps, mainTests))
 
 
 toLeaderboardEntry :: Foldable t => Key Challenge -> [Entity Test] -> t TableEntry -> Handler LeaderboardEntry
@@ -423,15 +429,17 @@ toLeaderboardEntry challengeId tests ss = do
               leaderboardIsVisible = isVisible,
               leaderboardTeam = mTeam
               }
-     where mainTestEnt@(Entity _ mainTest) = getMainTest tests
-           mainTestRef = getTestReference mainTestEnt
-           submissionComparator (TableEntry _  _  _ em1 _ _ _ v1 _) (TableEntry _  _ _ em2 _ _ _ v2 _) =
-             (compareMajorVersions v1 v2)
-             <>
-             (compareResult mainTest) (evaluationScore (em1 Map.! mainTestRef))
-                                      (evaluationScore (em2 Map.! mainTestRef))
-             <>
-             (compareVersions v1 v2)
+     where submissionComparator (TableEntry _  _  _ em1 _ _ _ v1 _) (TableEntry _  _ _ em2 _ _ _ v2 _) =
+             case getMainTest tests of
+               Just mainTestEnt@(Entity _ mainTest) ->
+                 let mainTestRef = getTestReference mainTestEnt
+                 in (compareMajorVersions v1 v2)
+                    <>
+                    (compareResult (Just $ mainTest) (evaluationScore (em1 Map.! mainTestRef))
+                                                     (evaluationScore (em2 Map.! mainTestRef)))
+                    <>
+                    (compareVersions v1 v2)
+               Nothing -> EQ
 
 getLeaderboardEntries :: Int -> LeaderboardStyle -> Key Challenge -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntries maxPriority BySubmitter challengeId =
@@ -449,8 +457,9 @@ getLeaderboardEntries maxPriority ByTag challengeId =
   where noEmptyList [] = [Nothing]
         noEmptyList l = map Just l
 
-compareResult :: Test -> Maybe Double -> Maybe Double -> Ordering
-compareResult test (Just x) (Just y) = (compareFun $ getMetricOrdering $ evaluationSchemeMetric $ testMetric test) x y
+compareResult :: Maybe Test -> Maybe Double -> Maybe Double -> Ordering
+compareResult Nothing _ _ = EQ
+compareResult (Just test) (Just x) (Just y) = (compareFun $ getMetricOrdering $ evaluationSchemeMetric $ testMetric test) x y
 compareResult _ (Just _) Nothing = GT
 compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ
@@ -485,7 +494,7 @@ getChallengeSubmissionInfos maxMetricPriority condition variantCondition presele
                E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId)
      return (submission, variant)
 
-  scores <- mapM (getScore (entityKey mainTest)) $ map (entityKey . snd) allSubmissionsVariants
+  scores <- mapM (getScore (entityKey <$> mainTest)) $ map (entityKey . snd) allSubmissionsVariants
 
   let allSubmissionsVariantsWithRanks =
         sortBy (\(r1, (s1, _)) (r2, (s2, _)) -> (submissionStamp (entityVal s2) `compare` submissionStamp (entityVal s1))
@@ -495,7 +504,7 @@ getChallengeSubmissionInfos maxMetricPriority condition variantCondition presele
         $ filter (\(_, (s, _)) -> condition s)
         $ map (\(rank, (_, sv)) -> (rank, sv))
         $ zip [1..]
-        $ sortBy (\(s1, _) (s2, _) -> compareResult (entityVal mainTest) s2 s1)
+        $ sortBy (\(s1, _) (s2, _) -> compareResult (entityVal <$> mainTest) s2 s1)
         $ zip scores allSubmissionsVariants
 
   allTests <- selectList [] [Asc TestName]
@@ -512,8 +521,9 @@ getChallengeSubmissionInfos maxMetricPriority condition variantCondition presele
 
 getScore :: (MonadIO m, BackendCompatible SqlBackend backend,
             PersistQueryRead backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
-           => Key Test -> Key Variant -> ReaderT backend m (Maybe Double)
-getScore testId variantId = do
+           => Maybe (Key Test) -> Key Variant -> ReaderT backend m (Maybe Double)
+getScore Nothing _ = return Nothing
+getScore (Just testId) variantId = do
   evaluations <- E.select $ E.from $ \(out, evaluation, variant, submission) -> do
                   E.where_ (out ^. OutVariant E.==. E.val variantId
                             E.&&. variant ^. VariantId E.==. E.val variantId

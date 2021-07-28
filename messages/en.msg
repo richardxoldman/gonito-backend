@@ -105,3 +105,4 @@ YourTeams: your teams
 AsTeam: As team
 InviteToTeam: Invite to team (give the identifier/login of a user)
 Join: Join
+NoTests: SOMETHING IS WRONG WITH THE CHALLENGE, THERE ARE NO TESTS DEFINED. MAYBE TEST DIRECTORY ARE MISSING OR THE CHALLENGE WAS CREATED/UPDATE IN THE INVALID MANNER
