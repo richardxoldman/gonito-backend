@@ -166,7 +166,7 @@ $maybe token <- mToken
        <li>description taken from the first paragraph
        <li>tags taken from a line starting with <tt>tags:</tt>
 
-<p>Here is an example of <tt>gonito.yaml</tt>, in which all metadata could be given:
+<p>Here is an example of <tt>gonito.yaml</tt>, in which all metadata could be given (note that you can also add links to external resources using the `links` section):
 
 <pre>
   description: This my brilliant solution
@@ -182,5 +182,11 @@ $maybe token <- mToken
   param-files:
   \  - "*.yaml"
   \  - config/*.yaml
+  links:
+  \  - title: "Some external link"
+  \    url: "https://example.com/foo-bar-baz-123"
+  \  - title: "Yet another link"
+  \    url: "https://example.org/xyz"
+  \  - url: "https://example.net/bare-link-without-text"
 
 <p>It might seem a little bit complicated, but you could simply use the method which is the most convenient for you.
