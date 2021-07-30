@@ -1,3 +1,14 @@
+## 3.6.0 (2021-07-30)
+
+Enhancements:
+
+* Add an end-point for viewing progress logs with web sockets
+
+Bug fixes:
+
+* Improve robustness to broken challenges
+
+
 ## 3.5.0 (2021-07-25)
 
 Improvements:
