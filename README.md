@@ -79,8 +79,24 @@ documentation in the Swagger format is provided at `/static/swagger-ui/index.htm
 Keycloak is assumed as the identity provider here for those end-points that
 require authorization.
 
-Integration with Keycloak
--------------------------
+### Asynchronous jobs
+
+Some tasks (e.g. evaluating a submitted solution, creating a
+challenge) can take more time, so they must be run in a asynchronous
+manner. End-points for such actions return a job ID (a number).
+There are two options to show the logs:
+
+1. The front-end can show the logs using web sockets, see
+   <https://gitlab.com/filipg/gonito/-/blob/master/static/test-gonito-as-backend.html#L133>
+   for an example.
+2. The front-end can just redirect the user to `/api/view-progress-with-web-sockets/jobID`,
+   where showing the logs will be handled directly by Gonito (no authorization is needed there).
+
+It's recommended to test showing logs with the test end-point
+`/api/test-progress/N/D`, which just counts up to N with a D-second delay
+(e.g. `/api/test-progress/10/2`).
+
+### Integration with Keycloak
 
 Gonito can be easily integrated with Keycloak for the back-end
 end-points (but not yet for signing in Gonito as the monolithic Web
