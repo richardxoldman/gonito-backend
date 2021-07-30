@@ -1,6 +1,39 @@
 
 <html>
 <head>
+   <!-- This is an example of how to create a front-end using the Gonito
+        backend.
+        The code is ugly, but it is as simple as possible, no front-end
+        framework was assumed!
+    -->
+
+    <style type="text/css" media="screen">
+        #outwindow {
+             border: 2px solid black;
+             margin-bottom: 1em;
+             color: white;
+             background-color: black;
+             padding: 10pt;
+        }
+        #outwindow pre {
+             color: white;
+             background-color: black;
+        }
+        #wait {
+             animation: blink 1s linear infinite;
+        }
+
+        @keyframes blink {
+            0% {
+               opacity: 0;
+            }
+            50% {
+               opacity: .5;
+            }
+            100% {
+               opacity: 1;
+            }
+    </style>
     <script src="/static/js/keycloak.js"></script>
     <script>
       var keycloak;
@@ -19,7 +52,7 @@
                 alert('failed to initialize');
             });
 
-        }
+      }
 
             var loadData = function (target) {
 
@@ -82,6 +115,69 @@
 
           xhr.send();
       }
+
+
+      var getJSON = function(url, callback) {
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', '/api/' + url, true);
+          xhr.setRequestHeader('Accept', 'application/json');
+          xhr.setRequestHeader('Authorization', 'Bearer ' + keycloak.token);
+          xhr.responseType = 'json';
+          xhr.onload = function() {
+              callback(xhr.response);
+          };
+          xhr.send();
+      };
+
+
+      // This is an example of how to handle logs obtained by an
+      // asynchronous process.
+      // As an example, "/api/test-progress/10/2" end-point was used
+      // (which just counts up to 10 with 2-second delays), it a
+      // similar way logs from, for example,
+      // "/api/challenge-submission/..." end-point could be handled
+      function testLogs() {
+          getJSON('test-progress/10/2', function(data) {
+              // the end-point just returns a job id, then we invoke
+              // the '/api/view-progress-with-web-sockets/' with this
+              // job Id
+              url = 'view-progress-with-web-sockets/' + data;
+              getJSON('view-progress-with-web-sockets/' + data, function(data) {
+                  var output = document.getElementById("output");
+                  var wait = document.getElementById("wait");
+                  var seealso = document.getElementById("seealso");
+
+                  wait.appendChild(document.createTextNode('... PLEASE WAIT ...'));
+
+                  var parsed_url = new URL(document.URL);
+                  var ws_protocol = 'wss://';
+                  if (parsed_url.protocol == 'http:') {
+                      ws_protocol = 'ws://';
+                  }
+
+                  msg = "The logs will be also available at "
+                      + parsed_url.protocol
+                      + "//"
+                      + parsed_url.host
+                      + '/api/view-progress-log/' + data;
+                  seealso.appendChild(document.createTextNode(msg));
+
+                  conn = new WebSocket(ws_protocol + parsed_url.host + '/api/' + url);
+
+                  conn.onmessage = function(e) {
+                      var p = document.createElement("pre");
+                      p.appendChild(document.createTextNode(e.data));
+                      output.appendChild(p);
+                  };
+
+                  conn.onclose = function(e) {
+                      wait.parentNode.removeChild(wait);
+                  };
+
+              });
+          });
+      }
+
     </script>
 </head>
 <body onload="initKeycloak()">
@@ -100,6 +196,18 @@
       test</button></p>
 
   <p><button onclick="testCors()">CORS</button></p>
+
+  <p><button onclick="testLogs()">Logs</button></p>
+
+  <p id="seealso"></p>
+
+  <div id="outwindow">
+    <div id="output">
+    </div>
+    <div id="wait">
+    </div>
+  </div>
+
 
 </body>
 </html>

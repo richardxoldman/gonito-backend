@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Handler.Shared where
 
@@ -11,6 +12,8 @@ import Yesod.WebSockets
 
 import Handler.Runner
 import System.Exit
+
+import Handler.JWT
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as DTE
@@ -117,7 +120,7 @@ consoleApp jobId = do
         m <- readTVar jobs
         case IntMap.lookup jobId m of
             Nothing -> return Nothing
-            Just chan -> fmap Just $ dupTChan chan
+            Just chan -> fmap Just $ cloneTChan chan
     case mchan of
         Nothing -> do
           sendTextData ("CANNOT FIND THE OUTPUT (ALREADY SHOWN??)" :: Text)
@@ -135,10 +138,27 @@ consoleApp jobId = do
              return ()
 
 
-getViewProgressWithWebSocketsR :: Int -> Handler Html
-getViewProgressWithWebSocketsR jobId = do
+getViewProgressWithWebSocketsJsonR :: Int -> Handler Value
+getViewProgressWithWebSocketsJsonR jobId = do
+  webSockets $ consoleApp jobId
+  return $ String $ pack $ show jobId
+
+getViewProgressLogR :: Int -> Handler Html
+getViewProgressLogR jobId = do
     webSockets $ consoleApp jobId
-    defaultLayout $ do
+    p <- widgetToPageContent logWidget
+    hamletToRepHtml [hamlet|
+<html>
+  <head>
+      <title>
+         #{pageTitle p}
+      ^{pageHead p}
+  <body>
+     ^{pageBody p}
+|]
+
+
+logWidget = do
         [whamlet|
            <div #outwindow>
              <div #output>
@@ -196,6 +216,11 @@ getViewProgressWithWebSocketsR jobId = do
         |]
 
 
+getViewProgressWithWebSocketsR :: Int -> Handler Html
+getViewProgressWithWebSocketsR jobId = do
+    webSockets $ consoleApp jobId
+    defaultLayout logWidget
+
 runViewProgressAsynchronously :: (Channel -> Handler ()) -> Handler Value
 runViewProgressAsynchronously action = runViewProgressGeneralized getJobIdAsJson action
 --  where getJobIdAsJson jobId = return $ Number (scientific (toInteger jobId) 0)
@@ -208,9 +233,11 @@ runViewProgress' route action = runViewProgressGeneralized doRedirection action
 runViewProgressGeneralized :: (Int -> Handler v) -> (Channel -> Handler ()) -> Handler v
 runViewProgressGeneralized handler action = do
   App {..} <- getYesod
-  jobId <- randomInt
+  jobId' <- randomInt
+  -- we don't want negative numbers (so that nobody would be confused)
+  let jobId = abs jobId'
   chan <- liftIO $ atom $ do
-    chan <- newBroadcastTChan
+    chan <- newTChan
     m <- readTVar jobs
     writeTVar jobs $ IntMap.insert jobId chan m
     return chan
@@ -221,10 +248,10 @@ runViewProgressGeneralized handler action = do
     liftIO $ atom $ do
       writeTChan chan $ Just "All done\n"
       writeTChan chan Nothing
-      m <- readTVar jobs
-      writeTVar jobs $ IntMap.delete jobId m
+-- TODO we don't remove logs, they could clog up the memory
+--      m <- readTVar jobs
+--      writeTVar jobs $ IntMap.delete jobId m
   handler jobId
-
 data RepoCloningSpec = RepoCloningSpec {
   cloningSpecRepo :: RepoSpec,
   cloningSpecReferenceRepo :: RepoSpec
@@ -497,7 +524,7 @@ getViewProgressR jobId = do
         m <- readTVar jobs
         case IntMap.lookup jobId m of
             Nothing -> return Nothing
-            Just chan -> fmap Just $ dupTChan chan
+            Just chan -> fmap Just $ cloneTChan chan
     case mchan of
         Nothing -> notFound
         Just chan -> respondSource typePlain $ do

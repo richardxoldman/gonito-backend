@@ -231,10 +231,14 @@ instance Yesod App where
     isAuthorized CreateTeamR _ = isTrustedAuthorized
 
     isAuthorized (TestProgressR _ _) _ = isTrustedAuthorized
+    isAuthorized (TestProgressJsonR _ _) _ = return Authorized
 
     isAuthorized SwaggerR _ = return Authorized
 
     isAuthorized (ViewProgressWithWebSocketsR _) _ = isTrustedAuthorized
+
+    isAuthorized (ViewProgressWithWebSocketsJsonR _) _  = return Authorized
+    isAuthorized (ViewProgressLogR _) _  = return Authorized
 
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized

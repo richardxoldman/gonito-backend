@@ -101,7 +101,9 @@ application, this feature is on the way).
 
 5. Set _Web Origin_ for the `gonito` client in Keycloak (e.g. simply add `*` there).
 
-6. Set `JSON_WEB_KEY` variable to the content of the JWK key (or `GONITO_JSON_WEB_KEY` when using docker-compose)
+6. Add some test user, set up some first/last name for them.
+
+7. Set `JSON_WEB_KEY` variable to the content of the JWK key (or `GONITO_JSON_WEB_KEY` when using docker-compose)
    and run Gonito.
 
 If you create a new user, you need to run `/api/add-info` GET

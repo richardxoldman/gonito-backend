@@ -1610,6 +1610,48 @@ challengeLayout withHeader challenge widget = do
 getTestProgressR :: Int -> Int -> Handler TypedContent
 getTestProgressR m d = runViewProgress $ doTestProgress m d
 
+getTestProgressJsonR :: Int -> Int -> Handler Value
+getTestProgressJsonR m d = do
+  _ <- requireAuthPossiblyByToken
+  runViewProgressAsynchronously $ doTestProgress m d
+
+declareTestProgressSwagger :: Declare (Definitions Schema) Swagger
+declareTestProgressSwagger = do
+  -- param schemas
+  let numberSchema = toParamSchema (Proxy :: Proxy Int)
+
+  numberResponse      <- declareResponse (Proxy :: Proxy Int)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/test-progress/{num}/{delay}",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "num"
+                                                          & description ?~ "The number up to which to count"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ numberSchema),
+                                                          Inline $ mempty
+                                                          & name .~ "delay"
+                                                          & description ?~ "Delay in seconds"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ numberSchema)
+                                                          ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Counts up to a given number, returns an ID of an asynchronous job. This is just a sample end-point for testing logging of asynchronous jobs."
+                                        & at 200 ?~ Inline numberResponse))
+                 ]
+
+testProgressApi :: Swagger
+testProgressApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareTestProgressSwagger mempty
+
+
 doTestProgress :: Int -> Int -> Channel -> Handler ()
 doTestProgress m d chan = do
   _ <- forM [1..m] $ (\i -> do
@@ -1617,3 +1659,32 @@ doTestProgress m d chan = do
                        liftIO $ threadDelay (d * 1000000)
                        return ())
   return ()
+
+
+declareViewProgressWithWebSocketsSwagger :: Declare (Definitions Schema) Swagger
+declareViewProgressWithWebSocketsSwagger = do
+  -- param schemas
+  let numberSchema = toParamSchema (Proxy :: Proxy Int)
+
+  numberResponse      <- declareResponse (Proxy :: Proxy Int)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/view-progress-with-web-sockets/{jobId}",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "jobId"
+                                                          & description ?~ "The ID for the job to be shown"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ numberSchema)]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Initiates a web socket communication with which progress logs can be read. Returns just the Job ID (the same number as the parameter)"
+                                        & at 200 ?~ Inline numberResponse))
+                 ]
+
+viewProgressWithWebSockets :: Swagger
+viewProgressWithWebSockets = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareViewProgressWithWebSocketsSwagger mempty

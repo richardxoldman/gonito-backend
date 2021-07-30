@@ -31,6 +31,8 @@ apiDescription = generalApi
                  <> myTeamsApi
                  <> challengeImgApi
                  <> challengeRepoApi
+                 <> testProgressApi
+                 <> viewProgressWithWebSockets
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)
