@@ -33,6 +33,8 @@ apiDescription = generalApi
                  <> challengeRepoApi
                  <> testProgressApi
                  <> viewProgressWithWebSockets
+                 <> viewProgressLog
+
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)

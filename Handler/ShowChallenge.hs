@@ -1688,3 +1688,31 @@ viewProgressWithWebSockets :: Swagger
 viewProgressWithWebSockets = spec & definitions .~ defs
   where
     (defs, spec) = runDeclare declareViewProgressWithWebSocketsSwagger mempty
+
+
+declareViewProgressLogSwagger :: Declare (Definitions Schema) Swagger
+declareViewProgressLogSwagger = do
+  let numberSchema = toParamSchema (Proxy :: Proxy Int)
+
+  numberResponse      <- declareResponse (Proxy :: Proxy Int)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/view-progress-log/{jobId}",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "jobId"
+                                                          & description ?~ "The ID for the job to be shown"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ numberSchema)]
+                                        & produces ?~ MimeList ["text/html"]
+                                        & description ?~ "Returns HTML code with embedded JS script for showing logs via web sockets"
+                                        & at 200 ?~ Inline numberResponse))
+                 ]
+
+viewProgressLog :: Swagger
+viewProgressLog = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareViewProgressLogSwagger mempty
