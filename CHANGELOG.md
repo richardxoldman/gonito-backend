@@ -1,3 +1,9 @@
+## 3.6.1 (2021-08-09)
+
+Improvements:
+
+* The end-point for viewing progress logs returns a self-contained HTML
+
 ## 3.6.0 (2021-07-30)
 
 Enhancements:
