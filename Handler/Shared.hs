@@ -13,7 +13,6 @@ import Yesod.WebSockets
 import Handler.Runner
 import System.Exit
 
-import Handler.JWT
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as DTE
@@ -146,26 +145,52 @@ getViewProgressWithWebSocketsJsonR jobId = do
 getViewProgressLogR :: Int -> Handler Html
 getViewProgressLogR jobId = do
     webSockets $ consoleApp jobId
-    p <- widgetToPageContent logWidget
+    p <- widgetToPageContent logSelfContainedWidget
     hamletToRepHtml [hamlet|
 <html>
   <head>
       <title>
          #{pageTitle p}
+      <style>
+            #outwindow {
+                border: 1px solid black;
+                margin-bottom: 1em;
+                color: white;
+                background-color: black;
+                padding: 10pt;
+            }
+            #outwindow pre {
+                color: white;
+                background-color: black;
+            }
+            #wait {
+               animation: blink 1s linear infinite;
+            }
+            @keyframes blink {
+            0% {
+               opacity: 0;
+            }
+            50% {
+               opacity: .5;
+            }
+            100% {
+               opacity: 1;
+            }
+         }
       ^{pageHead p}
   <body>
      ^{pageBody p}
 |]
 
-
-logWidget = do
-        [whamlet|
+logHtmlContent :: WidgetFor site ()
+logHtmlContent = [whamlet|
            <div #outwindow>
              <div #output>
              <div #wait>
                 ... PLEASE WAIT ...
         |]
-        toWidget [lucius|
+
+logCssContent = [lucius|
             #outwindow {
                 border: 1px solid black;
                 margin-bottom: 1em;
@@ -192,7 +217,9 @@ logWidget = do
             }
          }
         |]
-        toWidget [julius|
+
+logJsContent :: JavascriptUrl url
+logJsContent = [julius|
             var url = document.URL,
                 output = document.getElementById("output"),
                 wait = document.getElementById("wait"),
@@ -214,6 +241,21 @@ logWidget = do
                 wait.parentNode.removeChild(wait);
             };
         |]
+
+
+logWidget :: WidgetFor site ()
+logWidget = do
+        logHtmlContent
+        toWidget logCssContent
+        toWidget logJsContent
+
+logSelfContainedWidget :: WidgetFor site ()
+logSelfContainedWidget = do
+        logHtmlContent
+-- for some reason, CSS content be put directly in the HTML
+-- so it was copied & pasted
+--        toWidgetHead logCssContent
+        toWidgetBody logJsContent
 
 
 getViewProgressWithWebSocketsR :: Int -> Handler Html
