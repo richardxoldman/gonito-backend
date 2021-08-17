@@ -24,3 +24,4 @@ gonito-*.tar.gz
 stack.yaml.lock
 .env
 certs/
+.idea
