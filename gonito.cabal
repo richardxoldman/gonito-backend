@@ -64,6 +64,7 @@ library
                      Handler.JWT
                      Handler.Team
                      Handler.Announcements
+                     Web.Announcements
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

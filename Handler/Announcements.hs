@@ -3,6 +3,7 @@ module Handler.Announcements where
 import Import
 
 import Handler.Shared
+import Web.Announcements (runSlackHook)
 
 getTestAnnouncementsR :: Handler Html
 getTestAnnouncementsR = do

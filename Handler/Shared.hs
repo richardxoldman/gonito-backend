@@ -15,7 +15,6 @@ import System.Exit
 
 
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as DTE
 
 import Database.Persist.Sql (fromSqlKey)
 
@@ -43,14 +42,14 @@ import System.IO.Unsafe (unsafePerformIO)
 
 import Text.Regex.TDFA
 
+import Web.Announcements (formatLink)
+
 import GEval.Core
 import GEval.Common
 import GEval.EvaluationScheme
 import GEval.Formatting (formatTheResultWithErrorBounds)
 
 import qualified Data.Vector as DV
-
-import Network.HTTP.Req as R
 
 arena :: Handler FilePath
 arena = do
@@ -744,21 +743,8 @@ compareFun :: MetricOrdering -> Double -> Double -> Ordering
 compareFun TheLowerTheBetter = flip compare
 compareFun TheHigherTheBetter = compare
 
-runSlackHook :: Text -> Text -> IO ()
-runSlackHook hook message = do
-  let (Just (hookUrl, _)) = parseUrlHttps $ DTE.encodeUtf8 hook
-
-  R.runReq def $ do
-    let payload = object [ "text" .= message ]
-    (_ :: IgnoreResponse) <- R.req R.POST
-                                 hookUrl
-                                 (R.ReqBodyJson payload)
-                                 R.ignoreResponse
-                                 mempty
-    return ()
-
 slackLink :: App -> Text -> Text -> Text
-slackLink app title addr = "<" ++ slink ++ "|" ++ title ++ ">"
+slackLink app title addr = formatLink slink title
   where slink = (appRoot $ appSettings app) ++ "/" ++ addr
 
 formatVersion :: (Int, Int, Int) -> Text

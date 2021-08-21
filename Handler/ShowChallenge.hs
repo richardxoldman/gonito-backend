@@ -33,7 +33,7 @@ import Database.Persist.Sql (fromSqlKey)
 
 import qualified Data.Map as Map
 
-
+import Web.Announcements
 
 import Data.Maybe (fromJust)
 
