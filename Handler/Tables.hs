@@ -282,7 +282,7 @@ extractInt ((PersistInt64 x):_) = x
 statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, VariantId, Variant, Maybe UserId) -> WidgetFor App ()
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, mauthId) = do
   isReevaluable <- handlerToWidget $ runDB $ canBeReevaluated submissionId
-  isVisible <- handlerToWidget $ runDB $ checkWhetherVisible submission mauthId
+  let isVisible = True
   $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
@@ -405,7 +405,7 @@ toLeaderboardEntry challengeId tests ss = do
   mUserId <- maybeAuthPossiblyByToken
 
   isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission bestOne
-  isVisible <- runDB $ checkWhetherVisible submission (entityKey <$> mUserId)
+  let isVisible = True
 
   mTeam <- case submissionTeam $ entityVal bestSubmission of
             Just teamId -> do

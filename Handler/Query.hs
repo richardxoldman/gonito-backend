@@ -151,8 +151,7 @@ findSubmissions :: Text -> Handler [(FullSubmissionInfo, [SHA1])]
 findSubmissions sha1Prefix = do
   mauthId <- maybeAuth
   allSubmissions <- runDB $ rawCommitQuery sha1Prefix
-  submissions <- filterM (\sub -> runDB $ checkWhetherVisible (entityVal sub) (entityKey <$> mauthId)) allSubmissions
-  justSubmissions' <- mapM getFullInfo submissions
+  justSubmissions' <- mapM getFullInfo allSubmissions
   let justSubmissions = map (\s -> (s, [])) justSubmissions'
 
   outs <- runDB $ rawOutQuery sha1Prefix
@@ -378,7 +377,7 @@ fetchViewVariantData variantId = do
                                                           (submissionChallenge theSubmission)
   let tests = sortBy (flip testComparator) tests'
 
-  isViewable <- runDB $ checkWhetherVisible theSubmission (entityKey <$> mauthId)
+  let isViewable = True
 
   if isViewable
     then
@@ -508,7 +507,7 @@ getOut :: Maybe UserId -> TableEntry -> WidgetFor App (Maybe (FilePath, FilePath
 getOut mauthId entry = do
   let variant = variantName $ entityVal $ tableEntryVariant entry
 
-  isViewable <- handlerToWidget $ runDB $ checkWhetherVisible (entityVal $ tableEntrySubmission entry) mauthId
+  let isViewable = True
   if isViewable
    then
     do

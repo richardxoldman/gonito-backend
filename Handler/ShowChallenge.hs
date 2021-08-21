@@ -1325,7 +1325,7 @@ convertTableEntryToView tests entry = do
   mUserId <- maybeAuthPossiblyByToken
 
   isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission entry
-  isVisible <- runDB $ checkWhetherVisible submission (entityKey <$> mUserId)
+  let isVisible = True
 
   return $ SubmissionView {
     submissionViewId = fromSqlKey $ entityKey $ tableEntrySubmission entry,
