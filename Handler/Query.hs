@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 
 module Handler.Query where
 
@@ -50,6 +51,8 @@ import Data.Swagger.Declare
 import Control.Lens hiding ((.=), (^.), (<.>))
 import Data.Proxy as DPR
 import Data.HashMap.Strict.InsOrd (fromList)
+
+import qualified System.Directory as D
 
 import Handler.ShowChallenge
 
@@ -564,7 +567,7 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
   challenge <- handlerToWidget $ runDB $ get404 $ submissionChallenge $ entityVal $ tableEntrySubmission $ current entry
   let isNonSensitive = challengeSensitive challenge == Just False
 
-  let shouldBeShown = not ("test-" `isInfixOf` testSet) && isNonSensitive
+  let shouldBeShown = testSet /= (testName $ entityVal mainTest) && isNonSensitive
 
   let mainMetric = testMetric $ entityVal mainTest
 
@@ -590,7 +593,13 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
 
             Right opts <- liftIO $ readOptsFromConfigFile [] (current repoDir </> "config.txt")
 
-            let spec = GEvalSpecification {
+            expFile <- liftIO $ lookForCompressedFiles (current repoDir </> testName </> "expected.tsv")
+
+            expFileExists <- liftIO $ D.doesFileExist expFile
+
+            if expFileExists
+            then do
+                let spec = GEvalSpecification {
                   gesOutDirectory = current repoDir,
                   gesExpectedDirectory = Nothing,
                   gesTestName = testName,
@@ -613,19 +622,22 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
                   gesOutHeader = gesOutHeader $ geoSpec opts,
                   gesShowPreprocessed = True }
 
-            case outPaths of
-              OneThing _ -> do
-                result <- liftIO $ runLineByLineGeneralized FirstTheWorst
-                                                       spec
-                                                       (\_ -> CL.take maximumNumberOfItemsToBeShown)
-                return $ Just $ zip [1..] $ map getUniLineRecord result
-              TwoThings (Just (oldRepoDir, oldOutFilePath)) _ -> do
-                absOldOutFilePath <- liftIO $ makeAbsolute (oldRepoDir </> testName </> (takeFileName oldOutFilePath))
-                result <- liftIO $ runDiffGeneralized FirstTheWorst
-                                                     absOldOutFilePath
-                                                     spec
-                                                     (\_ -> CL.take maximumNumberOfItemsToBeShown)
-                return $ Just $ zip [1..] $ map getBiLineRecord result
+                case outPaths of
+                   OneThing _ -> do
+                     result <- liftIO $ runLineByLineGeneralized FirstTheWorst
+                                                                spec
+                                                                (\_ -> CL.take maximumNumberOfItemsToBeShown)
+                     return $ Just $ zip [1..] $ map getUniLineRecord result
+                   TwoThings (Just (oldRepoDir, oldOutFilePath)) _ -> do
+                     absOldOutFilePath <- liftIO $ makeAbsolute (oldRepoDir </> testName </> (takeFileName oldOutFilePath))
+                     result <- liftIO $ runDiffGeneralized FirstTheWorst
+                                                           absOldOutFilePath
+                                                           spec
+                                                           (\_ -> CL.take maximumNumberOfItemsToBeShown)
+                     return $ Just $ zip [1..] $ map getBiLineRecord result
+            else
+             do
+              return Nothing
           Nothing -> return Nothing
       else
         return Nothing
