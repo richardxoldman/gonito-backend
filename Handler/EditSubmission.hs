@@ -83,11 +83,10 @@ getPossibleAchievements userId submissionId = do
 doEditSubmission formWidget formEnctype submissionId mVariantId = do
   submission <- runDB $ get404 submissionId
   submissionFull <- getFullInfo (Entity submissionId submission)
-  let view = queryResult submissionFull
+  (Entity userId _) <- requireAuth
+  let view = queryResult (Just userId) submissionFull
 
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
-
-  (Entity userId _) <- requireAuth
 
   achievements <- runDB $ getPossibleAchievements userId submissionId
 

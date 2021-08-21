@@ -295,18 +295,8 @@ statusCellWidget challengeName repoScheme challengeRepo (submissionId, submissio
                                   Nothing
 
 getInfoLink :: Submission -> Maybe UserId -> Maybe (Route App)
-getInfoLink submission mauthId = if checkSimpleVisibility submission mauthId
-                                 then Just $ QueryResultsR commitHash
-                                 else Nothing
+getInfoLink submission _ = Just $ QueryResultsR commitHash
    where commitHash = fromSHA1ToText $ submissionCommit submission
-
--- sometimes we checker whether we got a teacher, but sometimes
--- fall back to a simpler check...
-checkSimpleVisibility :: Submission -> Maybe UserId -> Bool
-checkSimpleVisibility submission mauthId = isPublic || isOwner
-   where isPublic = submissionIsPublic submission
-         isOwner = (mauthId == Just userId)
-         userId = submissionSubmitter submission
 
 checkWhetherVisible :: (MonadIO m, BackendCompatible SqlBackend backend, PersistQueryRead backend, PersistUniqueRead backend)
                       => Submission -> Maybe (Key User) -> ReaderT backend m Bool

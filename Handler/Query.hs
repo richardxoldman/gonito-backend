@@ -149,7 +149,6 @@ groupBySecond lst = map putOut $ groupOn (fsiSubmissionId . fst) lst
 
 findSubmissions :: Text -> Handler [(FullSubmissionInfo, [SHA1])]
 findSubmissions sha1Prefix = do
-  mauthId <- maybeAuth
   allSubmissions <- runDB $ rawCommitQuery sha1Prefix
   justSubmissions' <- mapM getFullInfo allSubmissions
   let justSubmissions = map (\s -> (s, [])) justSubmissions'
@@ -275,6 +274,8 @@ isFullQuery query = length query == 40
 
 processQuery :: Text -> Handler Html
 processQuery query = do
+  mUserId <- maybeAuthId
+
   submissions' <- findSubmissions query
   let submissions = map fst submissions'
   defaultLayout $ do
@@ -365,7 +366,6 @@ data ViewVariantData = ViewVariantData {
 
 fetchViewVariantData :: VariantId -> Handler ViewVariantData
 fetchViewVariantData variantId = do
-  mauthId <- maybeAuth
   variant <- runDB $ get404 variantId
   let theSubmissionId = variantSubmission variant
   theSubmission <- runDB $ get404 theSubmissionId
@@ -423,6 +423,8 @@ nullSHA1 = fromTextToSHA1 "da39a3ee5e6b4b0d3255bfef95601890afd80709"
 
 doViewVariantTestR :: Diff VariantId -> TestId -> Handler Html
 doViewVariantTestR variantId testId = do
+  mUserId <- maybeAuthId
+
   testSelected <- runDB $ get404 testId
   let testSelectedEnt = Entity testId testSelected
 
@@ -504,7 +506,7 @@ maximumNumberOfItemsToBeShown :: Int
 maximumNumberOfItemsToBeShown = 40
 
 getOut :: Maybe UserId -> TableEntry -> WidgetFor App (Maybe (FilePath, FilePath))
-getOut mauthId entry = do
+getOut _ entry = do
   let variant = variantName $ entityVal $ tableEntryVariant entry
 
   let isViewable = True
@@ -691,8 +693,16 @@ adjustNumberOfColumnsShown maximumNumberOfColumns tests = adjustNumberOfColumnsS
         minimumNumberOfTests = 2
 
 
-submissionHeader :: Diff (FullSubmissionInfo, Maybe Text) -> WidgetFor App ()
-submissionHeader param =
+canFullInfoBeShown (OneThing (fsi, _)) mUserId  = checkWhetherVisible (fsiSubmission fsi) mUserId
+canFullInfoBeShown (TwoThings (fsiA, _) (fsiB, _)) mUserId  = do
+  checkA <- checkWhetherVisible (fsiSubmission fsiA) mUserId
+  checkB <- checkWhetherVisible (fsiSubmission fsiB) mUserId
+  return (checkA && checkB)
+
+submissionHeader :: Maybe UserId -> Diff (FullSubmissionInfo, Maybe Text) -> WidgetFor App ()
+submissionHeader mUserId param = do
+  showFullInfo <- handlerToWidget $ runDB $ canFullInfoBeShown param mUserId
+
   $(widgetFile "submission-header")
     where variantSettings = ("out", ())
           submission = fst <$> param
@@ -707,9 +717,8 @@ submissionHeader param =
           submissionToSubmissionUrl submission' = getReadOnlySubmissionUrl (fsiScheme submission') (fsiChallengeRepo submission') $ challengeName $ fsiChallenge submission'
           submissionToBrowsableUrl submission' = browsableGitRepoBranch (fsiScheme submission') (fsiChallengeRepo submission') (challengeName $ fsiChallenge submission') (getPublicSubmissionBranch $ fsiSubmissionId submission')
 
-
-queryResult :: FullSubmissionInfo -> WidgetFor App ()
-queryResult submission = do
+queryResult :: Maybe UserId -> FullSubmissionInfo -> WidgetFor App ()
+queryResult mUserId submission = do
   $(widgetFile "query-result")
 
 queryForm :: Form Text
