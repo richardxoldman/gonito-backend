@@ -78,14 +78,17 @@ getPublicSubmissionBranch = T.pack . (printf "submission-%05d") . fromSqlKey
 getPublicSubmissionUrl :: RepoScheme -> Text -> Maybe Repo -> Text -> Text
 getPublicSubmissionUrl SelfHosted repoHost _ bareRepoName = repoHost ++ bareRepoName
 getPublicSubmissionUrl Branches _ (Just repo) _ = repoUrl repo
+getPublicSubmissionUrl NoInternalGitServer _ (Just repo) _ = repoUrl repo
 
 getReadOnlySubmissionUrl :: RepoScheme -> Repo -> Text -> Text
 getReadOnlySubmissionUrl SelfHosted _ bareRepoName = gitReadOnlyServer ++ bareRepoName
 getReadOnlySubmissionUrl Branches repo _ = repoUrl repo
+getReadOnlySubmissionUrl NoInternalGitServer repo _ = repoUrl repo
 
 browsableGitRepoBranch :: RepoScheme -> Repo -> Text -> Text -> Text
 browsableGitRepoBranch SelfHosted _ bareRepoName branch = (browsableGitRepo bareRepoName) ++ "/" ++ branch ++ "/"
 browsableGitRepoBranch Branches repo _ branch = sshToHttps (repoUrl repo) branch
+browsableGitRepoBranch NoInternalGitServer repo _ branch = sshToHttps (repoUrl repo) branch
 
 sshToHttps :: Text -> Text -> Text
 sshToHttps url branch = "https://" ++ (T.replace ".git" "" $ T.replace ":" "/" $ T.replace "ssh://" "" $ T.replace "git@" "" url) ++ "/tree/" ++ branch

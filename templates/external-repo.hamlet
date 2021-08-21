@@ -1,0 +1,6 @@
+    $maybe serverPubKey <- (appServerSSHPublicKey settings)
+      <p>Make sure Gonito.net has access to your repo, either by making it public or giving read access to the SSH public key:
+      <pre>
+         #{serverPubKey}
+    $nothing
+      <p>Make sure Gonito.net has access to your repo (e.g. by making it public).

@@ -21,11 +21,12 @@ import Web.Announcements (AnnouncementHook, toAnnouncementHook)
 
 import qualified Jose.Jwk as JWK
 
-data RepoScheme = SelfHosted | Branches
+data RepoScheme = SelfHosted | Branches | NoInternalGitServer
                   deriving (Eq, Show)
 
 toRepoScheme :: Text -> RepoScheme
 toRepoScheme "branches" = Branches
+toRepoScheme "no-internal-git-server" = NoInternalGitServer
 toRepoScheme _ = SelfHosted
 
 data TagPermissions = OnlyAdminCanAddNewTags | EverybodyCanAddNewTags

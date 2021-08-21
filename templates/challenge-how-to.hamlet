@@ -43,7 +43,7 @@ $case (appRepoScheme settings)
             \ and
        $if not isSSHUploaded
           \ upload your SSH public key
-       \ (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
+       \ (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on this instance, then:
 
   $maybe altRepoScheme <- mAltRepoScheme
     <p>(Depending on your setup, you might need to create the repo at your git server first; remember to initiate it without any commits!)
@@ -53,23 +53,42 @@ $case (appRepoScheme settings)
     <pre>
       git clone --single-branch #{appRepoHost settings}#{shownId}/#{challengeName challenge}
 
-    <p>(Warning about empty repository is expected, don't worry about it.)
+  <p>(Warning about empty repository is expected, don't worry about it.)
+
+  $maybe altRepoScheme <- mAltRepoScheme
+     ^{externalRepoInfo settings}
 
   <pre>
     cd #{challengeName challenge}
     git pull #{repoUrl repo}
 
-  <h4>Using an external repository
+  $if isNothing mAltRepoScheme
+    <h4>Using an external repository
 
-  $maybe serverPubKey <- (appServerSSHPublicKey settings)
-    $if isNothing mAltRepoScheme
-      <p>Alternatively, you can use any other Git repo, e.g. GitLab, GitHub or your own repo, make sure Gonito.net has access to your repo, either by making it public or giving read access to the SSH public key:
-    $else
-      <pre>
-        #{serverPubKey}
-  $nothing
-    $if isNothing mAltRepoScheme
-      <p>Alternatively, you can use any other Git repo, e.g. GitLab, GitHub or your own repo, make sure Gonito.net has access to your repo.
+    <p>Alternatively, you can use any other Git repo, e.g. GitLab, GitHub or your own repo.
+
+    ^{externalRepoInfo settings}
+
+ $of NoInternalGitServer
+    $maybe altRepoScheme <- mAltRepoScheme
+       <p>Make sure the repo #{altRepoScheme}#{challengeName challenge} exists. Note that it should be created as empty (do <em>not</em> create any default `README.md` file).
+    $nothing
+       <p>You need to have a repo at some external Git server (e.g. GitHub, GitLab or your own git server) for storing your solution.
+
+       <p>Create a repo at your server. It should be created as empty (do **not** create any default `README.md` file).
+       <p>The repo should contain <tt>#{challengeName challenge}</tt> as part of its URL (preferably it should be the last part of the URL)
+
+    ^{externalRepoInfo settings}
+
+    <pre>
+      $maybe altRepoScheme <- mAltRepoScheme
+         git clone #{altRepoScheme}#{challengeName challenge}
+      $nothing
+         git clone URL_TO_YOUR_REPO
+
+    <pre>
+      cd #{challengeName challenge}
+      git pull #{repoUrl repo}
 
  $of Branches
     <p>Clone the repo:
@@ -121,13 +140,15 @@ $case (appRepoScheme settings)
   $of SelfHosted
     <pre>
       git push origin #{myBranch}
-    <h3>Repos hosted on Gonito.net
+    <h2>Submit your solution to Gonito
+    <h3>Repos hosted on this instance
     <p>If you use a repo hosted here, a submission and evaluation is triggered automatically. You'll see the evaluation results in your console while pushing.
-  $of Branches
+  $of _
     <pre>
       git push origin #{myBranch}
+    <h2>Submit your solution to Gonito
 
-<h3>External repos
+<h3>Integration with external repos
 
 <p>If you use an external repo (e.g. at your own of Gitolite or at GitLab/GitHub), you can configure a webhook.
 $maybe token <- mToken

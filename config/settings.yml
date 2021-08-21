@@ -9,6 +9,14 @@ ip-from-header:  "_env:IP_FROM_HEADER:false"
 var-dir:         "_env:VAR_DIR:."
 contact-email:   "_env:CONTACT_EMAIL:filipg@amu.edu.pl"
 repo-host:       "_env:REPO_HOST:ssh://gitolite@gonito.net/"
+# How the git repos are handled
+# - selfhosted - there is a git server (e.g. Gitolite) on the same
+#                host as the Gonito instance
+# - branches - solutions are submitted to the same repo as the task
+#              (this is good for an internal repo within a company)
+# - no-internal-git-server - there is no git server assumed, though
+#                            REPO_HOST can be still specified
+#                            for publishing opened solutions
 repo-scheme:     "_env:REPO_SCHEME:selfhosted"
 tag-permissions: "_env:TAG_PERMISSIONS:only-admin-can-add-new-tags"
 auto-opening:    "_env:AUTO_OPENING:false"

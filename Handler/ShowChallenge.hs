@@ -526,20 +526,25 @@ idToBeShown _ maybeUser =
    Nothing -> defaultIdToBe
   where defaultIdToBe = "YOURID" :: Text
 
+externalRepoPlaceholder :: Text
+externalRepoPlaceholder = "URL_TO_YOUR_REPO"
+
 defaultRepo :: RepoScheme -> Text -> Challenge -> Repo -> Maybe (Entity User) -> Text
 defaultRepo SelfHosted repoHost challenge _ maybeUser = repoHost ++ (idToBeShown challenge maybeUser) ++ "/" ++ (challengeName challenge)
 defaultRepo Branches _ _ repo _ = repoUrl repo
+defaultRepo NoInternalGitServer _ _ _ _ = externalRepoPlaceholder
 
 defaultBranch :: IsString a => RepoScheme -> Maybe a
 defaultBranch SelfHosted = Just "master"
 defaultBranch Branches = Nothing
+defaultBranch NoInternalGitServer = Nothing
 
 challengeHowTo :: Challenge -> AppSettings -> Repo -> Text -> Bool -> Bool -> Maybe Text -> Maybe Text -> WidgetFor App ()
 challengeHowTo challenge settings repo shownId isIDSet isSSHUploaded mAltRepoScheme mToken = $(widgetFile "challenge-how-to")
   where myBranch = "my-brilliant-branch" :: Text
         urlToYourRepo = case mAltRepoScheme of
           Just altRepoScheme -> encodeSlash (altRepoScheme <> (challengeName challenge))
-          Nothing -> "URL_TO_YOUR_REPO"
+          Nothing -> externalRepoPlaceholder
 
 postHealR :: ChallengeId -> Handler TypedContent
 postHealR challengeId = runViewProgress $ doHeal challengeId
@@ -1085,6 +1090,8 @@ checkRepoAvailibility challengeId repoId chan = do
 
 challengeSubmissionWidget :: (ToMarkup a1, ToWidget App a2) => a2 -> a1 -> Challenge -> WidgetFor App ()
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
+
+externalRepoInfo settings = $(widgetFile "external-repo")
 
 data ChallengeSubmissionData = ChallengeSubmissionData {
   challengeSubmissionDataDescription :: Maybe Text,
