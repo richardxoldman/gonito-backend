@@ -42,7 +42,7 @@ import System.IO.Unsafe (unsafePerformIO)
 
 import Text.Regex.TDFA
 
-import Web.Announcements (formatLink)
+import Web.Announcements (formatLink, AnnouncementHook)
 
 import GEval.Core
 import GEval.Common
@@ -743,8 +743,8 @@ compareFun :: MetricOrdering -> Double -> Double -> Ordering
 compareFun TheLowerTheBetter = flip compare
 compareFun TheHigherTheBetter = compare
 
-slackLink :: App -> Text -> Text -> Text
-slackLink app title addr = formatLink slink title
+slackLink :: Maybe AnnouncementHook -> App -> Text -> Text -> Text
+slackLink hook app title addr = formatLink hook slink title
   where slink = (appRoot $ appSettings app) ++ "/" ++ addr
 
 formatVersion :: (Int, Int, Int) -> Text

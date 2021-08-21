@@ -17,6 +17,7 @@ import Network.Wai.Handler.Warp    (HostPreference)
 import Yesod.Default.Config2       (applyEnvValue, configSettingsYml)
 import Yesod.Default.Util          (WidgetFileSettings, widgetFileNoReload,
                                     widgetFileReload)
+import Web.Announcements (AnnouncementHook, toAnnouncementHook)
 
 import qualified Jose.Jwk as JWK
 
@@ -101,7 +102,7 @@ data AppSettings = AppSettings
     , appTagPermissions         :: TagPermissions
     , appAutoOpening            :: Bool
     , appLeaderboardStyle       :: LeaderboardStyle
-    , appNewBestResultSlackHook :: Maybe Text
+    , appNewBestResultSlackHook :: Maybe AnnouncementHook
     , appServerSSHPublicKey     :: Maybe Text
     -- ^ Are challenges, submission, etc. visible without logging in
     , appIsPublic :: Bool
@@ -153,7 +154,7 @@ instance FromJSON AppSettings where
         appAutoOpening            <- o .:? "auto-opening" .!= False
         appLeaderboardStyle       <- toLeaderboardStyle <$> o .: "leaderboard-style"
 
-        appNewBestResultSlackHook <- o .:? "new-best-result-slack-hook"
+        appNewBestResultSlackHook <- toAnnouncementHook' <$> (o .:? "new-best-result-slack-hook")
 
         appServerSSHPublicKey <- o .:? "server-ssh-public-key"
 
@@ -168,6 +169,11 @@ instance FromJSON AppSettings where
         appAutoTeam              <- o .:? "auto-team" .!= False
 
         return AppSettings {..}
+
+-- just in case, not sure if needed
+toAnnouncementHook' :: Maybe Text -> Maybe AnnouncementHook
+toAnnouncementHook' (Just "") = Nothing
+toAnnouncementHook' h = (fmap toAnnouncementHook) h
 
 -- | Settings for 'widgetFile', such as which template languages to support and
 -- default Hamlet settings.

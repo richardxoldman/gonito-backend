@@ -3,7 +3,9 @@
 
 module Web.Announcements
   (sendAnnouncement,
-   formatLink)
+   formatLink,
+   AnnouncementHook(..),
+   toAnnouncementHook)
   where
 
 import Data.Text
@@ -14,9 +16,15 @@ import Prelude
 import Data.Aeson
 import Data.Default
 
+data AnnouncementHook = SlackWebHook Text
 
-sendAnnouncement :: Text -> Text -> IO ()
-sendAnnouncement hook message = do
+toAnnouncementHook :: Text -> AnnouncementHook
+toAnnouncementHook url
+  | ".slack." `isInfixOf` url = SlackWebHook url
+  | otherwise = error $ "unknown hook type"
+
+sendAnnouncement :: AnnouncementHook -> Text -> IO ()
+sendAnnouncement (SlackWebHook hook) message = do
   let (Just (hookUrl, _)) = parseUrlHttps $ DTE.encodeUtf8 hook
 
   R.runReq def $ do
@@ -28,5 +36,6 @@ sendAnnouncement hook message = do
                                  mempty
     return ()
 
-formatLink :: Text -> Text -> Text
-formatLink url title = "<" <> url <> "|" <> title <> ">"
+formatLink :: Maybe AnnouncementHook -> Text -> Text -> Text
+formatLink (Just (SlackWebHook _)) url title = "<" <> url <> "|" <> title <> ">"
+formatLink Nothing url title = title <> "<" <> url <> ">"
