@@ -51,6 +51,8 @@ import qualified Text.Read as TR
 
 import GEval.Core
 import GEval.EvaluationScheme
+import GEval.Formatting
+import GEval.Common (MetricResult(..))
 
 import PersistSHA1
 
@@ -955,6 +957,8 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                               do
                                 let challengeLink = linkInAnnouncement mHook app (challengeTitle challenge) ("challenge/"
                                                                                                              ++ (challengeName challenge))
+                                let formattingOpts = getTestFormattingOpts mainTest
+
                                 let message = ("Whoa! New best result for "
                                                ++ challengeLink
                                                ++ " challenge by "
@@ -962,12 +966,12 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                                ++ ", "
                                                ++ (T.pack $ show $ testMetric mainTest)
                                                ++ ": "
-                                               ++ (formatScore (testPrecision mainTest) s)
+                                               ++ (T.pack $ formatTheResult formattingOpts (SimpleRun s))
                                                ++ " ("
                                                ++ (if s > b
                                                    then "+"
                                                    else "")
-                                               ++ (formatScore (testPrecision mainTest) (s-b))
+                                               ++ (T.pack $ formatTheResult formattingOpts (SimpleRun (s-b)))
                                                ++ ")."
                                                ++ " See " ++ submissionLink ++ "."
                                                ++ " :clap:")
