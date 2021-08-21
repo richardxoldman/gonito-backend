@@ -46,7 +46,7 @@ $case (appRepoScheme settings)
        \ (see <a href="@{YourAccountR}">your account</a>) if you want to have a repo hosted on Gonito.net, then:
 
   $maybe altRepoScheme <- mAltRepoScheme
-    <p>(Depending on your setup, you might need to create the repo at your git server first.)
+    <p>(Depending on your setup, you might need to create the repo at your git server first; remember to initiate it without any commits!)
     <pre>
       git clone #{altRepoScheme}#{challengeName challenge}
   $nothing
