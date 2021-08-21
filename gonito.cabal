@@ -63,6 +63,7 @@ library
                      Handler.Swagger
                      Handler.JWT
                      Handler.Team
+                     Handler.Announcements
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

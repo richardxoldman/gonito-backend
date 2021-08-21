@@ -16,6 +16,8 @@
 /api/test-progress/#Int/#Int TestProgressJsonR GET
 /list-challenges ListChallengesR GET
 
+/test-announcements TestAnnouncementsR GET
+
 /api/list-challenges ListChallengesJsonR GET
 /api/leaderboard/#Text LeaderboardJsonR GET
 /api/challenge-my-submissions/#Text ChallengeMySubmissionsJsonR GET

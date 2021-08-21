@@ -37,6 +37,7 @@
                             <li><a href="@{CoursesITeachR}">_{MsgCoursesITeach}</a>
                             <li><a href="@{ListArchivedChallengesR}">_{MsgShowArchivedChallenges}</a>
                             <li><a href="@{ListAnnotationsR}">_{MsgShowAnnotations}</a>
+                            <li><a href="@{TestAnnouncementsR}">_{MsgTestAnnouncements}</a>
 
           <ul class="nav navbar-nav navbar-collapse collapse navbar-right">
             <li class="dropdown">

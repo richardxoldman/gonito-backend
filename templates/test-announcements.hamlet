@@ -1,0 +1,4 @@
+$maybe _ <- webHook
+  <p>A test message was sent!
+$nothing
+  <p>No webhook integrated. No test message sent.
