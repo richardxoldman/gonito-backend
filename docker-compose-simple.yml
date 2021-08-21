@@ -17,6 +17,7 @@ services:
       - IS_PUBLIC=${GONITO_IS_PUBLIC:-true}
       - JSON_WEB_KEY=${JSON_WEB_KEY}
       - ANNOUNCEMENT_HOOK=${GONITO_ANNOUNCEMENT_HOOK}
+      - MENULESS=${GONITO_MENULESS}
     ports:
       - 3000:3000
     volumes:

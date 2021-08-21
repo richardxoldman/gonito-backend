@@ -16,6 +16,7 @@ leaderboard-style: "_env:LEADERBOARD_STYLE:by-submitter"
 announcement-hook: "_env:ANNOUNCEMENT_HOOK:"
 server-ssh-public-key: "_env:SERVER_SSH_PUBLIC_KEY:"
 is-public:    "_env:IS_PUBLIC:true"
+menuless:    "_env:MENULESS:false"
 
 # How the output of asynchronous operations is presented
 # - with-plain-text - just plain text shown by the browser;

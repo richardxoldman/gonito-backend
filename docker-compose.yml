@@ -30,6 +30,7 @@ services:
       - AUTO_TEAM=${GONITO_AUTO_TEAM:-false}
       - TEAM_FIELD=$GONITO_TEAM_FIELD
       - ANNOUNCEMENT_HOOK=${GONITO_ANNOUNCEMENT_HOOK}
+      - MENULESS=${GONITO_MENULESS}
     expose:
       - "3000"
     volumes:

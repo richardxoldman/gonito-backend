@@ -115,6 +115,11 @@ data AppSettings = AppSettings
     -- The team for which the user is the captain
     -- will be preferred
     , appAutoTeam :: Bool
+
+    -- ^ Do not show the menu
+    -- (Unless the user is an admin). Can be used to combine Gonito
+    -- with an external front-end.
+    , appMenuless :: Bool
     }
 
 instance FromJSON AppSettings where
@@ -167,6 +172,8 @@ instance FromJSON AppSettings where
         appTeamField             <- o .:? "team-field"
 
         appAutoTeam              <- o .:? "auto-team" .!= False
+
+        appMenuless              <- o .:? "menuless" .!= False
 
         return AppSettings {..}
 

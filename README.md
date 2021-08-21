@@ -128,6 +128,13 @@ the token and adds a record to the Gonito database.
 
 You can simulate a front-end by going to `/static/test-gonito-as-backend.html`.
 
+### Menuless mode
+
+If you want to combine an external front-end with some features of the
+Gonito native front-end, you can run Gonito in a _menuless_ mode
+setting `MENULESS` to `true`. This way, you will not show all the
+functions of native Gonito.
+
 Gonito & git
 ------------
 
