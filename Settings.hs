@@ -102,7 +102,7 @@ data AppSettings = AppSettings
     , appTagPermissions         :: TagPermissions
     , appAutoOpening            :: Bool
     , appLeaderboardStyle       :: LeaderboardStyle
-    , appNewBestResultSlackHook :: Maybe AnnouncementHook
+    , appAnnouncementHook :: Maybe AnnouncementHook
     , appServerSSHPublicKey     :: Maybe Text
     -- ^ Are challenges, submission, etc. visible without logging in
     , appIsPublic :: Bool
@@ -154,7 +154,7 @@ instance FromJSON AppSettings where
         appAutoOpening            <- o .:? "auto-opening" .!= False
         appLeaderboardStyle       <- toLeaderboardStyle <$> o .: "leaderboard-style"
 
-        appNewBestResultSlackHook <- toAnnouncementHook' <$> (o .:? "new-best-result-slack-hook")
+        appAnnouncementHook <- toAnnouncementHook' <$> (o .:? "announcement-hook")
 
         appServerSSHPublicKey <- o .:? "server-ssh-public-key"
 

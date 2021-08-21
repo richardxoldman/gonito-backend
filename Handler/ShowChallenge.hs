@@ -933,9 +933,9 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
       msg chan "SUBMISSION CREATED"
 
       app <- getYesod
-      let mHook = appNewBestResultSlackHook $ appSettings app
+      let mHook = appAnnouncementHook $ appSettings app
 
-      let submissionLink = slackLink mHook app "submission" ("q/" ++ (fromSHA1ToText (repoCurrentCommit repo)))
+      let submissionLink = linkInAnnouncement mHook app "submission" ("q/" ++ (fromSHA1ToText (repoCurrentCommit repo)))
 
       case mMainEnt of
         Just (Entity mainTestId mainTest) -> do
@@ -953,8 +953,8 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                     (s:_) -> if compOp s b
                              then
                               do
-                                let challengeLink = slackLink mHook app (challengeTitle challenge) ("challenge/"
-                                                                                                    ++ (challengeName challenge))
+                                let challengeLink = linkInAnnouncement mHook app (challengeTitle challenge) ("challenge/"
+                                                                                                             ++ (challengeName challenge))
                                 let message = ("Whoa! New best result for "
                                                ++ challengeLink
                                                ++ " challenge by "
@@ -1020,7 +1020,7 @@ checkTarget theNow user submissionLink entries indicator target chan = do
                      ++ " See " ++ submissionLink ++ "."
                      ++ (T.replicate 10 " :champagne: ") ++ " :mleczko: "
       msg chan message
-      case appNewBestResultSlackHook $ appSettings app of
+      case appAnnouncementHook $ appSettings app of
           Just hook -> liftIO $ sendAnnouncement hook message
           Nothing -> return ()
     else

@@ -743,8 +743,8 @@ compareFun :: MetricOrdering -> Double -> Double -> Ordering
 compareFun TheLowerTheBetter = flip compare
 compareFun TheHigherTheBetter = compare
 
-slackLink :: Maybe AnnouncementHook -> App -> Text -> Text -> Text
-slackLink hook app title addr = formatLink hook slink title
+linkInAnnouncement :: Maybe AnnouncementHook -> App -> Text -> Text -> Text
+linkInAnnouncement hook app title addr = formatLink hook slink title
   where slink = (appRoot $ appSettings app) ++ "/" ++ addr
 
 formatVersion :: (Int, Int, Int) -> Text
