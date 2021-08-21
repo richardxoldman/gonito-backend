@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Web.Announcements
-  (runSlackHook,
+  (sendAnnouncement,
    formatLink)
   where
 
@@ -15,8 +15,8 @@ import Data.Aeson
 import Data.Default
 
 
-runSlackHook :: Text -> Text -> IO ()
-runSlackHook hook message = do
+sendAnnouncement :: Text -> Text -> IO ()
+sendAnnouncement hook message = do
   let (Just (hookUrl, _)) = parseUrlHttps $ DTE.encodeUtf8 hook
 
   R.runReq def $ do

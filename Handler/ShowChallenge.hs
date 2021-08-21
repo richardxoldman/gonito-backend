@@ -973,7 +973,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                 msg chan message
                                 case appNewBestResultSlackHook $ appSettings app of
                                   Just "" -> return ()
-                                  Just hook -> liftIO $ runSlackHook hook message
+                                  Just hook -> liftIO $ sendAnnouncement hook message
 
                                   Nothing -> return ()
                              else return ()
@@ -1022,7 +1022,7 @@ checkTarget theNow user submissionLink entries indicator target chan = do
       msg chan message
       case appNewBestResultSlackHook $ appSettings app of
           Just "" -> return ()
-          Just hook -> liftIO $ runSlackHook hook message
+          Just hook -> liftIO $ sendAnnouncement hook message
           Nothing -> return ()
     else
        return ()

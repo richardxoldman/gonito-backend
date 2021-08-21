@@ -3,7 +3,7 @@ module Handler.Announcements where
 import Import
 
 import Handler.Shared
-import Web.Announcements (runSlackHook)
+import Web.Announcements (sendAnnouncement)
 
 getTestAnnouncementsR :: Handler Html
 getTestAnnouncementsR = do
@@ -16,7 +16,7 @@ getTestAnnouncementsR = do
                Nothing -> "Gonito"
 
   case webHook of
-    Just hook -> liftIO $ runSlackHook hook ("Test message from " ++ (slackLink app name ""))
+    Just hook -> liftIO $ sendAnnouncement hook ("Test message from " ++ (slackLink app name ""))
     Nothing -> return ()
 
   defaultLayout $ do
