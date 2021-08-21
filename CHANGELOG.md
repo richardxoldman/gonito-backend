@@ -1,3 +1,23 @@
+## 3.7.0 (2021-08-21)
+
+Enhancements:
+
+* Add PerplexityHashed metric
+* Add MENULESS option
+* Introduce no-internal-git-server scheme
+* Announcements can be sent to Discord
+
+Fixes:
+
+* Fix how-to for submitting solutions
+* Fix the way scores are formatted for announcements
+
+Changes (might be considered compatibility breaks):
+
+* change `NEW_BEST_RESULT_SLACK_HOOK` to more general `ANNOUNCEMENT_HOOK`
+* details for all submissions are shown (including outputs)
+* only outputs for the main test set are hidden
+
 ## 3.6.1 (2021-08-09)
 
 Improvements:
