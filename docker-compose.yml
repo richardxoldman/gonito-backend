@@ -29,6 +29,7 @@ services:
       - VIEWING_PROGRESS_STYLE=${GONITO_VIEWING_PROGRESS_STYLE:-with-web-sockets}
       - AUTO_TEAM=${GONITO_AUTO_TEAM:-false}
       - TEAM_FIELD=$GONITO_TEAM_FIELD
+      - ANNOUNCEMENT_HOOK=${GONITO_ANNOUNCEMENT_HOOK}
     expose:
       - "3000"
     volumes:

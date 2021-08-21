@@ -209,6 +209,13 @@ for evaluation (e.g. `expected.tsv` files for the challenge or
 given when a challenge is created or a submission is done and the
 Gonito server must have access to such a special remote.
 
+Integration with Slack/Discord
+------------------------------
+
+Gonito can send announcements to Slack or Discord via web hooks, e.g.
+when new best result is achieved. Simply set the `ANNOUNCEMENT_HOOK`
+environment variable to a Slack/Discord webhook.
+
 Authors
 -------
 

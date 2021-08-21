@@ -16,19 +16,24 @@ import Prelude
 import Data.Aeson
 import Data.Default
 
-data AnnouncementHook = SlackWebHook Text
+data AnnouncementHook = SlackWebHook Text | DiscordWebHook Text
 
 toAnnouncementHook :: Text -> AnnouncementHook
 toAnnouncementHook url
   | ".slack." `isInfixOf` url = SlackWebHook url
-  | otherwise = error $ "unknown hook type"
+  | "discord.com" `isInfixOf` url = DiscordWebHook url
+  | otherwise = error $ unpack $ "unknown hook type '" <> url <> "'"
 
 sendAnnouncement :: AnnouncementHook -> Text -> IO ()
-sendAnnouncement (SlackWebHook hook) message = do
+sendAnnouncement (SlackWebHook hook) message = sendAnnouncementViaJson hook "text" message
+sendAnnouncement (DiscordWebHook hook) message = sendAnnouncementViaJson hook "content" message
+
+sendAnnouncementViaJson :: Text -> Text -> Text -> IO ()
+sendAnnouncementViaJson hook fieldName message = do
   let (Just (hookUrl, _)) = parseUrlHttps $ DTE.encodeUtf8 hook
 
   R.runReq def $ do
-    let payload = object [ "text" .= message ]
+    let payload = object [ fieldName .= message ]
     (_ :: IgnoreResponse) <- R.req R.POST
                                  hookUrl
                                  (R.ReqBodyJson payload)
@@ -38,4 +43,8 @@ sendAnnouncement (SlackWebHook hook) message = do
 
 formatLink :: Maybe AnnouncementHook -> Text -> Text -> Text
 formatLink (Just (SlackWebHook _)) url title = "<" <> url <> "|" <> title <> ">"
-formatLink Nothing url title = title <> "<" <> url <> ">"
+formatLink (Just (DiscordWebHook _)) url title = formatLinkWithAngleBrackets url title
+formatLink Nothing url title = formatLinkWithAngleBrackets url title
+
+formatLinkWithAngleBrackets :: Text -> Text -> Text
+formatLinkWithAngleBrackets url title = title <> " <" <> url <> ">"
