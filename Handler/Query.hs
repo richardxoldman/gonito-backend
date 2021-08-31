@@ -547,6 +547,14 @@ getScoreFromDiff (DiffLineRecord _ _ (OneThing (_, s)) _) = s
 getScoreFromDiff (DiffLineRecord _ _ (TwoThings (_, oldS) (_, newS)) _) = newS - oldS
 
 
+data SourceOfExpected = NoExpectedFound | ExpectedFromSubmission | ExpectedFromChallenge
+  deriving (Eq, Show)
+
+checkForExpected repoDir testName = do
+  expFile <- lookForCompressedFiles (repoDir </> testName </> "expected.tsv")
+  expFileExists <- D.doesFileExist expFile
+  return expFileExists
+
 viewOutputWithNonDefaultTestSelected :: Diff TableEntry
                                        -> [Entity Test]
                                        -> Entity Test
@@ -591,17 +599,29 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
 
             let testName = T.unpack testSet
 
-            Right opts <- liftIO $ readOptsFromConfigFile [] (current repoDir </> "config.txt")
+            challengeRepoDir <- handlerToWidget $ getRepoDir (challengePublicRepo challenge)
+            expFileExistsInChallengeRepo <- liftIO $ checkForExpected challengeRepoDir testName
 
-            expFile <- liftIO $ lookForCompressedFiles (current repoDir </> testName </> "expected.tsv")
+            expFileExists <- liftIO $ checkForExpected (current repoDir) testName
 
-            expFileExists <- liftIO $ D.doesFileExist expFile
+            let expFileStatus = if expFileExists
+                                then ExpectedFromSubmission
+                                else
+                                  if expFileExistsInChallengeRepo
+                                  then ExpectedFromChallenge
+                                  else NoExpectedFound
 
-            if expFileExists
+            if expFileStatus /= NoExpectedFound
             then do
+                let theRepoDir = case expFileStatus of
+                                   ExpectedFromSubmission -> (current repoDir)
+                                   ExpectedFromChallenge -> challengeRepoDir
+                                   NoExpectedFound -> error "Should not be here"
+
+                Right opts <- liftIO $ readOptsFromConfigFile [] (theRepoDir </> "config.txt")
                 let spec = GEvalSpecification {
                   gesOutDirectory = current repoDir,
-                  gesExpectedDirectory = Nothing,
+                  gesExpectedDirectory = Just theRepoDir,
                   gesTestName = testName,
                   gesSelector = Nothing,
                   gesOutFile = outFile,
@@ -627,14 +647,14 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
                      result <- liftIO $ runLineByLineGeneralized FirstTheWorst
                                                                 spec
                                                                 (\_ -> CL.take maximumNumberOfItemsToBeShown)
-                     return $ Just $ zip [1..] $ map getUniLineRecord result
+                     return $ Just (expFileStatus, zip [1..] $ map getUniLineRecord result)
                    TwoThings (Just (oldRepoDir, oldOutFilePath)) _ -> do
                      absOldOutFilePath <- liftIO $ makeAbsolute (oldRepoDir </> testName </> (takeFileName oldOutFilePath))
                      result <- liftIO $ runDiffGeneralized FirstTheWorst
                                                            absOldOutFilePath
                                                            spec
                                                            (\_ -> CL.take maximumNumberOfItemsToBeShown)
-                     return $ Just $ zip [1..] $ map getBiLineRecord result
+                     return $ Just (expFileStatus, zip [1..] $ map getBiLineRecord result)
             else
              do
               return Nothing

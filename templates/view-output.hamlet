@@ -7,8 +7,13 @@
      <div .subm-commit>#{testSet} / #{outputSha1AsText}
      $forall crossTable <- crossTables
        ^{Table.buildBootstrap (crossTableDefinition variantId crossTable) (crossTableBody crossTable)}
-     $maybe result <- mResult
+     $maybe (expFileStatus, result) <- mResult
         <a name="worst-items-#{testSet}">
         <h4>worst items
+        $case expFileStatus
+           $of ExpectedFromSubmission
+              note: the gold standard is taken from the submission itself, not from the challenge data!
+           $of ExpectedFromChallenge
+              note: the gold standard is taken from the challenge
         ^{Table.buildBootstrap (lineByLineTable mainTest theVersion theStamp) result}
      $nothing
