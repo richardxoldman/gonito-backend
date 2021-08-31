@@ -1,3 +1,15 @@
+## 3.8.0 (2021-08-31)
+
+Enhancements:
+
+* Add end-point for returning the token for triggering evaluations
+* Line-by-line mode can use expected data from the public challenge
+  repository if needed
+
+Fixes:
+
+* Pretty metric names are used in announcements
+
 ## 3.7.0 (2021-08-21)
 
 Enhancements:
