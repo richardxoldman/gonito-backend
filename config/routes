@@ -33,6 +33,7 @@
 /api/version-info/#Text VersionInfoJsonR GET
 /api/list-tags ListTagsJsonR GET
 /api/my-teams MyTeamsJsonR GET
+/api/my-evaluation-trigger-token MyEvaluationTriggerTokenJsonR GET
 /list-archived-challenges ListArchivedChallengesR GET
 
 /my-teams MyTeamsR GET

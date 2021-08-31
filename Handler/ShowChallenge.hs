@@ -1138,6 +1138,11 @@ getUserInfoR = do
   (Entity _ user) <- requireAuthPossiblyByToken
   return $ String $ userIdent user
 
+getMyEvaluationTriggerTokenJsonR :: Handler Value
+getMyEvaluationTriggerTokenJsonR = do
+  (Entity _ user) <- requireAuthPossiblyByToken
+  return $ String $ fromMaybe "" $ userTriggerToken user
+
 getAddUserR :: Handler Value
 getAddUserR = do
   mInfo <- authorizationTokenAuth
@@ -1241,6 +1246,26 @@ declareUserInfoApi = do
                                         & parameters .~ [ ]
                                         & produces ?~ MimeList ["application/json"]
                                         & description ?~ "Returns the identifier of the user"
+                                        & at 200 ?~ Inline response))
+                 ]
+
+myEvaluationTriggerTokenApi :: Swagger
+myEvaluationTriggerTokenApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareMyEvaluationTriggerTokenApi mempty
+
+declareMyEvaluationTriggerTokenApi :: Declare (Definitions Schema) Swagger
+declareMyEvaluationTriggerTokenApi = do
+  -- param schemas
+  response <- declareResponse (Proxy :: Proxy String)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/my-evaluation-trigger-token",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Returns the token for triggering evaluations"
                                         & at 200 ?~ Inline response))
                  ]
 

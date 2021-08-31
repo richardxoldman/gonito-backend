@@ -19,6 +19,7 @@ apiDescription :: Swagger
 apiDescription = generalApi
                  <> addUserApi
                  <> userInfoApi
+                 <> myEvaluationTriggerTokenApi
                  <> listChallengesApi
                  <> leaderboardApi
                  <> allSubmissionsApi
