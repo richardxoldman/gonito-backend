@@ -969,7 +969,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                                ++ " challenge by "
                                                ++ (fromMaybe "???" $ userName user)
                                                ++ ", "
-                                               ++ (T.pack $ show $ testMetric mainTest)
+                                               ++ (T.pack $ evaluationSchemeName $ testMetric mainTest)
                                                ++ ": "
                                                ++ (T.pack $ formatTheResult formattingOpts (SimpleRun s))
                                                ++ " ("
@@ -1091,6 +1091,7 @@ checkRepoAvailibility challengeId repoId chan = do
 challengeSubmissionWidget :: (ToMarkup a1, ToWidget App a2) => a2 -> a1 -> Challenge -> WidgetFor App ()
 challengeSubmissionWidget formWidget formEnctype challenge = $(widgetFile "challenge-submission")
 
+externalRepoInfo :: AppSettings -> WidgetFor site ()
 externalRepoInfo settings = $(widgetFile "external-repo")
 
 data ChallengeSubmissionData = ChallengeSubmissionData {
