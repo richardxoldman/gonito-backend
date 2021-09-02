@@ -35,7 +35,8 @@ apiDescription = generalApi
                  <> testProgressApi
                  <> viewProgressWithWebSockets
                  <> viewProgressLog
-
+                 <> currentTimeApi
+                 <> formatAsLocalTimeApi
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)

@@ -5,7 +5,6 @@ module Handler.ListChallenges where
 
 import Import hiding (get, fromList, Proxy)
 
-import Handler.Shared
 import PersistSHA1
 
 import Data.HashMap.Strict.InsOrd (fromList)
@@ -121,15 +120,20 @@ versionInfoApi = spec & definitions .~ defs
 
 
 instance ToJSON (Entity Version) where
-    toJSON chEnt@(Entity _ ver) = object
+    toJSON (Entity _ ver) = object
         [ "deadline"  .= versionDeadline ver
-        , "version" .= (formatVersion (versionMajor ver,
-                                       versionMinor ver,
-                                       versionPatch ver))
+        , "version" .= ((versionMajor ver),
+                        (versionMinor ver),
+                        (versionPatch ver))
         , "description" .= versionDescription ver
         , "when" .= versionStamp ver
         , "commit" .= (fromSHA1ToText $ versionCommit ver)
         ]
+
+versionSchema :: Referenced Schema
+versionSchema = Inline $ toSchema (Proxy :: Proxy [Int])
+  & description .~ Just "Challenge version"
+  & example .~ Just (toJSON ([2, 0, 1] :: [Int]))
 
 instance ToSchema (Entity Version) where
   declareNamedSchema _ = do
@@ -137,8 +141,8 @@ instance ToSchema (Entity Version) where
     return $ NamedSchema (Just "Version") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
-           fromList [  ("deadline", stringSchema)
-                    , ("version", stringSchema)
+           fromList [ ("deadline", stringSchema)
+                    , ("version", versionSchema)
                     , ("description", stringSchema)
                     , ("when", stringSchema)
                     , ("commit", stringSchema)

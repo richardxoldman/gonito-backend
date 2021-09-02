@@ -35,6 +35,7 @@
 /api/my-teams MyTeamsJsonR GET
 /api/my-evaluation-trigger-token MyEvaluationTriggerTokenJsonR GET
 /api/current-time CurrentTimeR GET
+/api/format-as-local-time/#String FormatAsLocalTimeR GET
 /list-archived-challenges ListArchivedChallengesR GET
 
 /my-teams MyTeamsR GET

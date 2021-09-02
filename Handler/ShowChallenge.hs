@@ -18,6 +18,9 @@ import qualified Yesod.Table as Table
 import Control.Concurrent.Lifted (threadDelay)
 
 import Data.Time.LocalTime
+import Data.Time.Clock
+
+import qualified Data.List.Utils as DLU
 
 import Handler.Extract
 import Handler.Shared
@@ -1142,8 +1145,14 @@ getUserInfoR = do
 
 getCurrentTimeR :: Handler Value
 getCurrentTimeR = do
-  theNow <- liftIO $ getZonedTime
-  return $ toJSON $ zonedTimeToLocalTime theNow
+  theNow <- liftIO $ getCurrentTime
+  return $ toJSON theNow
+
+getFormatAsLocalTimeR :: String -> Handler Value
+getFormatAsLocalTimeR t = do
+  let ut = TR.read $ DLU.replace "T" " " $ DLU.replace "Z" " " t
+  tz <- liftIO $ getTimeZone ut
+  return $ toJSON $ utcToLocalTime tz ut
 
 
 getMyEvaluationTriggerTokenJsonR :: Handler Value
@@ -1276,6 +1285,35 @@ declareCurrentTimeApi = do
                                         & description ?~ "Returns the current time as measured on the server side"
                                         & at 200 ?~ Inline response))
                  ]
+
+
+formatAsLocalTimeApi :: Swagger
+formatAsLocalTimeApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareFormatAsLocalTimeApi mempty
+
+declareFormatAsLocalTimeApi :: Declare (Definitions Schema) Swagger
+declareFormatAsLocalTimeApi = do
+  -- param schemas
+  response <- declareResponse (Proxy :: Proxy String)
+  let utcTimeSchema = toParamSchema (Proxy :: Proxy String)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/format-as-local-time/{utcTime}",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Formats the given UTC time stamp as a local time"
+                                        & parameters .~ [ Inline $ mempty
+                                                          & name .~ "utcTime"
+                                                          & required ?~ True
+                                                          & schema .~ ParamOther (mempty
+                                                                                  & in_ .~ ParamPath
+                                                                                  & paramSchema .~ utcTimeSchema) ]
+                                        & at 200 ?~ Inline response))
+                 ]
+
 
 
 myEvaluationTriggerTokenApi :: Swagger
