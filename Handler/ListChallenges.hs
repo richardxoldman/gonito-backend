@@ -101,7 +101,7 @@ declareVersionInfoSwagger = do
 
   return $ mempty
     & paths .~
-        [ ("/api/version-info/{challengeName}",
+        [ ("/api/version-info/{versionHash}",
             mempty & get ?~ (mempty
                                  & parameters .~ [ Inline $ mempty
                                                    & name .~ "versionHash"

@@ -55,6 +55,7 @@ hexNibbleToWord8 'E' = 14
 hexNibbleToWord8 'e' = 14
 hexNibbleToWord8 'F' = 15
 hexNibbleToWord8 'f' = 15
+hexNibbleToWord8 c = error ("Unexpected char '" ++ [c] ++ "'")
 
 instance PersistField SHA1 where
   toPersistValue (SHA1 t) = PersistByteString t
