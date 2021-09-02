@@ -1,3 +1,15 @@
+## 3.9.0 (2021-09-02)
+
+Enhancements:
+
+* Add current-time end-point for current server time
+* Add format-as-local-time end-point for formatting time stamps
+  as a local time
+
+Breaking changes:
+
+* version-info returns version as a list
+
 ## 3.8.0 (2021-08-31)
 
 Enhancements:
