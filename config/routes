@@ -34,6 +34,7 @@
 /api/list-tags ListTagsJsonR GET
 /api/my-teams MyTeamsJsonR GET
 /api/my-evaluation-trigger-token MyEvaluationTriggerTokenJsonR GET
+/api/current-time CurrentTimeR GET
 /list-archived-challenges ListArchivedChallengesR GET
 
 /my-teams MyTeamsR GET

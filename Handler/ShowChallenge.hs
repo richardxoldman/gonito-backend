@@ -17,6 +17,8 @@ import qualified Yesod.Table as Table
 
 import Control.Concurrent.Lifted (threadDelay)
 
+import Data.Time.LocalTime
+
 import Handler.Extract
 import Handler.Shared
 import Handler.Runner
@@ -1138,6 +1140,12 @@ getUserInfoR = do
   (Entity _ user) <- requireAuthPossiblyByToken
   return $ String $ userIdent user
 
+getCurrentTimeR :: Handler Value
+getCurrentTimeR = do
+  theNow <- liftIO $ getZonedTime
+  return $ toJSON $ zonedTimeToLocalTime theNow
+
+
 getMyEvaluationTriggerTokenJsonR :: Handler Value
 getMyEvaluationTriggerTokenJsonR = do
   (Entity _ user) <- requireAuthPossiblyByToken
@@ -1248,6 +1256,27 @@ declareUserInfoApi = do
                                         & description ?~ "Returns the identifier of the user"
                                         & at 200 ?~ Inline response))
                  ]
+
+currentTimeApi :: Swagger
+currentTimeApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareCurrentTimeApi mempty
+
+declareCurrentTimeApi :: Declare (Definitions Schema) Swagger
+declareCurrentTimeApi = do
+  -- param schemas
+  response <- declareResponse (Proxy :: Proxy String)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/current-time",
+                    mempty & DS.get ?~ (mempty
+                                        & parameters .~ [ ]
+                                        & produces ?~ MimeList ["application/json"]
+                                        & description ?~ "Returns the current time as measured on the server side"
+                                        & at 200 ?~ Inline response))
+                 ]
+
 
 myEvaluationTriggerTokenApi :: Swagger
 myEvaluationTriggerTokenApi = spec & definitions .~ defs
