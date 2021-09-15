@@ -74,6 +74,7 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardTags :: [(Entity Import.Tag, Entity SubmissionTag)],
   leaderboardParams :: [Parameter],
   leaderboardVersion :: (Int, Int, Int),
+  leaderboardIsOwner :: Bool,
   leaderboardIsVisible :: Bool,
   leaderboardIsReevaluable :: Bool,
   leaderboardTeam :: Maybe (Entity Team)
@@ -392,7 +393,8 @@ toLeaderboardEntry challengeId tests ss = do
                                            SubmissionSubmitter ==. entityKey user]
                                           [Desc SubmissionStamp]
 
-  mUserId <- maybeAuthPossiblyByToken
+  mUserEnt <- maybeAuthPossiblyByToken
+  let isOwner = (entityKey <$> mUserEnt) == Just (submissionSubmitter submission)
 
   isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission bestOne
   let isVisible = True
@@ -415,6 +417,7 @@ toLeaderboardEntry challengeId tests ss = do
               leaderboardTags = tagEnts,
               leaderboardParams = map entityVal theParameters,
               leaderboardVersion = theVersion,
+              leaderboardIsOwner = isOwner,
               leaderboardIsReevaluable = isReevaluable,
               leaderboardIsVisible = isVisible,
               leaderboardTeam = mTeam

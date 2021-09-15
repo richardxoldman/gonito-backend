@@ -90,6 +90,7 @@ instance ToJSON LeaderboardEntry where
         , "times" .= leaderboardNumberOfSubmissions entry
         , "hash" .= (fromSHA1ToText $ submissionCommit $ leaderboardBestSubmission entry)
         , "isPublic" .= (submissionIsPublic $ leaderboardBestSubmission entry)
+        , "isOwner" .= (leaderboardIsOwner entry)
         , "isReevaluable" .= (leaderboardIsReevaluable entry)
         , "isVisible" .= (leaderboardIsVisible entry)
         , "id" .= (leaderboardBestSubmissionId entry)
@@ -228,6 +229,7 @@ instance ToSchema LeaderboardEntryView where
                                            & example .~ Just (toJSON (2:: Int)))
                      , ("hash", hashSchema)
                      , ("evaluations", evaluationsSchema)
+                     , ("isOwner", boolSchema)
                      , ("isPublic", isPublicSchema)
                      , ("isReevaluable", boolSchema)
                      , ("isVisible", isVisibleSchema)
@@ -1415,7 +1417,7 @@ convertEvaluationToView theMapping entTest =
 -- convertTableEntryToView :: Maybe UserId -> [Entity Test] -> TableEntry -> SubmissionView
 convertTableEntryToView :: [Entity Test] -> TableEntry -> HandlerFor App SubmissionView
 convertTableEntryToView tests entry = do
-  mUserId <- maybeAuthPossiblyByToken
+  mUserEnt <- maybeAuthPossiblyByToken
 
   isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission entry
   let isVisible = True
@@ -1433,7 +1435,7 @@ convertTableEntryToView tests entry = do
     submissionViewTags = Import.map convertTagInfoToView $ tableEntryTagsInfo entry,
     submissionViewHash = fromSHA1ToText $ submissionCommit submission,
     submissionViewEvaluations = catMaybes $ Import.map (convertEvaluationToView $ tableEntryMapping entry) tests,
-    submissionViewIsOwner = (entityKey <$> mUserId) == Just (submissionSubmitter submission),
+    submissionViewIsOwner = (entityKey <$> mUserEnt) == Just (submissionSubmitter submission),
     submissionViewIsReevaluable = isReevaluable,
     submissionViewIsVisible = isVisible,
     submissionViewIsPublic = submissionIsPublic submission,
