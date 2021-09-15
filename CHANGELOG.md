@@ -1,3 +1,10 @@
+## 3.10.0 (2021-09-1)
+
+Enhancements:
+
+* Leaderboard end-point returns a isOwner flags
+* Add make-public end-point for opening challenges
+
 ## 3.9.0 (2021-09-02)
 
 Enhancements:
