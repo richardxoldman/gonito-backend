@@ -25,6 +25,8 @@
 /api/user-info UserInfoR GET
 /api/add-user AddUserR GET
 /api/challenge-submission/#Text ChallengeSubmissionJsonR POST
+/api/make-public/#SubmissionId MakePublicJsonR GET
+
 /api/challenge-readme/#Text/markdown ChallengeReadmeInMarkdownR GET
 /api/challenge-img/#Text ChallengeImgR GET
 /api/query/#Text QueryJsonR GET

@@ -27,6 +27,7 @@ apiDescription = generalApi
                  <> challengeReadmeInMarkdownApi
                  <> queryApi
                  <> challengeSubmissionApi
+                 <> makePublicApi
                  <> versionInfoApi
                  <> listTagsApi
                  <> myTeamsApi

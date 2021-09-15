@@ -9,6 +9,12 @@ import PersistSHA1
 import Data.Text as T
 
 import Handler.Runner
+import Handler.JWT
+
+getMakePublicJsonR :: SubmissionId -> Handler Value
+getMakePublicJsonR submissionId = do
+  Entity userId _ <- requireAuthPossiblyByToken
+  runViewProgressAsynchronously $ doMakePublic userId submissionId
 
 getMakePublicR :: SubmissionId -> Handler TypedContent
 getMakePublicR submissionId = do

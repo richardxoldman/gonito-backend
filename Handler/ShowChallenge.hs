@@ -18,7 +18,6 @@ import qualified Yesod.Table as Table
 import Control.Concurrent.Lifted (threadDelay)
 
 import Data.Time.LocalTime
-import Data.Time.Clock
 
 import qualified Data.List.Utils as DLU
 
@@ -665,6 +664,36 @@ challengeSubmissionApi :: Swagger
 challengeSubmissionApi = spec & definitions .~ defs
   where
     (defs, spec) = runDeclare declareChallengeSubmissionSwagger mempty
+
+
+declareMakePublicSwagger :: Declare (Definitions Schema) Swagger
+declareMakePublicSwagger = do
+  -- param schemas
+  let idSchema = toParamSchema (Proxy :: Proxy Int)
+
+  asyncJobResponse      <- declareResponse (Proxy :: Proxy Int)
+  wrongSubmissionResponse      <- declareResponse (Proxy :: Proxy GonitoStatus)
+
+  return $ mempty
+    & paths .~
+        fromList [ ("/api/make-public/{submissionId}",
+                    mempty & DS.get ?~  (mempty
+                                         & parameters .~ [ Inline $ mempty
+                                                           & name .~ "submissionId"
+                                                           & required ?~ True
+                                                           & schema .~ ParamOther (mempty
+                                                                                   & in_ .~ ParamPath
+                                                                                   & paramSchema .~ idSchema)]
+                                         & produces ?~ MimeList ["application/json"]
+                                         & description ?~ "Initiates opening a submission. Returns an asynchrous job ID."
+                                         & at 200 ?~ Inline asyncJobResponse
+                                         & at 422 ?~ Inline wrongSubmissionResponse))
+                 ]
+
+makePublicApi :: Swagger
+makePublicApi = spec & definitions .~ defs
+  where
+    (defs, spec) = runDeclare declareMakePublicSwagger mempty
 
 
 data ChallangeSubmissionStatus = SubmissionOK | SubmissionWrong Text
