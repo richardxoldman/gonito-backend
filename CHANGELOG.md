@@ -1,3 +1,9 @@
+## 3.10.1 (2021-09-22)
+
+Bug fixes
+
+* Fix opening submissions
+
 ## 3.10.0 (2021-09-1)
 
 Enhancements:
