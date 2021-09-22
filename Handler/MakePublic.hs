@@ -57,5 +57,5 @@ pushRepo repoDir commit targetRepoUrl targetBranchName chan = do
 
 checkWhetherUserRepo :: SubmissionId -> Handler Bool
 checkWhetherUserRepo submissionId = do
-  userId <- requireAuthId
+  Entity userId _ <- requireAuthPossiblyByToken
   runDB $ checkWhetherGivenUserRepo userId submissionId
