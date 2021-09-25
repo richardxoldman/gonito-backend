@@ -1,6 +1,18 @@
+## 3.11.0 (2021-09-25)
+
+Enhancements:
+
+* Add phases to challenges
+* When the result of a query is just a single submission with one variant,
+  the user is redirected directly to the variant.
+
+Bug fixes:
+
+* Yet another fix the end-point for opening submissions
+
 ## 3.10.1 (2021-09-22)
 
-Bug fixes
+Bug fixes:
 
 * Fix opening submissions
 
