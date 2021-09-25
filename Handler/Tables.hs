@@ -447,7 +447,8 @@ getLeaderboardEntries maxPriority BySubmitter challengeId =
                                    challengeId
                                    (const True)
                                    onlyTheBestVariant
-                                   (\entry -> [entityKey $ tableEntrySubmitter entry])
+                                   (\entry -> [(entityKey $ tableEntrySubmitter entry,
+                                               tagName <$> (snd $ tableEntryVersion entry))])
 getLeaderboardEntries maxPriority ByTag challengeId =
   getLeaderboardEntriesByCriterion maxPriority
                                    challengeId
