@@ -21,8 +21,8 @@ data JwtAuthInfo = JwtAuthInfo {
 instance FromJSON JwtAuthInfo where
  parseJSON (Object v) =
     JwtAuthInfo <$> v .: "preferred_username"
-                <*> v .: "family_name"
-                <*> v .: "given_name"
+                <*> v .:? "family_name"
+                <*> v .:? "given_name"
  parseJSON _ = mzero
 
 jwtAuthInfoIdent :: JwtAuthInfo -> Text
