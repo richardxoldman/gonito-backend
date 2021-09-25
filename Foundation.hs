@@ -181,6 +181,7 @@ instance Yesod App where
     isAuthorized UserInfoR _ = return Authorized
     isAuthorized MyEvaluationTriggerTokenJsonR _ = return Authorized
     isAuthorized (ChallengeSubmissionJsonR _) _ = return Authorized
+    isAuthorized (MakePublicJsonR _) _ = return Authorized
     isAuthorized (ChallengeReadmeInMarkdownR _) _ = regularAuthorization
     isAuthorized (QueryJsonR _) _ = regularAuthorization
     isAuthorized ListTagsJsonR _ = regularAuthorization
