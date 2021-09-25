@@ -50,6 +50,18 @@ $forall ((Entity _ v), (Entity sid s)) <- tagEnts
   \ <span class="label #{tagClass $ submissionTagAccepted s}" onclick="t=$(this); $.get('/toggle-submission-tag/#{toPathPiece sid}', function(data){ if (!(data == 'BLOCKED')) {t.removeClass('#{allTagClasses}'); t.addClass(data);} }); ">#{tagName v}</span>
 |]
 
+
+fragmentWithTag :: Text.Blaze.ToMarkup a => a -> Maybe Import.Tag -> WidgetFor site ()
+fragmentWithTag t mTag = [whamlet|
+  #{t}
+  $maybe tag <- mTag
+    $maybe color <- tagColor tag
+       \ <span style="background-color: #{color};" class="label label-default">#{tagName tag}</span>
+    $nothing
+       \ <span class="label label-default">#{tagName tag}</span>
+|]
+
+
 allTagClasses :: Text
 allTagClasses = (tagClass $ Just True) <> " " <> (tagClass $ Just False) <> " " <> (tagClass $ Nothing);
 

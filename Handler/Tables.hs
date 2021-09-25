@@ -183,9 +183,9 @@ formatSubmittingEntityInLeaderboard entry =
     Just teamEnt -> teamIdent $ entityVal teamEnt
     Nothing -> formatSubmitter $ leaderboardUser entry
 
-
 versionCell :: (a -> ((Int, Int, Int), (Maybe Import.Tag))) -> Table site a
-versionCell fun = Table.text "ver." (formatVersion . fst . fun)
+versionCell fun = Table.widget "ver." (
+  \e -> fragmentWithTag (formatVersion $ fst $ fun e) (snd $ fun e))
 
 leaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Int, LeaderboardEntry)
 leaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
