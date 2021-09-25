@@ -20,6 +20,7 @@ instance ToJSON (Entity Tag) where
     toJSON v = object
         [ "name" .= (tagName $ entityVal v)
         , "description" .= (tagDescription $ entityVal v)
+        , "color" .= (tagColor $ entityVal v)
         , "id" .= (entityKey v)
         ]
 
@@ -32,9 +33,10 @@ instance ToSchema (Entity Tag) where
         & properties .~
            fromList [  ("name", stringSchema)
                      , ("description", stringSchema)
+                     , ("color", stringSchema)
                      , ("id", intSchema)
                     ]
-        & required .~ [ "name", "description", "id" ]
+        & required .~ [ "name", "description", "color", "id" ]
 
 listTagsApi :: Swagger
 listTagsApi = spec & definitions .~ defs
@@ -70,8 +72,8 @@ postTagsR = do
   canTagsBeAdded <- canAddTags
   when canTagsBeAdded $ do
      case result of
-      FormSuccess (t, d) -> do
-                            _ <- runDB $ insert $ Tag t d
+      FormSuccess (t, d, c) -> do
+                            _ <- runDB $ insert $ Tag t d c
                             return ()
       _ -> do
            return ()
@@ -107,12 +109,13 @@ tagsTable :: Table.Table App (Entity Tag)
 tagsTable = mempty
   ++ Table.text "tag" (\(Entity _ tag) -> tagName tag)
   ++ Table.text "description" (\(Entity _ tag) -> (fromMaybe (""::Text) (tagDescription tag)))
+  ++ Table.text "color" (\(Entity _ tag) -> (fromMaybe (""::Text) (tagColor tag)))
 
-
-tagForm :: Form (Text, Maybe Text)
-tagForm = renderBootstrap3 BootstrapBasicForm $ (,)
+tagForm :: Form (Text, Maybe Text, Maybe Text)
+tagForm = renderBootstrap3 BootstrapBasicForm $ (,,)
     <$> areq textField (bfs MsgTagName) Nothing
     <*> aopt textField (bfs MsgTagDescription) Nothing
+    <*> aopt textField (bfs MsgColor) Nothing
 
 getToggleSubmissionTagR :: SubmissionTagId -> Handler RepPlain
 getToggleSubmissionTagR submissionTagId = do

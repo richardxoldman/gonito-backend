@@ -164,6 +164,7 @@ Out
 Tag
     name Text
     description Text Maybe
+    color Text Maybe
     UniqueTagName name
 SubmissionTag
     submission SubmissionId

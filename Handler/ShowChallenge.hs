@@ -1426,6 +1426,7 @@ convertTagInfoToView tagInfo =
   TagView {
      tagViewName = tagName $ entityVal $ fst tagInfo,
      tagViewDescription = tagDescription $ entityVal $ fst tagInfo,
+     tagViewColor = tagColor $ entityVal $ fst tagInfo,
      tagViewAccepted = submissionTagAccepted $ entityVal $ snd tagInfo
      }
 
@@ -1526,12 +1527,14 @@ instance ToSchema EvaluationView where
 data TagView = TagView {
   tagViewName :: Text,
   tagViewDescription :: Maybe Text,
+  tagViewColor :: Maybe Text,
   tagViewAccepted :: Maybe Bool }
 
 instance ToJSON TagView where
   toJSON t = object
        [ "name" .= tagViewName t
        , "description" .= tagViewDescription t
+       , "color" .= tagViewColor t
        , "accepted" .= tagViewAccepted t
        ]
 
@@ -1544,9 +1547,10 @@ instance ToSchema TagView where
         & properties .~
            fromList [  ("name", stringSchema)
                      , ("description", stringSchema)
+                     , ("color", stringSchema)
                      , ("accepted", boolSchema)
                     ]
-        & required .~ [ "name", "description" ]
+        & required .~ [ "name", "color", "description" ]
 
 
 data SubmissionView = SubmissionView {
