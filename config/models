@@ -85,6 +85,7 @@ Version
     UniqueVersion commit major minor patch
     description Text
     stamp UTCTime default=now()
+    phase TagId Maybe
 Test
     challenge ChallengeId
     metric EvaluationScheme

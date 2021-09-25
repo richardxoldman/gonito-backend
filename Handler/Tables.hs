@@ -73,7 +73,7 @@ data LeaderboardEntry = LeaderboardEntry {
   leaderboardNumberOfSubmissions :: Int,
   leaderboardTags :: [(Entity Import.Tag, Entity SubmissionTag)],
   leaderboardParams :: [Parameter],
-  leaderboardVersion :: (Int, Int, Int),
+  leaderboardVersion :: ((Int, Int, Int), (Maybe Import.Tag)),
   leaderboardIsOwner :: Bool,
   leaderboardIsVisible :: Bool,
   leaderboardIsReevaluable :: Bool,
@@ -103,7 +103,7 @@ data TableEntry = TableEntry {
   tableEntryTagsInfo :: [(Entity Import.Tag, Entity SubmissionTag)],
   tableEntryParams :: [Entity Parameter],
   tableEntryRank :: Int,
-  tableEntryVersion :: (Int, Int, Int),
+  tableEntryVersion :: ((Int, Int, Int), Maybe Import.Tag),
   tableEntryTeam :: Maybe (Entity Team) }
 
 tableEntryStamp :: TableEntry -> UTCTime
@@ -120,7 +120,7 @@ submissionsTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.int "#" tableEntryRank
   ++ Table.text "submitter" formatSubmittingEntity
   ++ timestampCell "when" tableEntryStamp
-  ++ Table.text "ver." (formatVersion . tableEntryVersion)
+  ++ versionCell tableEntryVersion
   ++ descriptionCell mauthId
   ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScore $ getTestReference e)) tests)
   ++ statusCell challengeName repoScheme challengeRepo (\tableEntry -> (entityKey $ tableEntrySubmission tableEntry,
@@ -184,12 +184,15 @@ formatSubmittingEntityInLeaderboard entry =
     Nothing -> formatSubmitter $ leaderboardUser entry
 
 
+versionCell :: (a -> ((Int, Int, Int), (Maybe Import.Tag))) -> Table site a
+versionCell fun = Table.text "ver." (formatVersion . fst . fun)
+
 leaderboardTable :: Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Int, LeaderboardEntry)
 leaderboardTable mauthId challengeName repoScheme challengeRepo tests = mempty
   ++ Table.int "#" fst
   ++ Table.text "submitter" (formatSubmittingEntityInLeaderboard . snd)
   ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
-  ++ Table.text "ver." (formatVersion . leaderboardVersion . snd)
+  ++ versionCell (leaderboardVersion . snd)
   ++ leaderboardDescriptionCell mauthId
   ++ mconcat (map (\e@(Entity _ t) -> resultCell t (extractScoreFromLeaderboardEntry (getTestReference e) . snd)) tests)
   ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
@@ -328,11 +331,11 @@ getAuxSubmissionEnts testId evaluationMaps = map processEvaluationMap evaluation
                                                                                      Nothing -> []))
 
 
-compareMajorVersions ::  (Int, Int, Int) -> (Int, Int, Int) -> Ordering
-compareMajorVersions (aM, _, _) (bM, _, _) = aM `compare` bM
+compareMajorVersions ::  ((Int, Int, Int), Maybe Import.Tag) -> ((Int, Int, Int), Maybe Import.Tag) -> Ordering
+compareMajorVersions ((aM, _, _),_) ((bM, _, _), _) = aM `compare` bM
 
-compareVersions :: (Int, Int, Int) -> (Int, Int, Int) -> Ordering
-compareVersions (aM, aN, aP) (bM, bN, bP) = (aM `compare` bM)
+compareVersions :: ((Int, Int, Int), Maybe Import.Tag) -> ((Int, Int, Int), Maybe Import.Tag) -> Ordering
+compareVersions ((aM, aN, aP), _) ((bM, bN, bP), _) = (aM `compare` bM)
                                             <> (aN `compare` bN)
                                             <> (aP `compare` bP)
 
@@ -384,6 +387,10 @@ toLeaderboardEntry challengeId tests ss = do
   submission <- runDB $ get404 submissionId
   (Just (Entity _ itsVersion)) <- runDB $ getBy $ UniqueVersionByCommit $ submissionVersion submission
 
+  mPhaseTag <- case versionPhase itsVersion of
+                   Just phaseId -> runDB $ get phaseId
+                   Nothing -> return Nothing
+
   let theVersion = (versionMajor itsVersion,
                     versionMinor itsVersion,
                     versionPatch itsVersion)
@@ -416,7 +423,7 @@ toLeaderboardEntry challengeId tests ss = do
               leaderboardNumberOfSubmissions = length allUserSubmissions,
               leaderboardTags = tagEnts,
               leaderboardParams = map entityVal theParameters,
-              leaderboardVersion = theVersion,
+              leaderboardVersion = (theVersion, mPhaseTag),
               leaderboardIsOwner = isOwner,
               leaderboardIsReevaluable = isReevaluable,
               leaderboardIsVisible = isVisible,
@@ -537,7 +544,7 @@ getScore (Just testId) variantId = do
 data BasicSubmissionInfo = BasicSubmissionInfo {
   basicSubmissionInfoUser :: User,
   basicSubmissionInfoTagEnts :: [(Entity Import.Tag, Entity SubmissionTag)],
-  basicSubmissionInfoVersion :: Version,
+  basicSubmissionInfoVersion :: (Version, Maybe Import.Tag),
   basicSubmissionInfoTeam :: Maybe (Entity Team) }
 
 getBasicSubmissionInfo :: (MonadIO m, PersistQueryRead backend,
@@ -554,10 +561,15 @@ getBasicSubmissionInfo (Entity submissionId submission) = do
   tagEnts <- getTags submissionId
   let versionHash = submissionVersion submission
   (Entity _ ver) <- getBy404 $ UniqueVersionByCommit versionHash
+
+  mPhaseTag <- case versionPhase ver of
+                   Just phaseId -> get phaseId
+                   Nothing -> return Nothing
+
   return $ (submissionId, BasicSubmissionInfo {
                basicSubmissionInfoUser = user,
                basicSubmissionInfoTagEnts = tagEnts,
-               basicSubmissionInfoVersion = ver,
+               basicSubmissionInfoVersion = (ver, mPhaseTag),
                basicSubmissionInfoTeam = mTeam })
 
 getEvaluationMap :: (PersistUniqueRead backend,
@@ -573,7 +585,8 @@ getEvaluationMap testsMap submissionsMap (rank, (s@(Entity submissionId submissi
   let submissionInfo = submissionsMap Map.! submissionId
   let user = basicSubmissionInfoUser submissionInfo
   let tagEnts = basicSubmissionInfoTagEnts submissionInfo
-  let theVersion = basicSubmissionInfoVersion submissionInfo
+  let theVersion = fst $ basicSubmissionInfoVersion submissionInfo
+  let mPhase = snd $ basicSubmissionInfoVersion submissionInfo
   let versionHash = submissionVersion submission
   let team = basicSubmissionInfoTeam submissionInfo
 
@@ -596,4 +609,4 @@ getEvaluationMap testsMap submissionsMap (rank, (s@(Entity submissionId submissi
   let minor = versionMinor theVersion
   let pat = versionPatch theVersion
 
-  return $ TableEntry s v (Entity (submissionSubmitter submission) user) m tagEnts params rank (major, minor, pat) team
+  return $ TableEntry s v (Entity (submissionSubmitter submission) user) m tagEnts params rank ((major, minor, pat), mPhase) team

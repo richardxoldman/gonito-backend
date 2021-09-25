@@ -77,12 +77,34 @@ import Control.Lens hiding ((.=), (^.))
 import Data.Proxy as DPR
 import Data.HashMap.Strict.InsOrd (fromList)
 
+instance ToJSON Import.Tag where
+  toJSON t = object
+       [ "name" .= tagName t
+       , "description" .= tagDescription t
+       , "color" .= tagColor t
+       ]
+
+instance ToSchema Import.Tag where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+    boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
+    return $ NamedSchema (Just "Tag") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [  ("name", stringSchema)
+                     , ("description", stringSchema)
+                     , ("color", stringSchema)
+                    ]
+        & required .~ [ "name", "color", "description" ]
+
+
 instance ToJSON LeaderboardEntry where
     toJSON entry = object
         [ "submitter" .= (formatSubmitter $ leaderboardUser entry)
         , "team" .= (teamIdent <$> entityVal <$> leaderboardTeam entry)
         , "when" .= (submissionStamp $ leaderboardBestSubmission entry)
-        , "version" .= leaderboardVersion entry
+        , "version" .= (fst $ leaderboardVersion entry)
+        , "phase" .= (snd $ leaderboardVersion entry)
         , "description" .= descriptionToBeShown (leaderboardBestSubmission entry)
                                                 (leaderboardBestVariant entry)
                                                 (leaderboardParams entry)
@@ -213,6 +235,7 @@ instance ToSchema LeaderboardEntryView where
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
     evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+    tagSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Import.Tag)
 
     return $ NamedSchema (Just "LeaderboardEntry") $ mempty
         & type_ .~ SwaggerObject
@@ -221,6 +244,7 @@ instance ToSchema LeaderboardEntryView where
                      , ("team", stringSchema)
                      , ("when", stringSchema)
                      , ("version", versionSchema)
+                     , ("phase", tagSchema)
                      , ("description", stringSchema)
                      , ("times", Inline $ toSchema (DPR.Proxy :: DPR.Proxy Int)
                                            & description .~ Just "How many times a submission from the same user/of the same tag was submitted"
@@ -1559,7 +1583,7 @@ data SubmissionView = SubmissionView {
   submissionViewRank :: Int,
   submissionViewSubmitter :: Text,
   submissionViewWhen :: UTCTime,
-  submissionViewVersion :: (Int, Int, Int),
+  submissionViewVersion :: ((Int, Int, Int), Maybe Import.Tag),
   submissionViewDescription :: Text,
   submissionViewTags :: [TagView],
   submissionViewHash :: Text,
@@ -1578,7 +1602,8 @@ instance ToJSON SubmissionView where
     , "rank" .= submissionViewRank s
     , "submitter" .= submissionViewSubmitter s
     , "when" .= submissionViewWhen s
-    , "version" .= submissionViewVersion s
+    , "version" .= (fst $ submissionViewVersion s)
+    , "phase" .= (snd $ submissionViewVersion s)
     , "description" .= submissionViewDescription s
     , "tags" .= submissionViewTags s
     , "hash" .= submissionViewHash s
@@ -1597,6 +1622,7 @@ instance ToSchema SubmissionView where
     intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
     tagsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TagView])
     evalsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+    tagSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Import.Tag])
     return $ NamedSchema (Just "SubmissionView") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
@@ -1606,6 +1632,7 @@ instance ToSchema SubmissionView where
                      , ("submitter", submitterSchema)
                      , ("when", stringSchema)
                      , ("version", versionSchema)
+                     , ("phase", tagSchema)
                      , ("description", stringSchema)
                      , ("tags", tagsSchema)
                      , ("hash", hashSchema)

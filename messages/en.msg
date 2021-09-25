@@ -108,3 +108,4 @@ Join: Join
 NoTests: SOMETHING IS WRONG WITH THE CHALLENGE, THERE ARE NO TESTS DEFINED. MAYBE TEST DIRECTORY ARE MISSING OR THE CHALLENGE WAS CREATED/UPDATE IN THE INVALID MANNER
 TestAnnouncements: test announcements
 Color: color name or hex value
+Phase: competition phase (use a pre-existing tag)
