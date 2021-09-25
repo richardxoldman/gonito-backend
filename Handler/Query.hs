@@ -275,15 +275,34 @@ getQueryResultsR = processQuery
 isFullQuery :: Text -> Bool
 isFullQuery query = length query == 40
 
+detectSingleVariantSubmissionQuery :: (PersistQueryRead backend, MonadIO m, BaseBackend backend ~ SqlBackend) => [FullSubmissionInfo] -> ReaderT backend m (Maybe (Key Variant))
+detectSingleVariantSubmissionQuery [submissionInfo] = do
+  if (null $ fsiSuperSubmissions submissionInfo)
+  then
+    do
+      variants <- selectList [VariantSubmission ==. fsiSubmissionId submissionInfo] []
+      case variants of
+         [Entity variantId _] -> return $ Just variantId
+         _ -> return Nothing
+  else
+    return Nothing
+detectSingleVariantSubmissionQuery _ = return Nothing
+
 processQuery :: Text -> Handler Html
 processQuery query = do
   mUserId <- maybeAuthId
 
   submissions' <- findSubmissions query
   let submissions = map fst submissions'
-  defaultLayout $ do
-    setTitle "query results"
-    $(widgetFile "query-results")
+
+  mSingleVariant <- runDB $ detectSingleVariantSubmissionQuery submissions
+
+  case mSingleVariant of
+    Just singleVariantId -> redirect $ ViewVariantR singleVariantId
+    Nothing -> do
+      defaultLayout $ do
+        setTitle "query results"
+        $(widgetFile "query-results")
 
 toQueryResultView :: FullSubmissionInfo -> Handler QueryResultView
 toQueryResultView fsi = do
@@ -550,6 +569,7 @@ getScoreFromDiff (DiffLineRecord _ _ (TwoThings (_, oldS) (_, newS)) _) = newS -
 data SourceOfExpected = NoExpectedFound | ExpectedFromSubmission | ExpectedFromChallenge
   deriving (Eq, Show)
 
+checkForExpected :: FilePath -> FilePath -> IO Bool
 checkForExpected repoDir testName = do
   expFile <- lookForCompressedFiles (repoDir </> testName </> "expected.tsv")
   expFileExists <- D.doesFileExist expFile
@@ -725,6 +745,7 @@ adjustNumberOfColumnsShown maximumNumberOfColumns tests = adjustNumberOfColumnsS
         minimumNumberOfTests = 2
 
 
+canFullInfoBeShown :: (MonadIO m, BackendCompatible SqlBackend backend, PersistQueryRead backend, PersistUniqueRead backend) => Diff (FullSubmissionInfo, b) -> Maybe (Key User) -> ReaderT backend m Bool
 canFullInfoBeShown (OneThing (fsi, _)) mUserId  = checkWhetherVisible (fsiSubmission fsi) mUserId
 canFullInfoBeShown (TwoThings (fsiA, _) (fsiB, _)) mUserId  = do
   checkA <- checkWhetherVisible (fsiSubmission fsiA) mUserId
