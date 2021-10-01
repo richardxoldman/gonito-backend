@@ -93,8 +93,8 @@ getReadOnlySubmissionUrl NoInternalGitServer repoHost _ bareRepoName = publicRep
 browsableGitRepoBranch :: RepoScheme -> Text -> Repo -> Text -> Text -> Text
 browsableGitRepoBranch SelfHosted _ _ bareRepoName branch = (browsableGitRepo bareRepoName) ++ "/" ++ branch ++ "/"
 browsableGitRepoBranch Branches _ repo _ branch = sshToHttps (repoUrl repo) branch
-browsableGitRepoBranch NoInternalGitServer repoHost repo _ branch
-  = sshToHttps (getPublicSubmissionUrl NoInternalGitServer repoHost (Just repo) branch)
+browsableGitRepoBranch NoInternalGitServer repoHost repo bareRepoName branch
+  = sshToHttps (getPublicSubmissionUrl NoInternalGitServer repoHost (Just repo) bareRepoName)
                branch
 
 sshToHttps :: Text -> Text -> Text
