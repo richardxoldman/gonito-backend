@@ -80,15 +80,22 @@ getPublicSubmissionUrl SelfHosted repoHost _ bareRepoName = repoHost ++ bareRepo
 getPublicSubmissionUrl Branches _ (Just repo) _ = repoUrl repo
 getPublicSubmissionUrl NoInternalGitServer repoHost _ bareRepoName = repoHost ++ bareRepoName
 
-getReadOnlySubmissionUrl :: RepoScheme -> Repo -> Text -> Text
-getReadOnlySubmissionUrl SelfHosted _ bareRepoName = gitReadOnlyServer ++ bareRepoName
-getReadOnlySubmissionUrl Branches repo _ = repoUrl repo
-getReadOnlySubmissionUrl NoInternalGitServer repo _ = repoUrl repo
+-- convert a git URL to a publicly available URL
+publicRepoUrl :: Text -> Text
+publicRepoUrl = T.replace "git@github.com:" "https://github.com/"
+                . T.replace "git@gitlab.com:" "https://gitlab.com/"
 
-browsableGitRepoBranch :: RepoScheme -> Repo -> Text -> Text -> Text
-browsableGitRepoBranch SelfHosted _ bareRepoName branch = (browsableGitRepo bareRepoName) ++ "/" ++ branch ++ "/"
-browsableGitRepoBranch Branches repo _ branch = sshToHttps (repoUrl repo) branch
-browsableGitRepoBranch NoInternalGitServer repo _ branch = sshToHttps (repoUrl repo) branch
+getReadOnlySubmissionUrl :: RepoScheme -> Text -> Repo -> Text -> Text
+getReadOnlySubmissionUrl SelfHosted _ _ bareRepoName = gitReadOnlyServer ++ bareRepoName
+getReadOnlySubmissionUrl Branches _ repo _ = repoUrl repo
+getReadOnlySubmissionUrl NoInternalGitServer repoHost _ bareRepoName = publicRepoUrl (repoHost ++ bareRepoName)
+
+browsableGitRepoBranch :: RepoScheme -> Text -> Repo -> Text -> Text -> Text
+browsableGitRepoBranch SelfHosted _ _ bareRepoName branch = (browsableGitRepo bareRepoName) ++ "/" ++ branch ++ "/"
+browsableGitRepoBranch Branches _ repo _ branch = sshToHttps (repoUrl repo) branch
+browsableGitRepoBranch NoInternalGitServer repoHost repo _ branch
+  = sshToHttps (getPublicSubmissionUrl NoInternalGitServer repoHost (Just repo) branch)
+               branch
 
 sshToHttps :: Text -> Text -> Text
 sshToHttps url branch = "https://" ++ (T.replace ".git" "" $ T.replace ":" "/" $ T.replace "ssh://" "" $ T.replace "git@" "" url) ++ "/tree/" ++ branch

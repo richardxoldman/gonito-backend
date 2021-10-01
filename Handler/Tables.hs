@@ -287,16 +287,21 @@ statusCellWidget :: Text -> RepoScheme -> Repo -> (SubmissionId, Submission, Var
 statusCellWidget challengeName repoScheme challengeRepo (submissionId, submission, variantId, _, mauthId) = do
   isReevaluable <- handlerToWidget $ runDB $ canBeReevaluated submissionId
   let isVisible = True
+
+  app <- getYesod
+  let repoHost = appRepoHost $ appSettings app
+
+  let maybeBrowsableUrl = if isPublic
+                                then
+                                  Just $ browsableGitRepoBranch repoScheme repoHost challengeRepo challengeName publicSubmissionBranch
+                                else
+                                  Nothing
+
   $(widgetFile "submission-status")
     where commitHash = fromSHA1ToText $ submissionCommit submission
           isPublic = submissionIsPublic submission
           isOwner = (mauthId == Just (submissionSubmitter submission))
           publicSubmissionBranch = getPublicSubmissionBranch submissionId
-          maybeBrowsableUrl = if isPublic
-                                then
-                                  Just $ browsableGitRepoBranch repoScheme challengeRepo challengeName publicSubmissionBranch
-                                else
-                                  Nothing
 
 getInfoLink :: Submission -> Maybe UserId -> Maybe (Route App)
 getInfoLink submission _ = Just $ QueryResultsR commitHash

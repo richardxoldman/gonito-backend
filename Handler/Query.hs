@@ -756,6 +756,25 @@ submissionHeader :: Maybe UserId -> Diff (FullSubmissionInfo, Maybe Text) -> Wid
 submissionHeader mUserId param = do
   showFullInfo <- handlerToWidget $ runDB $ canFullInfoBeShown param mUserId
 
+  app <- getYesod
+  let repoHost = appRepoHost $ appSettings app
+  let submissionToSubmissionUrl submission'
+        = getReadOnlySubmissionUrl (fsiScheme submission')
+                                   repoHost
+                                   (fsiChallengeRepo submission')
+                                   (challengeName $ fsiChallenge submission')
+  let publicSubmissionRepo = submissionToSubmissionUrl <$> submission
+
+  let submissionToBrowsableUrl submission'
+        = browsableGitRepoBranch (fsiScheme submission')
+                                 repoHost
+                                 (fsiChallengeRepo submission')
+                                 (challengeName $ fsiChallenge submission')
+                                 (getPublicSubmissionBranch $ fsiSubmissionId submission')
+
+  let browsableUrl = submissionToBrowsableUrl <$> submission
+
+
   $(widgetFile "submission-header")
     where variantSettings = ("out", ())
           submission = fst <$> param
@@ -763,12 +782,8 @@ submissionHeader mUserId param = do
           commitSha1AsText = fromSHA1ToText <$> submissionCommit <$> fsiSubmission <$> submission
           submitter = formatSubmitter <$> fsiUser <$> submission
           publicSubmissionBranch = getPublicSubmissionBranch <$> fsiSubmissionId <$> submission
-          publicSubmissionRepo = submissionToSubmissionUrl <$> submission
-          browsableUrl = submissionToBrowsableUrl <$> submission
           stamp = T.pack <$> show <$> submissionStamp <$> fsiSubmission <$> submission
 
-          submissionToSubmissionUrl submission' = getReadOnlySubmissionUrl (fsiScheme submission') (fsiChallengeRepo submission') $ challengeName $ fsiChallenge submission'
-          submissionToBrowsableUrl submission' = browsableGitRepoBranch (fsiScheme submission') (fsiChallengeRepo submission') (challengeName $ fsiChallenge submission') (getPublicSubmissionBranch $ fsiSubmissionId submission')
 
 queryResult :: Maybe UserId -> FullSubmissionInfo -> WidgetFor App ()
 queryResult mUserId submission = do
