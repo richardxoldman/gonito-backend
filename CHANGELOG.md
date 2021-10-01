@@ -1,3 +1,10 @@
+## 3.11.1 (2021-10-01)
+
+Bug fixes:
+
+* Fix links to public submissions
+
+
 ## 3.11.0 (2021-09-25)
 
 Enhancements:
