@@ -1,3 +1,10 @@
+## 3.11.3 (2021-10-09)
+
+Bug fixes:
+
+* Improve item-by-item mode for BIO-F1
+* Fix clarifications for submitting solutions
+
 ## 3.11.2 (2021-10-01)
 
 Bug fixes:
