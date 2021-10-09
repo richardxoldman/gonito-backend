@@ -52,6 +52,8 @@ $case (appRepoScheme settings)
   $nothing
     <pre>
       git clone --single-branch #{appRepoHost settings}#{shownId}/#{challengeName challenge}
+      # --single-branch was used to speed up the process, but now we need to fix remote branches
+      git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 
   <p>(Warning about empty repository is expected, don't worry about it.)
 
@@ -95,6 +97,8 @@ $case (appRepoScheme settings)
 
     <pre>
       git clone --single-branch #{repoUrl repo}
+      # --single-branch was used to speed up the process, but now we need to fix remote branches
+      git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 
     $maybe gitAnnexRemote <- (repoGitAnnexRemote repo)
       <pre>
