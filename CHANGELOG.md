@@ -1,3 +1,13 @@
+## 3.12.0 (2021-10-29)
+
+Enhancements:
+
+* New p<P> flag
+
+Improvements:
+
+* Results for older tests are shown now
+
 ## 3.11.3 (2021-10-09)
 
 Bug fixes:
