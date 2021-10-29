@@ -308,12 +308,17 @@ toQueryResultView :: FullSubmissionInfo -> Handler QueryResultView
 toQueryResultView fsi = do
   let submissionId = fsiSubmissionId fsi
   let submission = fsiSubmission fsi
+
+  theVersion <- realSubmissionVersion $ Entity submissionId submission
+
   (tableEntries, tests) <- runDB
-                          $ getChallengeSubmissionInfos 2
-                                                        (\s -> entityKey s == submissionId)
-                                                        (const True)
-                                                        id
-                                                        (submissionChallenge submission)
+                          $ getChallengeSubmissionInfosForVersion 2
+                                                                  (\s -> entityKey s == submissionId)
+                                                                  (const True)
+                                                                  id
+                                                                  (submissionChallenge submission)
+                                                                  theVersion
+
   let (commonParams, strippedTableEntries) = extractCommonParams tableEntries
 
   let evaluations = map (\entry ->
@@ -386,17 +391,37 @@ data ViewVariantData = ViewVariantData {
   viewVariantDataOuts :: [(SHA1, Text)]
   }
 
+-- Return the submission version for which the tests are available.
+-- It should be simply submissionVersion but the problem is that
+-- we change the update the change version when updating a challenge
+-- (if the test did not change), and we are left sometimes with dangling
+-- versions for which no tests are available.
+realSubmissionVersion :: Entity Submission -> Handler SHA1
+realSubmissionVersion (Entity submissionId _) = do
+  testOutputs <- runDB $ E.select
+                        $ E.from $ \(variant, out, test) -> do
+                          E.where_ (variant ^. VariantSubmission E.==. E.val submissionId
+                                    E.&&. out ^. OutVariant E.==. variant ^. VariantId
+                                    E.&&. out ^. OutTest E.==. test ^. TestId)
+                          E.orderBy []
+                          return test
+  let (t:_) = testOutputs
+  return $ testCommit $ entityVal t
+
 fetchViewVariantData :: VariantId -> Handler ViewVariantData
 fetchViewVariantData variantId = do
   variant <- runDB $ get404 variantId
   let theSubmissionId = variantSubmission variant
   theSubmission <- runDB $ get404 theSubmissionId
 
-  ([entry], tests') <- runDB $ getChallengeSubmissionInfos priorityLimitForViewVariant
-                                                          (\e -> entityKey e == theSubmissionId)
-                                                          (\e -> entityKey e == variantId)
-                                                          id
-                                                          (submissionChallenge theSubmission)
+  theVersion <- realSubmissionVersion $ Entity theSubmissionId theSubmission
+
+  ([entry], tests') <- runDB $ getChallengeSubmissionInfosForVersion priorityLimitForViewVariant
+                                                                    (\e -> entityKey e == theSubmissionId)
+                                                                    (\e -> entityKey e == variantId)
+                                                                    id
+                                                                    (submissionChallenge theSubmission)
+                                                                    theVersion
   let tests = sortBy (flip testComparator) tests'
 
   let isViewable = True
@@ -483,11 +508,14 @@ getViewVariantR variantId = do
   let theSubmissionId = variantSubmission variant
   theSubmission <- runDB $ get404 theSubmissionId
 
-  (_, tests') <- runDB $ getChallengeSubmissionInfos priorityLimitForViewVariant
-                                                    (\e -> entityKey e == theSubmissionId)
-                                                    (\e -> entityKey e == variantId)
-                                                    id
-                                                    (submissionChallenge theSubmission)
+  theVersion <- realSubmissionVersion $ Entity theSubmissionId theSubmission
+
+  (_, tests') <- runDB $ getChallengeSubmissionInfosForVersion priorityLimitForViewVariant
+                                                              (\e -> entityKey e == theSubmissionId)
+                                                              (\e -> entityKey e == variantId)
+                                                              id
+                                                              (submissionChallenge theSubmission)
+                                                              theVersion
   let (mainTest:_) = sortBy (flip testComparator) tests'
   getViewVariantTestR variantId (entityKey mainTest)
 
@@ -700,14 +728,17 @@ lineByLineTable (Entity testId test) theVersion theStamp = mempty
           evaluationVersion = theVersion }
 
 resultTable :: Entity Submission -> WidgetFor App ()
-resultTable (Entity submissionId submission) = do
+resultTable entSubmission@(Entity submissionId submission) = do
+  theVersion <- handlerToWidget $ realSubmissionVersion entSubmission
+
   (tableEntries, tests') <- handlerToWidget
                           $ runDB
-                          $ getChallengeSubmissionInfos 2
-                                                        (\s -> entityKey s == submissionId)
-                                                        (const True)
-                                                        id
-                                                        (submissionChallenge submission)
+                          $ getChallengeSubmissionInfosForVersion 2
+                                                                  (\s -> entityKey s == submissionId)
+                                                                  (const True)
+                                                                  id
+                                                                  (submissionChallenge submission)
+                                                                  theVersion
 
   let (commonParams', strippedTableEntries) = extractCommonParams tableEntries
   let commonParams = map (\(Entity _ p) -> (parameterName p, OneThing $ parameterValue p)) commonParams'

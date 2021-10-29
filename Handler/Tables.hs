@@ -475,6 +475,8 @@ onlyTheBestVariant = DL.nubBy (\(_, (Entity aid _, _)) (_, (Entity bid _, _)) ->
                      . (sortBy (\(r1, (_, Entity _ va)) (r2, (_, Entity _ vb)) -> (r1 `compare` r2)
                                                                                      `thenCmp`
                                                                     ((variantName va) `compare` (variantName vb))))
+
+
 getChallengeSubmissionInfos :: (MonadIO m,
                                PersistQueryRead backend,
                                BackendCompatible SqlBackend backend,
@@ -486,9 +488,27 @@ getChallengeSubmissionInfos :: (MonadIO m,
                                 -> Key Challenge
                                 -> ReaderT backend m ([TableEntry], [Entity Test])
 getChallengeSubmissionInfos maxMetricPriority condition variantCondition preselector challengeId = do
-
   challenge <- get404 challengeId
-  let commit = challengeVersion challenge
+  let versionCommit = challengeVersion challenge
+  getChallengeSubmissionInfosForVersion maxMetricPriority
+                                        condition
+                                        variantCondition
+                                        preselector
+                                        challengeId
+                                        versionCommit
+
+getChallengeSubmissionInfosForVersion :: (MonadIO m,
+                                         PersistQueryRead backend,
+                                         BackendCompatible SqlBackend backend,
+                                         PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
+                                      => Int
+                                      -> (Entity Submission -> Bool)
+                                      -> (Entity Variant -> Bool)
+                                      -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
+                                      -> ChallengeId
+                                      -> SHA1
+                                      -> ReaderT backend m ([TableEntry], [Entity Test])
+getChallengeSubmissionInfosForVersion maxMetricPriority condition variantCondition preselector challengeId commit = do
 
   tests' <- selectList [TestChallenge ==. challengeId, TestActive ==. True, TestCommit ==. commit] []
   let tests = filter (\t -> (evaluationSchemePriority $ testMetric $ entityVal t) <= maxMetricPriority) tests'
