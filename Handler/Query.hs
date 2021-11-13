@@ -209,19 +209,27 @@ doGetScore mMetricName submission = do
       let submissionId = entityKey submission
 
       evals <- runDB $ E.select
-                    $ E.from $ \(out, evaluation, variant) -> do
+                    $ E.from $ \(out, evaluation, variant, ver) -> do
                       E.where_ (variant ^. VariantSubmission E.==. E.val submissionId
                                 E.&&. out ^. OutVariant E.==. variant ^. VariantId
                                 E.&&. out ^. OutTest E.==. E.val theTestId
                                 E.&&. evaluation ^. EvaluationTest E.==. E.val theTestId
-                                E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum)
-                      E.orderBy []
-                      return (evaluation)
+                                E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum
+                                E.&&. evaluation ^. EvaluationVersion E.==. ver ^. VersionCommit)
+                      E.orderBy [E.desc (ver ^. VersionStamp)]
+                      return (evaluation, ver)
 
-      case evals of
+      case onlyWithHeadVersions evals of
         [eval] -> return $ formatTruncatedScore (getTestFormattingOpts $ entityVal testEnt) (Just $ entityVal eval)
         _ -> return "NONE"
     Nothing -> return "NONE"
+  where onlyWithHeadVersions [] = []
+        onlyWithHeadVersions ((he,hv):t) = he:(onlyWithHeadVersions' hv t)
+        onlyWithHeadVersions' _ [] = []
+        onlyWithHeadVersions' v ((he,hv):t)
+          | entityKey hv == entityKey v = (he:(onlyWithHeadVersions' v t))
+          | otherwise = []
+
 
 doGetScoreForOut :: (BaseBackend (YesodPersistBackend site) ~ SqlBackend, PersistUniqueRead (YesodPersistBackend site), BackendCompatible SqlBackend (YesodPersistBackend site), YesodPersist site, PersistQueryRead (YesodPersistBackend site)) => Maybe Text -> Entity Submission -> SHA1 -> HandlerFor site Text
 doGetScoreForOut mMetricName submission sha1code = do
@@ -399,11 +407,13 @@ data ViewVariantData = ViewVariantData {
 realSubmissionVersion :: Entity Submission -> Handler SHA1
 realSubmissionVersion (Entity submissionId _) = do
   testOutputs <- runDB $ E.select
-                        $ E.from $ \(variant, out, test) -> do
+                        $ E.from $ \(variant, out, test, evaluation, ver) -> do
                           E.where_ (variant ^. VariantSubmission E.==. E.val submissionId
                                     E.&&. out ^. OutVariant E.==. variant ^. VariantId
-                                    E.&&. out ^. OutTest E.==. test ^. TestId)
-                          E.orderBy []
+                                    E.&&. out ^. OutTest E.==. test ^. TestId
+                                    E.&&. out ^. OutChecksum E.==. evaluation ^. EvaluationChecksum
+                                    E.&&. evaluation ^. EvaluationVersion E.==. ver ^. VersionCommit)
+                          E.orderBy [E.desc (ver ^. VersionStamp)]
                           return test
   let (t:_) = testOutputs
   return $ testCommit $ entityVal t
@@ -446,7 +456,6 @@ fetchViewVariantData variantId = do
       return $ ViewVariantData (fullSubmissionInfo, Just $ variantName variant) entry tests outputs
     else
       error "Cannot access this submission variant"
-
 
 instance Diffable SHA1 where
   type DiffSettings SHA1 = ()
@@ -628,11 +637,11 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
   let mainMetric = testMetric $ entityVal mainTest
 
   let testLabels = map (formatTestEvaluationScheme . entityVal) tests'
-  let mapping = LM.fromList $ map (\test -> (formatTestEvaluationScheme $ entityVal test,
+  let theMapping = LM.fromList $ map (\test -> (formatTestEvaluationScheme $ entityVal test,
                                             (test,
                                              (formatTruncatedScore (getTestFormattingOpts $ entityVal test)
                                               <$> extractScore (getTestReference test) <$> entry)))) tests'
-  let crossTables = splitIntoTablesWithValues "Metric" "Score" mapping testLabels
+  let crossTables = splitIntoTablesWithValues "Metric" "Score" theMapping testLabels
 
   mResult <-
     if shouldBeShown
