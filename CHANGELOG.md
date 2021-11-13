@@ -1,3 +1,9 @@
+## 3.12.4 (2021-11-13)
+
+Bug fixes:
+
+* Fix random results when querying for submissions that were re-evaluated.
+
 ## 3.12.0 (2021-10-29)
 
 Enhancements:
