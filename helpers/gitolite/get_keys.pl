@@ -19,7 +19,7 @@ while (my $key = $sh->fetchrow_hashref()) {
     } elsif (! defined($local_id) && $local_id !~ /\S/) {
 	print STDERR "not defined local_id\n";
     } else {
-	if ($pkey !~ /^ssh-rsa /) {
+	if ($pkey !~ /^ssh-/) {
 	    $pkey = 'ssh-rsa ' . $pkey;
 	}
 
@@ -27,6 +27,4 @@ while (my $key = $sh->fetchrow_hashref()) {
 	print $fh $pkey;
 	close $fh;
     }
-    
-
 }
