@@ -1,0 +1,24 @@
+#!/bin/zsh
+#
+# An example hook script to prepare a packed repository for use over
+# dumb transports.
+#
+# To enable this hook, rename this file to "post-update".
+
+BRANCH_SPEC=$1
+
+if [[ "$BRANCH_SPEC" == refs/heads/* ]]
+then
+    BRANCH=${BRANCH_SPEC#refs/heads/}
+
+    if [[ "$GL_REPO" =~ '^([^/]+)/([^/]+)$' ]]
+    then
+	echo $BRANCH
+	USERID=$match[1]
+	CHALLENGE=$match[2]
+
+	wget --timeout=0 --quiet -O - --post-data "challenge=${CHALLENGE}&branch=${BRANCH}&user=${USERID}" https://gonito.net/trigger-locally
+    fi
+fi
+    
+#exec git update-server-info
