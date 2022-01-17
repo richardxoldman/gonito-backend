@@ -65,6 +65,7 @@ library
                      Handler.Team
                      Handler.Announcements
                      Web.Announcements
+                     Handler.Course
 
     if flag(dev) || flag(library-only)
         cpp-options:   -DDEVELOPMENT

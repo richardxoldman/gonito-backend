@@ -15,6 +15,7 @@
 /test-progress/#Int/#Int TestProgressR GET
 /api/test-progress/#Int/#Int TestProgressJsonR GET
 /list-challenges ListChallengesR GET
+/course/#Text CourseR GET
 
 /test-announcements TestAnnouncementsR GET
 

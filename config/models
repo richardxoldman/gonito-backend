@@ -212,6 +212,10 @@ Teacher
     user UserId
     course CourseId
     UniqueTeacherCourse user course
+CourseChallenge
+    challenge ChallengeId
+    course CourseId
+    UniqueCourseChallenge challenge course
 -- for "KPI" dashboard
 Indicator
     test TestId
