@@ -109,3 +109,4 @@ NoTests: SOMETHING IS WRONG WITH THE CHALLENGE, THERE ARE NO TESTS DEFINED. MAYB
 TestAnnouncements: test announcements
 Color: color name or hex value
 Phase: competition phase (use a pre-existing tag)
+TestChallengeAnnouncements: Test announcements

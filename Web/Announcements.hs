@@ -5,6 +5,9 @@ module Web.Announcements
   (sendAnnouncement,
    formatLink,
    AnnouncementHook(..),
+   AnnouncementPiece(..),
+   AnnouncementMessage,
+   renderAnnouncementMessage,
    toAnnouncementHook)
   where
 
@@ -18,15 +21,29 @@ import Data.Default
 
 data AnnouncementHook = SlackWebHook Text | DiscordWebHook Text
 
+data AnnouncementPiece = AnnouncementText Text | AnnouncementLink Text Text
+
+type AnnouncementMessage = [AnnouncementPiece]
+
+renderAnnouncementMessage :: Maybe AnnouncementHook -> AnnouncementMessage -> Text
+renderAnnouncementMessage hook pieces = Data.Text.concat $ Prelude.map (renderAnnouncementPiece hook) pieces
+
+renderAnnouncementPiece :: Maybe AnnouncementHook -> AnnouncementPiece -> Text
+renderAnnouncementPiece _ (AnnouncementText t) = t
+renderAnnouncementPiece mHook (AnnouncementLink url title) = formatLink mHook url title
+
 toAnnouncementHook :: Text -> AnnouncementHook
 toAnnouncementHook url
   | ".slack." `isInfixOf` url = SlackWebHook url
   | "discord.com" `isInfixOf` url = DiscordWebHook url
   | otherwise = error $ unpack $ "unknown hook type '" <> url <> "'"
 
-sendAnnouncement :: AnnouncementHook -> Text -> IO ()
-sendAnnouncement (SlackWebHook hook) message = sendAnnouncementViaJson hook "text" message
-sendAnnouncement (DiscordWebHook hook) message = sendAnnouncementViaJson hook "content" message
+sendAnnouncement :: AnnouncementHook -> AnnouncementMessage -> IO ()
+sendAnnouncement hook message = sendAnnouncement' hook $ renderAnnouncementMessage (Just hook) message
+
+sendAnnouncement' :: AnnouncementHook -> Text -> IO ()
+sendAnnouncement' (SlackWebHook hook) message = sendAnnouncementViaJson hook "text" message
+sendAnnouncement' (DiscordWebHook hook) message = sendAnnouncementViaJson hook "content" message
 
 sendAnnouncementViaJson :: Text -> Text -> Text -> IO ()
 sendAnnouncementViaJson hook fieldName message = do

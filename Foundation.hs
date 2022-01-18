@@ -167,6 +167,7 @@ instance Yesod App where
     isAuthorized ExtraPointsR _ = isAdmin
 
     isAuthorized TestAnnouncementsR _ = isAdmin
+    isAuthorized (TestChallengeAnnouncementsR _) _ = isAdmin
 
     isAuthorized DashboardR _ = regularAuthorization
 

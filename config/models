@@ -195,6 +195,7 @@ Course
     name Text
     code Text
     closed Bool
+    announcementHook Text Maybe
     UniqueCourseName name
     UniqueCourseCode code
 ExtraPoints

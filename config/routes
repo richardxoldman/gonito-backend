@@ -18,6 +18,7 @@
 /course/#Text CourseR GET
 
 /test-announcements TestAnnouncementsR GET
+/test-challenge-announcements/#Text TestChallengeAnnouncementsR GET
 
 /api/list-challenges ListChallengesJsonR GET
 /api/leaderboard/#Text LeaderboardJsonR GET

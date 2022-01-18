@@ -2,7 +2,6 @@ module Handler.Course where
 
 import Import
 
-import Handler.Shared
 import Handler.ListChallenges
 
 import qualified Database.Esqueleto      as E

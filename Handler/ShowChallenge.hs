@@ -32,6 +32,7 @@ import Handler.Common
 import Handler.Evaluate
 import Handler.JWT
 import Handler.Team
+import Handler.Announcements
 
 import Database.Persist.Sql (fromSqlKey)
 
@@ -87,7 +88,6 @@ instance ToJSON Import.Tag where
 instance ToSchema Import.Tag where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
-    boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
     return $ NamedSchema (Just "Tag") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
@@ -1000,9 +1000,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
       msg chan "SUBMISSION CREATED"
 
       app <- getYesod
-      let mHook = appAnnouncementHook $ appSettings app
-
-      let submissionLink = linkInAnnouncement mHook app "submission" ("q/" ++ (fromSHA1ToText (repoCurrentCommit repo)))
+      let submissionLink = linkInAnnouncement app "submission" ("q/" ++ (fromSHA1ToText (repoCurrentCommit repo)))
 
       case mMainEnt of
         Just (Entity mainTestId mainTest) -> do
@@ -1020,13 +1018,13 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                     (s:_) -> if compOp s b
                              then
                               do
-                                let challengeLink = linkInAnnouncement mHook app (challengeTitle challenge) ("challenge/"
+                                let challengeLink = linkInAnnouncement app (challengeTitle challenge) ("challenge/"
                                                                                                              ++ (challengeName challenge))
                                 let formattingOpts = getTestFormattingOpts mainTest
 
-                                let message = ("Whoa! New best result for "
-                                               ++ challengeLink
-                                               ++ " challenge by "
+                                let message = [AnnouncementText "Whoa! New best result for ",
+                                               challengeLink,
+                                               AnnouncementText (" challenge by "
                                                ++ (fromMaybe "???" $ userName user)
                                                ++ ", "
                                                ++ (T.pack $ evaluationSchemeName $ testMetric mainTest)
@@ -1038,13 +1036,11 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                                    else "")
                                                ++ (T.pack $ formatTheResult formattingOpts (SimpleRun (s-b)))
                                                ++ ")."
-                                               ++ " See " ++ submissionLink ++ "."
-                                               ++ " :clap:")
-                                msg chan message
-                                case mHook of
-                                  Just hook -> liftIO $ sendAnnouncement hook message
-
-                                  Nothing -> return ()
+                                               ++ " See "),
+                                               submissionLink,
+                                               AnnouncementText ("." ++ " :clap:")]
+                                msg chan $ renderAnnouncementMessage Nothing message
+                                sendChallengeAnnouncement challengeId message
                              else return ()
                     [] -> return ()
             Nothing -> return ()
@@ -1064,34 +1060,35 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
 
     Nothing -> return ()
 
-checkIndicators :: User -> ChallengeId -> SubmissionId -> Text -> [IndicatorEntry] -> Channel -> Handler ()
+checkIndicators :: User -> ChallengeId -> SubmissionId -> AnnouncementPiece -> [IndicatorEntry] -> Channel -> Handler ()
 checkIndicators user challengeId submissionId submissionLink relevantIndicators chan = do
   msg chan "Checking indicators..."
   theNow <- liftIO $ getCurrentTime
   mapM_ (\indicator -> checkIndicator theNow user challengeId submissionId submissionLink indicator chan) relevantIndicators
 
-checkIndicator :: UTCTime -> User -> ChallengeId -> SubmissionId -> Text -> IndicatorEntry -> Channel -> Handler ()
+checkIndicator :: UTCTime -> User -> ChallengeId -> SubmissionId -> AnnouncementPiece -> IndicatorEntry -> Channel -> Handler ()
 checkIndicator theNow user challengeId submissionId submissionLink indicator chan = do
   (entries, _) <- runDB $ getChallengeSubmissionInfos 1 (\(Entity sid _) -> sid == submissionId) (const True) id challengeId
   mapM_ (\t -> checkTarget theNow user submissionLink entries indicator t chan) (indicatorEntryTargets indicator)
 
-checkTarget :: UTCTime -> User -> Text -> [TableEntry] -> IndicatorEntry -> Entity Target -> Channel -> Handler ()
+checkTarget :: UTCTime -> User -> AnnouncementPiece -> [TableEntry] -> IndicatorEntry -> Entity Target -> Channel -> Handler ()
 checkTarget theNow user submissionLink entries indicator target chan = do
-  app <- getYesod
+  let challengeId = entityKey $ indicatorEntryChallenge indicator
+
   let status = getTargetStatus theNow entries indicator target
   if status == TargetPassed
     then
      do
-      let message = "Congratulations!!! The target " ++ indicatorText
+      let message = [AnnouncementText ("Congratulations!!! The target " ++ indicatorText
                      ++ " was beaten by "
                      ++ (fromMaybe "???" $ userName user)
                      ++ ", "
-                     ++ " See " ++ submissionLink ++ "."
-                     ++ (T.replicate 10 " :champagne: ") ++ " :mleczko: "
-      msg chan message
-      case appAnnouncementHook $ appSettings app of
-          Just hook -> liftIO $ sendAnnouncement hook message
-          Nothing -> return ()
+                     ++ " See "),
+                     submissionLink,
+                     AnnouncementText ("."
+                                       ++ (T.replicate 10 " :champagne: ") ++ " :mleczko: ")]
+      msg chan $ renderAnnouncementMessage Nothing message
+      sendChallengeAnnouncement challengeId message
     else
        return ()
   where indicatorText = prettyIndicatorEntry indicator

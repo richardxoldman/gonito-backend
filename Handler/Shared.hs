@@ -13,6 +13,7 @@ import Yesod.WebSockets
 import Handler.Runner
 import System.Exit
 
+import Web.Announcements
 
 import qualified Data.Text as T
 
@@ -753,8 +754,8 @@ compareFun :: MetricOrdering -> Double -> Double -> Ordering
 compareFun TheLowerTheBetter = flip compare
 compareFun TheHigherTheBetter = compare
 
-linkInAnnouncement :: Maybe AnnouncementHook -> App -> Text -> Text -> Text
-linkInAnnouncement hook app title addr = formatLink hook slink title
+linkInAnnouncement :: App -> Text -> Text -> AnnouncementPiece
+linkInAnnouncement app title addr = AnnouncementLink slink title
   where slink = (appRoot $ appSettings app) ++ "/" ++ addr
 
 formatVersion :: (Int, Int, Int) -> Text

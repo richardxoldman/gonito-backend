@@ -13,6 +13,8 @@ $if (checkIfAdmin mUserEnt)
       <button>_{MsgArchive}
     <form method=get action=@{ChallengeUpdateR challengeId}#form enctype="text/plain">
       <button>_{MsgUpdate}
+    <form method=get action=@{TestChallengeAnnouncementsR (challengeName challenge)}#form enctype="text/plain">
+      <button>_{MsgTestChallengeAnnouncements}
 
  $if (challengeArchived challenge == Just True)
     <form method=post action=@{UnarchiveR challengeId}#form enctype="text/plain">
