@@ -46,9 +46,7 @@ fetchIndividualKey (Just localId) = do
   if not isKeyGenerated
    then
     do
-          _ <- liftIO $ createProcess (proc "/usr/bin/ssh-keygen" ["-t", "RSA", "-f", individualKeyPath, "-N",  "", "-C", individualComment]){
-            std_err = UseHandle stderr,
-            std_out = UseHandle stderr}
+          _ <- liftIO $ callProcess "/usr/bin/ssh-keygen" ["-t", "RSA", "-f", individualKeyPath, "-N",  "", "-C", individualComment]
           return ()
    else
     return ()
@@ -66,20 +64,24 @@ postYourAccountR = do
 
     enableTriggerToken userId (userTriggerToken user)
 
-    mIndividualKey <- fetchIndividualKey $ userLocalId user
-
     let accountData = case result of
             FormSuccess res -> Just res
             _ -> Nothing
-    case accountData of
+    mIndividualKey <- case accountData of
         Just (name, localId, mPassword, sshPubKey, mAltRepoScheme, avatarFile, anonimised) -> do
           if checkPassword mPassword
             then
+             do
+              mIndKey <- fetchIndividualKey localId
               updateUserAccount userId name localId mPassword sshPubKey mAltRepoScheme avatarFile anonimised
-            else
-              tooWeakPasswordMessage
+              return mIndKey
+             else
+              do
+               tooWeakPasswordMessage
+               return Nothing
         Nothing -> do
           setMessage $ toHtml ("Something went wrong, probably the password did not match" :: Text)
+          return Nothing
     defaultLayout $ do
       setTitle "Your account"
       $(widgetFile "your-account")

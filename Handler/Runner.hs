@@ -77,23 +77,32 @@ runWithChannel chan runner = do
              RunnerError e -> e
 
 runProg :: Maybe FilePath -> FilePath -> [String] -> Runner ()
-runProg workingDir programPath args = Runner {
+runProg workingDir programPath args = runProgWithEnv workingDir [] programPath args
+
+runProgWithEnv :: Maybe FilePath -> [(String, String)] -> FilePath -> [String] -> Runner ()
+runProgWithEnv workingDir extraEnv programPath args = Runner {
   runRunner = \chan -> do
-      (code, _) <- runProgram workingDir programPath args chan
+      (code, _) <- runProgramWithEnv workingDir extraEnv programPath args chan
       case code of
         ExitSuccess -> return $ RunnerOK ()
         _ -> return $ RunnerError code
   }
 
 runProgram :: Maybe FilePath -> FilePath -> [String] -> Channel -> Handler (ExitCode, Text)
-runProgram workingDir programPath args chan = do
+runProgram workingDir programPath args chan =
+  runProgramWithEnv workingDir [] programPath args chan
+
+runProgramWithEnv :: Maybe FilePath -> [(String, String)] -> FilePath -> [String] -> Channel -> Handler (ExitCode, Text)
+runProgramWithEnv workingDir extraEnv programPath args chan = do
+  liftIO $ putStrLn $ pack $ show extraEnv
+  liftIO $ putStrLn $ pack $ show args
   env <- liftIO $ getEnvironment
   (_, Just hout, Just herr, pid) <-
        liftIO $ createProcess (proc programPath args){
       std_out = CreatePipe,
       std_err = CreatePipe,
       -- https://serverfault.com/questions/544156/git-clone-fail-instead-of-prompting-for-credentials
-      env = Just (("GIT_TERMINAL_PROMPT", "0") : env),
+      env = Just (("GIT_TERMINAL_PROMPT", "0") : (env ++ extraEnv)),
       cwd = workingDir}
   (code, out) <- gatherOutput pid hout herr chan
   _ <- liftIO $ waitForProcess pid

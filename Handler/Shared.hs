@@ -22,6 +22,8 @@ import Database.Persist.Sql (fromSqlKey)
 import Control.Concurrent.Lifted (threadDelay)
 import Control.Concurrent (forkIO)
 
+import System.Directory
+
 import qualified Crypto.Hash.SHA1 as CHS
 
 import qualified Data.List as DL
@@ -473,35 +475,89 @@ cloneRepo' userId repoCloningSpec chan = do
 fixGitRepoUrl :: Text -> Text
 fixGitRepoUrl = id
 
+fetchIndividualKeyPath user = do
+  arenaDir <- arena
+  let mLocalId = userLocalId user
+  case mLocalId of
+    Just localId -> do
+      let individualKeysDir = arenaDir ++ "/individual-keys"
+      let individualKeyPath = (unpack individualKeysDir) ++ "/" ++ (unpack localId)
+
+      isKeyGenerated <- liftIO $ doesFileExist individualKeyPath
+      if isKeyGenerated
+        then
+          return $ Just individualKeyPath
+        else
+          return Nothing
+    Nothing -> return Nothing
+
+isUserLocalRepo user repoCloningSpec =
+  case userLocalId user of
+    Just localId -> (("ssh://gitolite@gonito.net/" <> localId <> "/") `isPrefixOf` url
+                    || ("gitolite@gonito.net:" <> localId <> "/") `isPrefixOf` url)
+    Nothing -> False
+  where url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
+
+getGitEnv :: RepoCloningSpec -> Handler (Maybe [(String, String)])
+getGitEnv repoCloningSpec = do
+  maybeUser <- maybeAuth
+  if ((userIsAdmin <$> entityVal <$> maybeUser) == Just True)
+   then
+     return $ Just []
+   else
+     do
+       case maybeUser of
+          Just (Entity _ user) -> do
+            if isUserLocalRepo user repoCloningSpec
+              then
+                return $ Just []
+              else
+                do
+                 mInvidualPrivateKey <- fetchIndividualKeyPath user
+                 case mInvidualPrivateKey of
+                   Just individualPrivateKey -> do
+                     curr_dir <- liftIO $ getCurrentDirectory
+                     return $ Just [("GIT_SSH_COMMAND",
+                                     "/usr/bin/ssh -o StrictHostKeyChecking=no  -i " ++ curr_dir ++ "/" ++ individualPrivateKey)]
+                   Nothing -> return $ Nothing
+          Nothing -> return $ Nothing
+
 rawClone :: FilePath -> RepoCloningSpec -> Channel -> Handler ExitCode
-rawClone tmpRepoDir repoCloningSpec chan = runWithChannel chan $ do
-  let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
-  let branch = repoSpecBranch $ cloningSpecRepo repoCloningSpec
-  let referenceUrl = repoSpecUrl $ cloningSpecReferenceRepo repoCloningSpec
-  let referenceBranch = repoSpecBranch $ cloningSpecReferenceRepo repoCloningSpec
-  runProg Nothing gitPath ["clone",
-                           "--progress",
-                           "--single-branch",
-                           "--branch",
-                           T.unpack referenceBranch,
-                           T.unpack (fixGitRepoUrl referenceUrl),
-                           tmpRepoDir]
-  if url /= referenceUrl || branch /= referenceBranch
-    then
-      do
-       runProg (Just tmpRepoDir) gitPath ["remote",
-                                           "set-url",
-                                           "origin",
-                                           T.unpack (fixGitRepoUrl url)]
-       runProg (Just tmpRepoDir) gitPath ["fetch",
-                                           "origin",
-                                           T.unpack branch]
-       runProg (Just tmpRepoDir) gitPath ["reset",
-                                           "--hard",
-                                           "FETCH_HEAD"]
-       getStuffUsingGitAnnex tmpRepoDir (repoSpecGitAnnexRemote $ cloningSpecRepo repoCloningSpec)
-    else
-      return ()
+rawClone tmpRepoDir repoCloningSpec chan = do
+ gitEnv <- getGitEnv repoCloningSpec
+ case gitEnv of
+   Just extraEnv -> runWithChannel chan $ do
+      let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
+      let branch = repoSpecBranch $ cloningSpecRepo repoCloningSpec
+      let referenceUrl = repoSpecUrl $ cloningSpecReferenceRepo repoCloningSpec
+      let referenceBranch = repoSpecBranch $ cloningSpecReferenceRepo repoCloningSpec
+
+      runProgWithEnv Nothing extraEnv gitPath ["clone",
+                                               "--progress",
+                                               "--single-branch",
+                                               "--branch",
+                                               T.unpack referenceBranch,
+                                               T.unpack (fixGitRepoUrl referenceUrl),
+                                               tmpRepoDir]
+      if url /= referenceUrl || branch /= referenceBranch
+        then
+          do
+            runProg (Just tmpRepoDir) gitPath ["remote",
+                                               "set-url",
+                                                "origin",
+                                                T.unpack (fixGitRepoUrl url)]
+            runProgWithEnv (Just tmpRepoDir) extraEnv gitPath ["fetch",
+                                                               "origin",
+                                                               T.unpack branch]
+            runProg (Just tmpRepoDir) gitPath ["reset",
+                                               "--hard",
+                                               "FETCH_HEAD"]
+            getStuffUsingGitAnnex tmpRepoDir (repoSpecGitAnnexRemote $ cloningSpecRepo repoCloningSpec)
+        else
+          return ()
+   Nothing -> do
+      err chan "Wrong SSH key"
+      return (ExitFailure 1)
 
 getStuffUsingGitAnnex :: FilePath -> Maybe Text -> Runner ()
 getStuffUsingGitAnnex _ Nothing = return ()
