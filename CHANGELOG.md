@@ -1,3 +1,9 @@
+## 3.13.0 (2022-01-19)
+
+Enhancements:
+
+* Introduce individual keys
+
 ## 3.12.4 (2021-11-13)
 
 Bug fixes:
