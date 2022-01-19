@@ -7,6 +7,10 @@ import Data.Conduit.Binary
 import qualified Data.ByteString as S
 import qualified Data.ByteString.Lazy as L
 
+import System.Directory
+import System.Process
+import System.IO
+
 import Handler.Common (passwordConfirmField, updatePassword, isPasswordAcceptable, tooWeakPasswordMessage)
 import Handler.Shared
 
@@ -17,12 +21,42 @@ getYourAccountR = do
 
     enableTriggerToken userId (userTriggerToken user)
 
+    mIndividualKey <- fetchIndividualKey $ userLocalId user
+
     keyS <- runDB $ selectFirst [PublicKeyUser ==. userId] []
     let key = publicKeyPubkey <$> entityVal <$> keyS
     (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) key (userAltRepoScheme user) (userIsAnonymous user))
     defaultLayout $ do
         setTitle "Your account"
         $(widgetFile "your-account")
+
+fetchIndividualKey :: Maybe Text -> Handler (Maybe Text)
+fetchIndividualKey Nothing = return Nothing
+fetchIndividualKey (Just localId) = do
+  arenaDir <- arena
+  let individualKeysDir = arenaDir ++ "/individual-keys"
+  liftIO $ createDirectoryIfMissing True individualKeysDir
+
+  let individualKeyPath = (unpack individualKeysDir) ++ "/" ++ (unpack localId)
+  let individualComment = (unpack localId) ++ "@gonito"
+
+  let individualPubKeyPath = individualKeyPath ++ ".pub"
+
+  isKeyGenerated <- liftIO $ doesFileExist individualPubKeyPath
+  if not isKeyGenerated
+   then
+    do
+          _ <- liftIO $ createProcess (proc "/usr/bin/ssh-keygen" ["-t", "RSA", "-f", individualKeyPath, "-N",  "", "-C", individualComment]){
+            std_err = UseHandle stderr,
+            std_out = UseHandle stderr}
+          return ()
+   else
+    return ()
+
+  fhandle <- liftIO $ openFile individualPubKeyPath ReadMode
+  contents <- liftIO $ System.IO.hGetContents fhandle
+
+  return $ Just $ pack contents
 
 postYourAccountR :: Handler Html
 postYourAccountR = do
@@ -31,6 +65,8 @@ postYourAccountR = do
     user <- runDB $ get404 userId
 
     enableTriggerToken userId (userTriggerToken user)
+
+    mIndividualKey <- fetchIndividualKey $ userLocalId user
 
     let accountData = case result of
             FormSuccess res -> Just res

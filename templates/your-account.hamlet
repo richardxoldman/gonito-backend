@@ -21,3 +21,6 @@
                <li class="list-group-item">Your token for triggering evaluation is <code>#{token}</code>
             $nothing
                <li class="list-group-item">Your token for triggering evaluation is not set yet, ask the administrator to do this
+        $maybe individualKey <- mIndividualKey
+          <p>If you'd like to give Gonito access to your repo other than hosted at Gonito used the following public key:
+          <pre>#{individualKey}
