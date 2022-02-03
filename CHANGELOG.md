@@ -1,3 +1,9 @@
+## 3.14.0 (2022-02-03)
+
+Enhancements:
+
+* Add Improvement metric
+
 ## 3.13.0 (2022-01-19)
 
 Enhancements:
@@ -26,6 +32,7 @@ Bug fixes:
 
 * Improve item-by-item mode for BIO-F1
 * Fix clarifications for submitting solutions
+* error
 
 ## 3.11.2 (2021-10-01)
 
