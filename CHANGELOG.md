@@ -1,3 +1,9 @@
+## 3.15.0 (2022-02-07)
+
+Enhancements:
+
+* Add Probabilistic-Soft2D-F-measure
+
 ## 3.14.0 (2022-02-03)
 
 Enhancements:
