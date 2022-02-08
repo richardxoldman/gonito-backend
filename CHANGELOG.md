@@ -1,3 +1,9 @@
+## 3.15.1 (2022-02-08)
+
+Bug fixes:
+
+* Fix wrong name for Add Probabilistic-Soft2D-F-measure
+
 ## 3.15.0 (2022-02-07)
 
 Enhancements:
