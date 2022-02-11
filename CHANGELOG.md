@@ -1,3 +1,10 @@
+## 3.16.0 (2022-02-11)
+
+Enhancements:
+
+* Add {RMSE,MSE,MAE}-Against-Interval metrics
+* Add MacroAvg/* metrics
+
 ## 3.15.1 (2022-02-08)
 
 Bug fixes:
