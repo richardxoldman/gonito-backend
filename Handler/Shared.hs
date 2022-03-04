@@ -45,8 +45,6 @@ import System.IO.Unsafe (unsafePerformIO)
 
 import Text.Regex.TDFA
 
-import Web.Announcements (formatLink, AnnouncementHook)
-
 import GEval.Core
 import GEval.Common
 import GEval.EvaluationScheme
@@ -428,21 +426,21 @@ getPossiblyExistingRepo checkRepo userId challengeId repoSpec chan = do
         }
       cloneRepo' userId repoCloningSpec chan
 
-cloneRepoToTempDir :: RepoCloningSpec -> Channel -> Handler (ExitCode, FilePath)
-cloneRepoToTempDir repoCloningSpec chan = do
+cloneRepoToTempDir :: Maybe UserId -> RepoCloningSpec -> Channel -> Handler (ExitCode, FilePath)
+cloneRepoToTempDir mUserId repoCloningSpec chan = do
   let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
   msg chan $ concat ["Preparing to clone repo ", url]
   msg chan "Cloning..."
   r <- randomInt
   arenaDir <- arena
   let tmpRepoDir = arenaDir </> ("t" ++ show r)
-  exitCode <- rawClone tmpRepoDir repoCloningSpec chan
+  exitCode <- rawClone mUserId tmpRepoDir repoCloningSpec chan
   return (exitCode, tmpRepoDir)
 
 cloneRepo' :: UserId -> RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
 cloneRepo' userId repoCloningSpec chan = do
   let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
-  (exitCode, tmpRepoDir) <- cloneRepoToTempDir repoCloningSpec chan
+  (exitCode, tmpRepoDir) <- cloneRepoToTempDir (Just userId) repoCloningSpec chan
   case exitCode of
           ExitSuccess -> do
             maybeHeadCommit <- getHeadCommit tmpRepoDir chan
@@ -475,6 +473,7 @@ cloneRepo' userId repoCloningSpec chan = do
 fixGitRepoUrl :: Text -> Text
 fixGitRepoUrl = id
 
+fetchIndividualKeyPath :: User -> HandlerFor App (Maybe FilePath)
 fetchIndividualKeyPath user = do
   arenaDir <- arena
   let mLocalId = userLocalId user
@@ -491,6 +490,7 @@ fetchIndividualKeyPath user = do
           return Nothing
     Nothing -> return Nothing
 
+isUserLocalRepo :: User -> RepoCloningSpec -> Bool
 isUserLocalRepo user repoCloningSpec =
   case userLocalId user of
     Just localId -> (("ssh://gitolite@gonito.net/" <> localId <> "/") `isPrefixOf` url
@@ -498,9 +498,13 @@ isUserLocalRepo user repoCloningSpec =
     Nothing -> False
   where url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
 
-getGitEnv :: RepoCloningSpec -> Handler (Maybe [(String, String)])
-getGitEnv repoCloningSpec = do
-  maybeUser <- maybeAuth
+getGitEnv :: Maybe UserId -> RepoCloningSpec -> Handler (Maybe [(String, String)])
+getGitEnv mUserId repoCloningSpec = do
+  maybeUser <- case mUserId of
+    Just userId -> do
+      user <- runDB $ get404 userId
+      return $ Just $ Entity userId user
+    Nothing -> maybeAuth
   if ((userIsAdmin <$> entityVal <$> maybeUser) == Just True)
    then
      return $ Just []
@@ -522,9 +526,9 @@ getGitEnv repoCloningSpec = do
                    Nothing -> return $ Nothing
           Nothing -> return $ Nothing
 
-rawClone :: FilePath -> RepoCloningSpec -> Channel -> Handler ExitCode
-rawClone tmpRepoDir repoCloningSpec chan = do
- gitEnv <- getGitEnv repoCloningSpec
+rawClone :: Maybe UserId -> FilePath -> RepoCloningSpec -> Channel -> Handler ExitCode
+rawClone mUserId tmpRepoDir repoCloningSpec chan = do
+ gitEnv <- getGitEnv mUserId repoCloningSpec
  case gitEnv of
    Just extraEnv -> runWithChannel chan $ do
       let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
@@ -597,7 +601,7 @@ getRepoDirOrClone repoId chan = do
       let repoCloningSpec = RepoCloningSpec {
         cloningSpecRepo = repoSpec,
         cloningSpecReferenceRepo = repoSpec }
-      (exitCode, tmpRepoDir) <- cloneRepoToTempDir repoCloningSpec chan
+      (exitCode, tmpRepoDir) <- cloneRepoToTempDir Nothing repoCloningSpec chan
       case exitCode of
         ExitSuccess -> do
           let commitHash = fromSHA1ToText $ repoCurrentCommit repo
