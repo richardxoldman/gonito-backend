@@ -1,3 +1,9 @@
+## 3.16.1 (2022-03-04)
+
+Bug fixes:
+
+* Fix "Wrong SSH Key" during triggering"
+
 ## 3.16.0 (2022-02-11)
 
 Enhancements:
