@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 
 module Handler.Shared where
 
@@ -517,13 +518,19 @@ getGitEnv mUserId repoCloningSpec = do
                 return $ Just []
               else
                 do
-                 mInvidualPrivateKey <- fetchIndividualKeyPath user
-                 case mInvidualPrivateKey of
-                   Just individualPrivateKey -> do
-                     curr_dir <- liftIO $ getCurrentDirectory
-                     return $ Just [("GIT_SSH_COMMAND",
-                                     "/usr/bin/ssh -o StrictHostKeyChecking=no  -i " ++ curr_dir ++ "/" ++ individualPrivateKey)]
-                   Nothing -> return $ Nothing
+                 if ("https://" `isPrefixOf` (repoSpecUrl $ cloningSpecRepo repoCloningSpec))
+                 then
+                  do
+                   return $ Just []
+                 else
+                  do
+                   mInvidualPrivateKey <- fetchIndividualKeyPath user
+                   case mInvidualPrivateKey of
+                     Just individualPrivateKey -> do
+                       curr_dir <- liftIO $ getCurrentDirectory
+                       return $ Just [("GIT_SSH_COMMAND",
+                                       "/usr/bin/ssh -o StrictHostKeyChecking=no  -i " ++ curr_dir ++ "/" ++ individualPrivateKey)]
+                     Nothing -> return $ Nothing
           Nothing -> return $ Nothing
 
 rawClone :: Maybe UserId -> FilePath -> RepoCloningSpec -> Channel -> Handler ExitCode
