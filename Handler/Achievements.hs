@@ -15,7 +15,6 @@ import Data.Time.LocalTime
 
 import Data.Text
 
-import qualified Data.Set as S
 import Gonito.ExtractMetadata (parseTags)
 
 import qualified Yesod.Table as Table
@@ -52,14 +51,15 @@ postAchievementsR = do
 
 doAchievements mUser formWidget formEnctype = do
   achievements <- runDB $ selectList [] [Asc AchievementName]
-  mUser <- maybeAuth
   achievementInfos'' <- runDB $ mapM (getAchievementInfo mUser) achievements
   let achievementInfos' = Import.filter (not . courseClosed . entityVal . achievementInfoCourse) achievementInfos''
 
   courses <- case mUser of
     Just (Entity userId _) -> do
-      ents <- runDB $ selectList [ParticipantUser ==. userId] []
-      return $ Import.map (participantCourse . entityVal) ents
+      participantEnts <- runDB $ selectList [ParticipantUser ==. userId] []
+      teacherEnts <- runDB $ selectList [TeacherUser ==. userId] []
+      return $ (Import.map (participantCourse . entityVal) participantEnts) ++
+               (Import.map (teacherCourse . entityVal) teacherEnts)
     Nothing -> do
       return []
 
