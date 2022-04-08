@@ -1,3 +1,11 @@
+## 3.16.3 (2022-04-08)
+
+Bug fixes:
+
+* Fix cloning https repos
+* Fix issue with MacroAvg
+* Teacher can see the achievements now
+
 ## 3.16.2 (2022-03-28)
 
 Bug fixes:
