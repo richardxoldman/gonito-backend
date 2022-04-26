@@ -1,3 +1,9 @@
+## 3.16.4 (2022-04-26)
+
+Improvement:
+
+* Limit the number of parameter graphs (to speed it up)
+
 ## 3.16.3 (2022-04-08)
 
 Bug fixes:
