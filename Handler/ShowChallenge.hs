@@ -1690,17 +1690,31 @@ getChallengeSubmissions condition challengeName = do
                                                                 tests
                                                                 params)
 
-getNumericalParams :: [TableEntry] -> [Text]
-getNumericalParams entries = filter (isNumericalParam entries) $ getAllParams entries
+maxNumberOfParamGraphs :: Int
+maxNumberOfParamGraphs = 20
 
-isNumericalParam :: [TableEntry] -> Text -> Bool
-isNumericalParam entries param =
-  all doesTextRepresentNumber
+getNumericalParams :: [TableEntry] -> [Text]
+getNumericalParams entries =
+  take maxNumberOfParamGraphs
+  $ filter (isRelevantParam entries)
+  $ getAllParams entries
+
+minNumberOfValuesToBeShown :: Int
+minNumberOfValuesToBeShown = 3
+
+isRelevantParam :: [TableEntry] -> Text -> Bool
+isRelevantParam entries param =
+  all doesTextRepresentNumber allValues && length allValues >= minNumberOfValuesToBeShown
+  where allValues = getParamValueSet entries param
+
+getParamValueSet :: [TableEntry] -> Text -> [Text]
+getParamValueSet entries param =
+  nub
   $ concat
   $ map ((map parameterValue)
-       . (filter (\p -> parameterName p == param))
-       . (map entityVal)
-       . tableEntryParams) entries
+         . (filter (\p -> parameterName p == param))
+         . (map entityVal)
+         . tableEntryParams) entries
 
 doesTextRepresentNumber :: Text -> Bool
 doesTextRepresentNumber t = isJust $ ((TR.readMaybe $ T.unpack t) :: Maybe Double)
