@@ -1,3 +1,10 @@
+## 3.17.0 (2022-06-25)
+
+Enhancements:
+
+* add tags for challenges
+* add end-point for listing challenges matching given tag(s)
+
 ## 3.16.4 (2022-04-26)
 
 Improvement:
