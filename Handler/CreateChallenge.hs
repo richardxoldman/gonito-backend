@@ -185,6 +185,7 @@ combineMaybeDayAndTime mDeadlineDay mDeadlineTime =
     Nothing -> Nothing
 
 
+fetchPhaseTagId :: (PersistUniqueRead (YesodPersistBackend site), YesodPersist site, BaseBackend (YesodPersistBackend site) ~ SqlBackend) => Maybe Text -> HandlerFor site (Maybe (Key Tag))
 fetchPhaseTagId mPhase = do
   mPhaseTagEnt <- case mPhase of
                    Just phase -> runDB $ getBy $ UniqueTagName phase
@@ -272,7 +273,10 @@ doChallengeUpdate challengeId challengeData chan = do
                                                   mPhaseTagId
                      return ()
 
-        (title, description, mImage) <- extractChallengeMetadata publicRepoId chan
+        (title, description, mImage, tags) <- extractChallengeMetadata publicRepoId chan
+
+        runDB $ deleteWhere [ChallengeTagChallenge ==.challengeId]
+        addChallengeTags challengeId tags
 
         runDB $ update challengeId [ChallengePublicRepo =. publicRepoId,
                                     ChallengePrivateRepo =. privateRepoId,
@@ -304,17 +308,17 @@ defaultPatchVersion = 0
 defaultInitialDescription :: Text
 defaultInitialDescription = "initial version"
 
-extractChallengeMetadata :: Key Repo -> Channel -> Handler (Text, Text, Maybe ByteString)
+extractChallengeMetadata :: Key Repo -> Channel -> Handler (Text, Text, Maybe ByteString, [Text])
 extractChallengeMetadata publicRepoId chan = do
   publicRepoDir <- getRepoDirOrClone publicRepoId chan
   let readmeFilePath = publicRepoDir </> readmeFile
   doesReadmeExist <- liftIO $ doesFileExist readmeFilePath
-  (title, description) <- if doesReadmeExist
+  (title, description, tags) <- if doesReadmeExist
                            then
-                            liftIO $ extractTitleAndDescription readmeFilePath
+                            liftIO $ extractTitleDescriptionAndTags readmeFilePath
                            else do
                             err chan "README was not found"
-                            return (defaultTitle, defaultDescription)
+                            return (defaultTitle, defaultDescription, [])
 
   let imageFilePath = publicRepoDir </> imageFile
   doesImageFileExists <- liftIO $ doesFileExist imageFilePath
@@ -325,13 +329,25 @@ extractChallengeMetadata publicRepoId chan = do
              else do
                return Nothing
 
-  return (T.pack $ title, T.pack $ description, mImage)
+  return (T.pack $ title, T.pack $ description, mImage, map T.pack tags)
+
+addChallengeTags :: ChallengeId -> [Text] -> Handler ()
+addChallengeTags challengeId tags = mapM_ (addChallengeTag challengeId) tags
+
+addChallengeTag :: ChallengeId -> Text -> Handler ()
+addChallengeTag challengeId tag = runDB $ do
+  mTag <- getBy $ UniqueTagName tag
+  case mTag of
+    Just t -> do
+      _ <- insert $ ChallengeTag challengeId $ entityKey t
+      return ()
+    Nothing -> return ()
 
 addChallenge :: Text -> (Key Repo) -> (Key Repo) -> Maybe UTCTime -> Maybe TagId -> Channel -> Handler ()
 addChallenge name publicRepoId privateRepoId deadline mPhaseTagId chan = do
   msg chan "adding challenge..."
 
-  (title, description, mImage) <- extractChallengeMetadata publicRepoId chan
+  (title, description, mImage, tags) <- extractChallengeMetadata publicRepoId chan
 
   privateRepo <- runDB $ get404 privateRepoId
   time <- liftIO getCurrentTime
@@ -364,6 +380,8 @@ addChallenge name publicRepoId privateRepoId deadline mPhaseTagId chan = do
     versionPhase=mPhaseTagId }
 
   updateTests challengeId chan
+
+  addChallengeTags challengeId tags
 
   return ()
 

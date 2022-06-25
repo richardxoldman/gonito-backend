@@ -1,12 +1,14 @@
 module Handler.Extract where
 
-import Import
+import Import hiding (replace)
 
 import qualified Data.Text as T
 import Text.Pandoc
 import Text.Pandoc.Shared (stringify)
 
 import System.IO (readFile)
+import Data.String.Utils (strip, split)
+import Data.List.Utils (replace)
 
 extractHeaders :: Block -> [String]
 extractHeaders (Header 1 _ x) = [stringify x]
@@ -43,13 +45,22 @@ readmeFile = "README.md"
 imageFile :: FilePath
 imageFile = ".seeme.png"
 
-getTitleAndDescription :: String -> (String, String)
-getTitleAndDescription contents = (title, description)
+tagsMarker :: String
+tagsMarker = "Tags:"
+
+extractTags :: Pandoc -> [String]
+extractTags doc = case filter (tagsMarker `isPrefixOf`) $ queryWith extractParas doc of
+                    [] -> []
+                    (fpt:_) -> map strip $ split "," $ replace tagsMarker "" fpt
+
+getTitleDescriptionAndTags :: String -> (String, String, [String])
+getTitleDescriptionAndTags contents = (title, description, tags)
                        where title = fromMaybe defaultTitle $ extractFirstHeader doc
                              description = fromMaybe defaultDescription $ extractFirstPara doc
+                             tags = extractTags doc
                              doc = readDoc contents
 
-extractTitleAndDescription :: FilePath -> IO (String, String)
-extractTitleAndDescription fp = do
+extractTitleDescriptionAndTags :: FilePath -> IO (String, String, [String])
+extractTitleDescriptionAndTags fp = do
   contents <- System.IO.readFile fp
-  return $ getTitleAndDescription contents
+  return $ getTitleDescriptionAndTags contents
