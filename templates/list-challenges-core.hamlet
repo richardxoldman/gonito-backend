@@ -9,4 +9,4 @@ $forall chV <- challenges
         <div class="panel-body">
            #{challengeDescription $ entityVal $ challengeViewChallenge $ chV}<br>
            $forall (Entity _ v) <- challengeViewTags chV
-              \ <span class="label label-primary">#{tagName v}</span>
+              \ <a href="@{ListChallengesByTagR $ tagName v}"><span class="label label-primary">#{tagName v}</span></a>
