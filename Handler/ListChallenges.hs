@@ -14,6 +14,10 @@ import Control.Lens hiding ((.=))
 import Data.Swagger hiding (Tag(..))
 import Data.Swagger.Declare
 
+import Data.Text (splitOn, strip)
+
+import qualified Data.Set as S
+
 import Handler.Tags ()
 
 -- helper data type combining information on a challenge
@@ -69,12 +73,24 @@ declareListChallengesSwagger = do
   listChallengesResponse      <- declareResponse (Proxy :: Proxy [ChallengeView])
   challengeInfoResponse      <- declareResponse (Proxy :: Proxy ChallengeView)
   let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+  let tagFilterSchema = toParamSchema (Proxy :: Proxy String)
 
   return $ mempty
     & paths .~
         [ ("/api/list-challenges", mempty & get ?~ (mempty
             & produces ?~ MimeList ["application/json"]
             & description ?~ "Returns the list of all challenges"
+            & at 200 ?~ Inline listChallengesResponse)),
+          ("/api/list-challenges-by-tag/{tagFilter}", mempty & get ?~ (mempty
+            & parameters .~ [ Inline $ mempty
+                                       & name .~ "tagFilter"
+                                       & required ?~ True
+                                       & description ?~ "A tag or a list of tags separated by commas"
+                                       & schema .~ ParamOther (mempty
+                                                               & in_ .~ ParamPath
+                                                               & paramSchema .~ tagFilterSchema) ]
+            & produces ?~ MimeList ["application/json"]
+            & description ?~ "Returns the list of all challenges with a given combination of tags"
             & at 200 ?~ Inline listChallengesResponse)),
           ("/api/challenge-info/{challengeName}",
             mempty & get ?~ (mempty
@@ -180,10 +196,29 @@ fetchChallengeView entCh@(Entity challengeId _) = do
      challengeViewTags = ts
   }
 
+
+applyTagFilter :: Text -> ChallengeView -> Bool
+applyTagFilter tagFilter chV = filterTags `S.isSubsetOf` challengeTags
+  where filterTags = S.fromList $ map strip $ splitOn "," tagFilter
+        challengeTags = S.fromList $ map (tagName . entityVal) $ challengeViewTags chV
+
+getChallengesByTag :: Text -> Handler [ChallengeView]
+getChallengesByTag tagFilter = do
+  challenges <- getChallenges mainCondition
+  return $ filter (applyTagFilter tagFilter) challenges
+
+getListChallengesByTagR :: Text -> Handler Html
+getListChallengesByTagR tagFilter = do
+  challenges <- getChallengesByTag tagFilter
+  defaultLayout $ do
+    setTitle "List challenges"
+    $(widgetFile "list-challenges")
+
+getListChallengesByTagJsonR :: Text -> Handler Value
+getListChallengesByTagJsonR tagFilter = toJSON <$> getChallengesByTag tagFilter
+
 generalListChallengesJson :: [Filter Challenge] -> Handler Value
-generalListChallengesJson filterExpr = do
-  challenges <- getChallenges filterExpr
-  return $ toJSON challenges
+generalListChallengesJson filterExpr = toJSON <$> getChallenges filterExpr
 
 generalListChallenges :: [Filter Challenge] -> Handler Html
 generalListChallenges filterExpr = do

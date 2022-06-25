@@ -15,12 +15,14 @@
 /test-progress/#Int/#Int TestProgressR GET
 /api/test-progress/#Int/#Int TestProgressJsonR GET
 /list-challenges ListChallengesR GET
+/list-challenges-by-tag/#Text ListChallengesByTagR GET
 /course/#Text CourseR GET
 
 /test-announcements TestAnnouncementsR GET
 /test-challenge-announcements/#Text TestChallengeAnnouncementsR GET
 
 /api/list-challenges ListChallengesJsonR GET
+/api/list-challenges-by-tag/#Text ListChallengesByTagJsonR GET
 /api/leaderboard/#Text LeaderboardJsonR GET
 /api/challenge-my-submissions/#Text ChallengeMySubmissionsJsonR GET
 /api/challenge-all-submissions/#Text ChallengeAllSubmissionsJsonR GET
