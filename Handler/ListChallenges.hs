@@ -14,7 +14,7 @@ import Control.Lens hiding ((.=))
 import Data.Swagger hiding (Tag(..))
 import Data.Swagger.Declare
 
-import Handler.Tags
+import Handler.Tags ()
 
 -- helper data type combining information on a challenge
 -- from various tables
@@ -168,16 +168,16 @@ getChallengeTags :: (BaseBackend backend ~ SqlBackend, MonadIO m, PersistQueryRe
 getChallengeTags challengeId = do
   sts <- selectList [ChallengeTagChallenge ==. challengeId] []
   let tagIds = Import.map (challengeTagTag . entityVal) sts
-  tags <- mapM get404 $ tagIds
-  let tagEnts = Import.map (\(k, v) -> Entity k v) $ Import.zip tagIds tags
+  ts <- mapM get404 $ tagIds
+  let tagEnts = Import.map (\(k, v) -> Entity k v) $ Import.zip tagIds ts
   return tagEnts
 
 fetchChallengeView :: Entity Challenge -> Handler ChallengeView
 fetchChallengeView entCh@(Entity challengeId _) = do
-  tags <- runDB $ getChallengeTags challengeId
+  ts <- runDB $ getChallengeTags challengeId
   return $ ChallengeView {
      challengeViewChallenge = entCh,
-     challengeViewTags = tags
+     challengeViewTags = ts
   }
 
 generalListChallengesJson :: [Filter Challenge] -> Handler Value
