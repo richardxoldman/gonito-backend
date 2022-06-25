@@ -33,6 +33,7 @@ import Handler.Evaluate
 import Handler.JWT
 import Handler.Team
 import Handler.Announcements
+import Handler.ListChallenges (getChallengeTags)
 
 import Database.Persist.Sql (fromSqlKey)
 
@@ -70,7 +71,7 @@ import Data.List (nub)
 import qualified Database.Esqueleto      as E
 import           Database.Esqueleto      ((^.))
 
-import Data.Swagger hiding (get)
+import Data.Swagger hiding (get, tags)
 import qualified Data.Swagger as DS
 
 import Data.Swagger.Declare
@@ -305,17 +306,17 @@ getShowChallengeR challengeName = do
 
   challengeRepo <- runDB $ get404 $ challengePublicRepo challenge
 
-  challengeLayout True challenge (showChallengeWidget mauth
-                                                      challengeEnt
-                                                      scheme
-                                                      challengeRepo
-                                                      repo
-                                                      leaderboard
-                                                      altLeaderboard
-                                                      params
-                                                      tests
-                                                      altTests
-                                                      isHealthy)
+  challengeLayout True challengeEnt (showChallengeWidget mauth
+                                                         challengeEnt
+                                                         scheme
+                                                         challengeRepo
+                                                         repo
+                                                         leaderboard
+                                                         altLeaderboard
+                                                         params
+                                                         tests
+                                                         altTests
+                                                         isHealthy)
 
 hasMetricsOfSecondPriority :: (PersistQueryRead backend, MonadIO m, BaseBackend backend ~ SqlBackend) => Key Challenge -> ReaderT backend m Bool
 hasMetricsOfSecondPriority challengeId = do
@@ -326,9 +327,9 @@ hasMetricsOfSecondPriority challengeId = do
 
 getChallengeReadmeR :: Text -> Handler Html
 getChallengeReadmeR challengeName = do
-  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
+  challengeEnt <- runDB $ getBy404 $ UniqueName challengeName
   readme <- challengeReadme challengeName
-  challengeLayout False challenge $ toWidget readme
+  challengeLayout False challengeEnt $ toWidget readme
 
 challengeReadmeInMarkdownApi :: Swagger
 challengeReadmeInMarkdownApi = spec & definitions .~ defs
@@ -511,7 +512,7 @@ challengeRepoApi = spec & definitions .~ defs
 
 getChallengeHowToR :: Text -> Handler Html
 getChallengeHowToR challengeName = do
-  (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
+  challengeEnt@(Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
   maybeUser <- maybeAuth
 
   app <- getYesod
@@ -537,15 +538,15 @@ getChallengeHowToR challengeName = do
       ukeys <- runDB $ selectList [PublicKeyUser ==. userId] []
       return $ not (null ukeys)
     Nothing -> return False
-  challengeLayout False challenge (challengeHowTo
-                                   challenge
-                                   settings
-                                   repo
-                                   (idToBeShown challenge maybeUser)
-                                   isIDSet
-                                   isSSHUploaded
-                                   (join $ userAltRepoScheme <$> entityVal <$> maybeUser)
-                                   mToken)
+  challengeLayout False challengeEnt (challengeHowTo
+                                      challenge
+                                      settings
+                                      repo
+                                      (idToBeShown challenge maybeUser)
+                                      isIDSet
+                                      isSSHUploaded
+                                      (join $ userAltRepoScheme <$> entityVal <$> maybeUser)
+                                      mToken)
 
 idToBeShown :: p -> Maybe (Entity User) -> Text
 idToBeShown _ maybeUser =
@@ -604,7 +605,7 @@ archiveForm challengeId = renderBootstrap3 BootstrapBasicForm $ areq hiddenField
 
 getChallengeSubmissionR :: Text -> Handler Html
 getChallengeSubmissionR challengeName = do
-   (Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
+   challengeEnt@(Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
    maybeUser <- maybeAuth
 
    Just repo <- runDB $ get $ challengePublicRepo challenge
@@ -620,7 +621,7 @@ getChallengeSubmissionR challengeName = do
    defaultTeam <- fetchDefaultTeam userId
 
    (formWidget, formEnctype) <- generateFormPost $ submissionForm userId (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo) (Just defaultTeam)
-   challengeLayout True challenge $ challengeSubmissionWidget formWidget formEnctype challenge
+   challengeLayout True challengeEnt $ challengeSubmissionWidget formWidget formEnctype challenge
 
 
 declareChallengeSubmissionSwagger :: Declare (Definitions Schema) Swagger
@@ -1669,7 +1670,7 @@ instance ToSchema SubmissionsView where
 
 getChallengeSubmissions :: ((Entity Submission) -> Bool) -> Text -> Handler Html
 getChallengeSubmissions condition challengeName = do
-  Entity challengeId challenge <- runDB $ getBy404 $ UniqueName challengeName
+  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName challengeName
   (evaluationMaps, tests') <- runDB $ getChallengeSubmissionInfos 1 condition (const True) id challengeId
   let tests = sortBy testComparator tests'
   mauth <- maybeAuth
@@ -1682,13 +1683,13 @@ getChallengeSubmissions condition challengeName = do
 
   let params = getNumericalParams evaluationMaps
 
-  challengeLayout True challenge (challengeAllSubmissionsWidget muserId
-                                                                challenge
-                                                                scheme
-                                                                challengeRepo
-                                                                evaluationMaps
-                                                                tests
-                                                                params)
+  challengeLayout True challengeEnt (challengeAllSubmissionsWidget muserId
+                                                                   challenge
+                                                                   scheme
+                                                                   challengeRepo
+                                                                   evaluationMaps
+                                                                   tests
+                                                                   params)
 
 maxNumberOfParamGraphs :: Int
 maxNumberOfParamGraphs = 20
@@ -1770,9 +1771,10 @@ $.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) testId param}", 
    where testFormatted = formatTest test
 
 
-challengeLayout :: Bool -> Challenge -> WidgetFor App () -> HandlerFor App Html
-challengeLayout withHeader challenge widget = do
+challengeLayout :: Bool -> Entity Challenge -> WidgetFor App () -> HandlerFor App Html
+challengeLayout withHeader (Entity challengeId challenge) widget = do
   tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
+  tags <- runDB $ getChallengeTags challengeId
   theVersion <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
   let versionFormatted = formatVersion ((versionMajor $ entityVal theVersion),
                                         (versionMinor $ entityVal theVersion),

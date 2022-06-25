@@ -19,4 +19,7 @@
            $maybe deadline <- versionDeadline $ entityVal theVersion
               <p>Deadline: #{show deadline}
            $nothing
-        ^{pageBody bc}
+           <p>
+             $forall (Entity _ v) <- tags
+               \ <a href="@{ListChallengesByTagR $ tagName v}"><span class="label label-primary">#{tagName v}</span></a>
+       ^{pageBody bc}

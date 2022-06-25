@@ -17,6 +17,7 @@ import Database.Persist.Sql
 
 data TimelineItem = TimelineItem Text UTCTime (Entity User) Markup
 
+getTime :: TimelineItem -> UTCTime
 getTime (TimelineItem _ stamp _ _) = stamp
 
 class ToTimelineItem a where
@@ -36,19 +37,19 @@ class ToTimelineItem a where
 
   toTimelineItem sItem = do
     let itemIdentifier = getTimelineItemId sItem
-    let when = timelineWhen sItem
+    let when' = timelineWhen sItem
     who <- timelineWho sItem
     what <- timelineWhat sItem
-    return $ TimelineItem itemIdentifier when who what
+    return $ TimelineItem itemIdentifier when' who what
 
 instance ToTimelineItem (Entity Comment) where
-  getTimelineItemId (Entity commentId comment) = "comment-" ++ (T.pack $ show $ fromSqlKey $ commentId)
+  getTimelineItemId (Entity commentId _) = "comment-" ++ (T.pack $ show $ fromSqlKey $ commentId)
   timelineWhoId (Entity _ comment) = commentAuthor comment
   timelineWhen  (Entity _ comment) = commentPosted comment
   timelineWhat  (Entity _ comment) = return $ toMarkup $ commentText comment
 
 instance ToTimelineItem (Entity Submission) where
-  getTimelineItemId (Entity commentId comment) = "submission-" ++ (T.pack $ show $ fromSqlKey $ commentId)
+  getTimelineItemId (Entity commentId _) = "submission-" ++ (T.pack $ show $ fromSqlKey $ commentId)
   timelineWhoId (Entity _ submission) = submissionSubmitter submission
   timelineWhen  (Entity _ submission) = submissionStamp submission
   timelineWhat  (Entity _ submission) = return $ i $ toMarkup (
@@ -57,11 +58,11 @@ instance ToTimelineItem (Entity Submission) where
 
 getChallengeDiscussionR :: Text -> Handler Html
 getChallengeDiscussionR name = do
-    (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName name
+    challengeEnt@(Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
     maybeUser <- maybeAuth
     (formWidget, formEnctype) <- generateFormPost $ renderBootstrap3 BootstrapBasicForm (commentForm challengeId)
     sortedTimelineItems <- getTimelineItems challengeId
-    challengeLayout True challenge (discussionWidget maybeUser formWidget formEnctype name sortedTimelineItems)
+    challengeLayout True challengeEnt (discussionWidget maybeUser formWidget formEnctype name sortedTimelineItems)
 
 getTimelineItems :: ChallengeId -> Handler [TimelineItem]
 getTimelineItems challengeId = do
@@ -74,12 +75,13 @@ getTimelineItems challengeId = do
 
 discussionWidget maybeUser formWidget formEnctype name sortedTimelineItems = $(widgetFile "challenge-discussion")
 
+timelineItemWidget :: TimelineItem -> WidgetFor App ()
 timelineItemWidget item = $(widgetFile "timeline-item")
 
 postChallengeDiscussionR :: Text -> Handler TypedContent
 postChallengeDiscussionR name = do
     (Entity challengeId _) <- runDB $ getBy404 $ UniqueName name
-    ((result, formWidget), formEnctype) <- runFormPost $ renderBootstrap3 BootstrapBasicForm (commentForm challengeId)
+    ((result, _), _) <- runFormPost $ renderBootstrap3 BootstrapBasicForm (commentForm challengeId)
     stamp <- liftIO getCurrentTime
     userId <- requireAuthId
 
@@ -124,9 +126,9 @@ getChallengeDiscussionFeedR name = do
 
 
 getFeedEntry :: (Route App -> Text) -> Challenge -> TimelineItem -> FeedEntry Text
-getFeedEntry render challenge (TimelineItem identifier stamp (Entity userId user) contents) = FeedEntry {
+getFeedEntry render challenge (TimelineItem identifier stamp (Entity _ user) theContents) = FeedEntry {
   feedEntryLink = (render (ChallengeDiscussionR (challengeName challenge))) <> "#" <> identifier,
   feedEntryUpdated = stamp,
   feedEntryTitle = (challengeTitle challenge) ++ " / " ++ (formatSubmitter user),
-  feedEntryContent = contents,
+  feedEntryContent = theContents,
   feedEntryEnclosure = Nothing }
