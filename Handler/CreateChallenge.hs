@@ -324,7 +324,7 @@ extractChallengeMetadata publicRepoId chan = do
   doesImageFileExists <- liftIO $ doesFileExist imageFilePath
   mImage <- if doesImageFileExists
              then do
-               fileBytes <- liftIO $ runResourceT $ sourceFile imageFilePath $$ sinkLbs
+               fileBytes <- runConduit $ sourceFile imageFilePath .| sinkLbs
                return $ Just (S.pack . L.unpack $ fileBytes)
              else do
                return Nothing
