@@ -11,8 +11,51 @@ import Data.HashMap.Strict.InsOrd (fromList)
 
 import Data.Proxy
 import Control.Lens hiding ((.=))
-import Data.Swagger
+import Data.Swagger hiding (Tag(..))
 import Data.Swagger.Declare
+
+import Handler.Tags
+
+-- helper data type combining information on a challenge
+-- from various tables
+data ChallengeView = ChallengeView {
+  challengeViewChallenge :: Entity Challenge,
+  challengeViewTags :: [Entity Tag]
+}
+
+instance ToJSON ChallengeView where
+    toJSON chV = object
+        [ "name"  .= challengeName ch
+        , "title" .= challengeTitle ch
+        , "description" .= challengeDescription ch
+        , "starred" .= challengeStarred ch
+        , "archived" .= challengeArchived ch
+        , "imageUrl" .= (("/" <>) <$> intercalate "/" <$> fst <$> renderRoute <$> imageUrl chEnt)
+        , "version" .= (fromSHA1ToText $ challengeVersion ch)
+        , "tags" .= challengeViewTags chV
+        ]
+      where ch = entityVal chEnt
+            chEnt = challengeViewChallenge chV
+
+instance ToSchema ChallengeView where
+  declareNamedSchema _ = do
+    stringSchema <- declareSchemaRef (Proxy :: Proxy String)
+    booleanSchema <- declareSchemaRef (Proxy :: Proxy Bool)
+    tagsSchema <- declareSchemaRef (Proxy :: Proxy [Entity Tag])
+    return $ NamedSchema (Just "Challenge") $ mempty
+        & type_ .~ SwaggerObject
+        & properties .~
+           fromList [ ("name", stringSchema)
+                    , ("title", stringSchema)
+                    , ("description", stringSchema)
+                    , ("starred", booleanSchema)
+                    , ("archived", booleanSchema)
+                    , ("imageUrl", stringSchema)
+                    , ("version", stringSchema)
+                    , ("tags", tagsSchema)
+                    ]
+        & required .~ [ "name", "title", "description", "starred", "archived", "version" ]
+
 
 mainCondition :: [Filter Challenge]
 mainCondition = [ChallengeArchived !=. Just True]
@@ -23,8 +66,8 @@ getListChallengesR = generalListChallenges mainCondition
 declareListChallengesSwagger :: Declare (Definitions Schema) Swagger
 declareListChallengesSwagger = do
   -- param schemas
-  listChallengesResponse      <- declareResponse (Proxy :: Proxy [Entity Challenge])
-  challengeInfoResponse      <- declareResponse (Proxy :: Proxy (Entity Challenge))
+  listChallengesResponse      <- declareResponse (Proxy :: Proxy [ChallengeView])
+  challengeInfoResponse      <- declareResponse (Proxy :: Proxy ChallengeView)
   let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
 
   return $ mempty
@@ -62,35 +105,6 @@ imageUrl (Entity _ challenge) =
   case challengeImage challenge of
     Just _ -> Just $ ChallengeImgR $ challengeName challenge
     Nothing -> Nothing
-
-instance ToJSON (Entity Challenge) where
-    toJSON chEnt@(Entity _ ch) = object
-        [ "name"  .= challengeName ch
-        , "title" .= challengeTitle ch
-        , "description" .= challengeDescription ch
-        , "starred" .= challengeStarred ch
-        , "archived" .= challengeArchived ch
-        , "imageUrl" .= (("/" <>) <$> intercalate "/" <$> fst <$> renderRoute <$> imageUrl chEnt)
-        , "version" .= (fromSHA1ToText $ challengeVersion ch)
-        ]
-
-instance ToSchema (Entity Challenge) where
-  declareNamedSchema _ = do
-    stringSchema <- declareSchemaRef (Proxy :: Proxy String)
-    booleanSchema <- declareSchemaRef (Proxy :: Proxy Bool)
-    return $ NamedSchema (Just "Challenge") $ mempty
-        & type_ .~ SwaggerObject
-        & properties .~
-           fromList [ ("name", stringSchema)
-                    , ("title", stringSchema)
-                    , ("description", stringSchema)
-                    , ("starred", booleanSchema)
-                    , ("archived", booleanSchema)
-                    , ("imageUrl", stringSchema)
-                    , ("version", stringSchema)
-                    ]
-        & required .~ [ "name", "title", "description", "starred", "archived", "version" ]
-
 
 declareVersionInfoSwagger :: Declare (Definitions Schema) Swagger
 declareVersionInfoSwagger = do
@@ -150,6 +164,22 @@ instance ToSchema (Entity Version) where
         & required .~ [ "version", "description", "when", "commit" ]
 
 
+getChallengeTags :: (BaseBackend backend ~ SqlBackend, MonadIO m, PersistQueryRead backend) => ChallengeId -> ReaderT backend m [Entity Tag]
+getChallengeTags challengeId = do
+  sts <- selectList [ChallengeTagChallenge ==. challengeId] []
+  let tagIds = Import.map (challengeTagTag . entityVal) sts
+  tags <- mapM get404 $ tagIds
+  let tagEnts = Import.map (\(k, v) -> Entity k v) $ Import.zip tagIds tags
+  return tagEnts
+
+fetchChallengeView :: Entity Challenge -> Handler ChallengeView
+fetchChallengeView entCh@(Entity challengeId _) = do
+  tags <- runDB $ getChallengeTags challengeId
+  return $ ChallengeView {
+     challengeViewChallenge = entCh,
+     challengeViewTags = tags
+  }
+
 generalListChallengesJson :: [Filter Challenge] -> Handler Value
 generalListChallengesJson filterExpr = do
   challenges <- getChallenges filterExpr
@@ -162,16 +192,19 @@ generalListChallenges filterExpr = do
     setTitle "List challenges"
     $(widgetFile "list-challenges")
 
-getChallenges :: [Filter Challenge] -> Handler [Entity Challenge]
-getChallenges filterExpr = runDB $ selectList filterExpr [Desc ChallengeStarred, Desc ChallengeStamp]
+getChallenges :: [Filter Challenge] -> Handler [ChallengeView]
+getChallenges filterExpr = do
+  challenges <- runDB $ selectList filterExpr [Desc ChallengeStarred, Desc ChallengeStamp]
+  mapM fetchChallengeView challenges
 
-listChallengesCore :: [Entity Challenge] -> Widget
+listChallengesCore :: [ChallengeView] -> Widget
 listChallengesCore challenges = $(widgetFile "list-challenges-core")
 
 getChallengeInfoJsonR :: Text -> Handler Value
 getChallengeInfoJsonR challengeName = do
   entCh <- runDB $ getBy404 $ UniqueName challengeName
-  return $ toJSON entCh
+  chV <- fetchChallengeView entCh
+  return $ toJSON chV
 
 getVersionInfoJsonR :: Text -> Handler Value
 getVersionInfoJsonR versionHash = do

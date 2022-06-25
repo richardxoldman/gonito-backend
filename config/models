@@ -172,6 +172,10 @@ SubmissionTag
     tag TagId
     accepted Bool Maybe
     UniqueSubmissionTag submission tag
+ChallengeTag
+    challenge ChallengeId
+    tag TagId
+    UniqueChallengeTag challenge tag
 -- for machine learning courses
 Achievement
     name Text

@@ -10,7 +10,7 @@ import           Database.Esqueleto      ((^.))
 
 data CourseInfo = CourseInfo {
    courseInfoCourse :: Course,
-   courseInfoChallenges :: [Entity Challenge]
+   courseInfoChallenges :: [ChallengeView]
 }
 
 getCourseR :: Text -> Handler Html
@@ -31,7 +31,9 @@ fetchCourseInfo courseCode = do
     E.orderBy [E.asc (challenge ^. ChallengeName)]
     return challenge
 
+  chVs <- mapM fetchChallengeView $ filter (\ch -> (challengeArchived $ entityVal ch) /= Just True) challenges
+
   return $ CourseInfo {
     courseInfoCourse = course,
-    courseInfoChallenges = filter (\ch -> (challengeArchived $ entityVal ch) /= Just True) challenges
+    courseInfoChallenges = chVs
   }
