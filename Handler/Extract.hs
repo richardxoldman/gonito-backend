@@ -4,12 +4,9 @@ import Import
 
 import qualified Data.Text as T
 import Text.Pandoc
-import Text.Pandoc.Walk (walk)
 import Text.Pandoc.Shared (stringify)
 
-import Data.Maybe
-
-import System.IO (withFile, IOMode(..), readFile)
+import System.IO (readFile)
 
 extractHeaders :: Block -> [String]
 extractHeaders (Header 1 _ x) = [stringify x]
