@@ -4,10 +4,10 @@ $forall chV <- challenges
         $if challengeStarred $ entityVal $ challengeViewChallenge $ chV
            \ <span class="glyphicon glyphicon-star-empty"></span>
      $if isJust (challengeImage $ entityVal $ challengeViewChallenge $ chV)
-        <div class="panel-body" style="background-image:url(@{ChallengeImgR $ challengeName $ entityVal $ challengeViewChallenge $ chV}); background-color:lightgrey; background-blend-mode:screen;background-size: 100%;">#{challengeDescription $ entityVal $ challengeViewChallenge $ chV}
+        <div class="panel-body" style="background-image:url(@{ChallengeImgR $ challengeName $ entityVal $ challengeViewChallenge $ chV}); background-color:lightgrey; background-blend-mode:screen;background-size: 100%;">#{challengeDescription $ entityVal $ challengeViewChallenge $ chV} [#{fromMaybe "" $ evaluationSchemeName <$> challengeMainMetric chV}]
      $else
         <div class="panel-body">
-           #{challengeDescription $ entityVal $ challengeViewChallenge $ chV}<br>
+           #{challengeDescription $ entityVal $ challengeViewChallenge $ chV} [#{fromMaybe "" $ evaluationSchemeName <$> challengeMainMetric chV}]<br>
            $forall (Entity _ v) <- challengeViewTags chV
               \ <a href="@{ListChallengesByTagR $ tagName v}"><span class="label label-primary">#{tagName v}</span></a>
            $maybe deadline <- challengeDeadline chV

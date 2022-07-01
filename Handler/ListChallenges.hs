@@ -20,12 +20,15 @@ import qualified Data.Set as S
 
 import Handler.Tags ()
 
+import GEval.EvaluationScheme
+
 -- helper data type combining information on a challenge
 -- from various tables
 data ChallengeView = ChallengeView {
   challengeViewChallenge :: Entity Challenge,
   challengeViewTags :: [Entity Tag],
-  challengeDeadline :: Maybe UTCTime
+  challengeDeadline :: Maybe UTCTime,
+  challengeMainMetric :: Maybe EvaluationScheme
 }
 
 instance ToJSON ChallengeView where
@@ -39,6 +42,7 @@ instance ToJSON ChallengeView where
         , "version" .= (fromSHA1ToText $ challengeVersion ch)
         , "tags" .= challengeViewTags chV
         , "deadline" .= challengeDeadline chV
+        , "mainMetric" .= (evaluationSchemeName <$> challengeMainMetric chV)
         ]
       where ch = entityVal chEnt
             chEnt = challengeViewChallenge chV
@@ -61,6 +65,7 @@ instance ToSchema ChallengeView where
                     , ("version", stringSchema)
                     , ("tags", tagsSchema)
                     , ("deadline", utcSchema)
+                    , ("mainMetric", stringSchema)
                     ]
         & required .~ [ "name", "title", "description", "starred", "archived", "version" ]
 
@@ -198,10 +203,14 @@ fetchChallengeView entCh@(Entity challengeId challenge) = do
 
   ver <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
 
+  metrics <- runDB $ selectList [TestChallenge ==. challengeId, TestCommit ==. challengeVersion challenge] [Asc TestPriority]
+  let mainMetric = testMetric <$> entityVal <$> listToMaybe metrics
+
   return $ ChallengeView {
      challengeViewChallenge = entCh,
      challengeViewTags = ts,
-     challengeDeadline = versionDeadline $ entityVal ver
+     challengeDeadline = versionDeadline $ entityVal ver,
+     challengeMainMetric = mainMetric
   }
 
 
