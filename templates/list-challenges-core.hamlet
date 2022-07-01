@@ -10,3 +10,5 @@ $forall chV <- challenges
            #{challengeDescription $ entityVal $ challengeViewChallenge $ chV}<br>
            $forall (Entity _ v) <- challengeViewTags chV
               \ <a href="@{ListChallengesByTagR $ tagName v}"><span class="label label-primary">#{tagName v}</span></a>
+           $maybe deadline <- challengeDeadline chV
+              <p>Deadline: #{show deadline}

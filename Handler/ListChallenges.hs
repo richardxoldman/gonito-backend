@@ -24,7 +24,8 @@ import Handler.Tags ()
 -- from various tables
 data ChallengeView = ChallengeView {
   challengeViewChallenge :: Entity Challenge,
-  challengeViewTags :: [Entity Tag]
+  challengeViewTags :: [Entity Tag],
+  challengeDeadline :: Maybe UTCTime
 }
 
 instance ToJSON ChallengeView where
@@ -37,6 +38,7 @@ instance ToJSON ChallengeView where
         , "imageUrl" .= (("/" <>) <$> intercalate "/" <$> fst <$> renderRoute <$> imageUrl chEnt)
         , "version" .= (fromSHA1ToText $ challengeVersion ch)
         , "tags" .= challengeViewTags chV
+        , "deadline" .= challengeDeadline chV
         ]
       where ch = entityVal chEnt
             chEnt = challengeViewChallenge chV
@@ -46,6 +48,7 @@ instance ToSchema ChallengeView where
     stringSchema <- declareSchemaRef (Proxy :: Proxy String)
     booleanSchema <- declareSchemaRef (Proxy :: Proxy Bool)
     tagsSchema <- declareSchemaRef (Proxy :: Proxy [Entity Tag])
+    utcSchema <- declareSchemaRef (Proxy :: Proxy UTCTime)
     return $ NamedSchema (Just "Challenge") $ mempty
         & type_ .~ SwaggerObject
         & properties .~
@@ -57,6 +60,7 @@ instance ToSchema ChallengeView where
                     , ("imageUrl", stringSchema)
                     , ("version", stringSchema)
                     , ("tags", tagsSchema)
+                    , ("deadline", utcSchema)
                     ]
         & required .~ [ "name", "title", "description", "starred", "archived", "version" ]
 
@@ -189,11 +193,15 @@ getChallengeTags challengeId = do
   return tagEnts
 
 fetchChallengeView :: Entity Challenge -> Handler ChallengeView
-fetchChallengeView entCh@(Entity challengeId _) = do
+fetchChallengeView entCh@(Entity challengeId challenge) = do
   ts <- runDB $ getChallengeTags challengeId
+
+  ver <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+
   return $ ChallengeView {
      challengeViewChallenge = entCh,
-     challengeViewTags = ts
+     challengeViewTags = ts,
+     challengeDeadline = versionDeadline $ entityVal ver
   }
 
 
