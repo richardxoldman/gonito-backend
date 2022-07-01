@@ -1,3 +1,9 @@
+## 3.18.0 (2022-07-01)
+
+Enhancements:
+
+* end-points for listing challenges return the deadline and metric name now
+
 ## 3.17.0 (2022-06-25)
 
 Enhancements:
