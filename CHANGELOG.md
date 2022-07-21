@@ -1,3 +1,9 @@
+## 3.19.0 (2022-07-21)
+
+Enhancements:
+
+* add NDCG metric
+
 ## 3.18.0 (2022-07-01)
 
 Enhancements:
