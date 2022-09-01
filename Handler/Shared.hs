@@ -495,7 +495,8 @@ isUserLocalRepo :: User -> RepoCloningSpec -> Bool
 isUserLocalRepo user repoCloningSpec =
   case userLocalId user of
     Just localId -> (("ssh://gitolite@gonito.net/" <> localId <> "/") `isPrefixOf` url
-                    || ("gitolite@gonito.net:" <> localId <> "/") `isPrefixOf` url)
+                    || ("gitolite@gonito.net:" <> localId <> "/") `isPrefixOf` url
+                    || ("git@django:/git_data" `isInfixOf` url))
     Nothing -> False
   where url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
 
