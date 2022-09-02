@@ -497,7 +497,7 @@ isUserLocalRepo user repoCloningSpec =
     Just localId -> (("ssh://gitolite@gonito.net/" <> localId <> "/") `isPrefixOf` url
                     || ("gitolite@gonito.net:" <> localId <> "/") `isPrefixOf` url
                     || ("git@django:/git_data" `isInfixOf` url))
-    Nothing -> False
+    Nothing -> ("git@django:/git_data" `isInfixOf` url)
   where url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
 
 getGitEnv :: Maybe UserId -> RepoCloningSpec -> Handler (Maybe [(String, String)])
