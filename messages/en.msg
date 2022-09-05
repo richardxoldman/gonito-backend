@@ -110,3 +110,4 @@ TestAnnouncements: test announcements
 Color: color name or hex value
 Phase: competition phase (use a pre-existing tag)
 TestChallengeAnnouncements: Test announcements
+Wipe: Wipe
