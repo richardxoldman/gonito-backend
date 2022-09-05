@@ -5,7 +5,8 @@
     $nothing
 
 $if (challengeArchived challenge == Just True)
-  <p><b>_{MsgChallengeIsArchived}
+  <p>
+    <b>_{MsgChallengeIsArchived}
 
 $if (checkIfAdmin mUserEnt)
   $if (challengeArchived challenge /= Just True)
