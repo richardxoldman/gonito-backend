@@ -1,3 +1,9 @@
+## 3.21.0 (2022-09-08)
+
+Enhancements:
+
+* add WAR and CAR metrics
+
 ## 3.20.0 (2022-08-17)
 
 Enhancements:
