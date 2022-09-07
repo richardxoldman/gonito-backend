@@ -71,13 +71,15 @@ import Data.List (nub)
 import qualified Database.Esqueleto      as E
 import           Database.Esqueleto      ((^.))
 
-import Data.Swagger hiding (get, tags)
+import Data.Swagger hiding (get, tags, delete)
 import qualified Data.Swagger as DS
 
 import Data.Swagger.Declare
 import Control.Lens hiding ((.=), (^.))
 import Data.Proxy as DPR
 import Data.HashMap.Strict.InsOrd (fromList)
+
+import System.Directory
 
 instance ToJSON Import.Tag where
   toJSON t = object
@@ -592,6 +594,112 @@ postArchiveR challengeId = doSetArchive True challengeId
 
 postUnarchiveR :: ChallengeId -> Handler Html
 postUnarchiveR challengeId = doSetArchive False challengeId
+
+postWipeR :: ChallengeId -> Handler TypedContent
+postWipeR challengeId = do
+  runViewProgress $ doWipe challengeId
+
+doWipe :: ChallengeId -> Channel -> Handler ()
+doWipe challengeId chan = do
+  challenge <- runDB $ get404 challengeId
+
+  if challengeArchived challenge == Just True
+    then
+      do
+        msg chan "Starting wiping…"
+        msg chan "Removing comments…"
+        runDB $ deleteWhere [CommentChallenge ==. challengeId]
+
+        msg chan "Removing achievements…"
+        achievements <- runDB $ selectList [AchievementChallenge ==. challengeId] []
+        mapM_ (wipeAchievement chan) achievements
+
+        msg chan "Removing test infos…"
+        tests <- runDB $ selectList [TestChallenge ==. challengeId] []
+        mapM_ (wipeTest chan) tests
+
+        msg chan "Removing submissions…"
+        submissions <- runDB $ selectList [SubmissionChallenge ==. challengeId] []
+        mapM_ (wipeSubmission chan) submissions
+
+        msg chan "Removing versions…"
+        runDB $ deleteWhere [VersionChallenge ==. Just challengeId]
+
+        msg chan "Removing tests…"
+        runDB $ deleteWhere [TestChallenge ==. challengeId]
+
+        msg chan "Removing tag…"
+        runDB $ deleteWhere [ChallengeTagChallenge ==. challengeId]
+
+        msg chan "Removing course links…"
+        runDB $ deleteWhere [CourseChallengeChallenge ==. challengeId]
+
+        wipeRepo chan (challengePublicRepo challenge)
+        wipeRepo chan (challengePrivateRepo challenge)
+        runDB $ delete challengeId
+
+        return ()
+    else
+      do
+        msg chan ("Only archived challenges can be wiped, archive first" :: Text)
+        return ()
+
+wipeAchievement :: Channel -> Entity Achievement -> Handler ()
+wipeAchievement chan (Entity achievementId _) = do
+  msg chan "Removing achievement"
+  runDB $ deleteWhere [AchievementTagAchievement ==. achievementId]
+  runDB $ deleteWhere [WorkingOnAchievement ==. achievementId]
+
+  runDB $ delete achievementId
+  return ()
+
+wipeTest :: Channel -> Entity Test -> Handler ()
+wipeTest chan (Entity testId _) = do
+  msg chan ("Wiping test" <> (Data.Text.pack $ show $ testId))
+  runDB $ deleteWhere [EvaluationTest ==. testId]
+  runDB $ deleteWhere [OutTest ==. testId]
+  runDB $ deleteWhere [IndicatorTest ==. testId]
+  return ()
+
+wipeSubmission :: Channel -> Entity Submission -> Handler ()
+wipeSubmission chan (Entity submissionId submission) = do
+  msg chan ("Wiping submission" <> (Data.Text.pack $ show $ submissionDescription submission))
+
+  variants <- runDB $ selectList [VariantSubmission ==. submissionId] []
+  mapM_ (wipeVariant chan) variants
+
+  runDB $ deleteWhere [ExternalLinkSubmission ==. submissionId]
+  runDB $ deleteWhere [ForkSource ==. submissionId]
+  runDB $ deleteWhere [ForkTarget ==. submissionId]
+  runDB $ deleteWhere [SubmissionTagSubmission ==. submissionId]
+  runDB $ deleteWhere [WorkingOnFinalSubmission ==. Just submissionId]
+
+  runDB $ deleteWhere [DependencySubRepoCommit ==. submissionCommit submission]
+  runDB $ deleteWhere [DependencySuperRepoCommit ==. submissionCommit submission]
+
+  wipeRepo chan (submissionRepo submission)
+  runDB $ delete submissionId
+  return ()
+
+wipeVariant :: Channel -> Entity Variant -> Handler ()
+wipeVariant chan (Entity variantId _) = do
+  msg chan "Wiping variant"
+  runDB $ deleteWhere [ParameterVariant ==. variantId]
+  runDB $ delete variantId
+
+wipeRepo :: Channel -> RepoId -> Handler ()
+wipeRepo chan repoId = do
+  repoDir <- getRepoDir repoId
+  msg chan ("Wiping repo " <> (Data.Text.pack repoDir) <> "…")
+  repoDirExists <- liftIO $ doesDirectoryExist repoDir
+  if repoDirExists
+  then
+    do
+     msg chan "Repo dir there, erasing"
+     liftIO $ removePathForcibly repoDir
+  else
+     msg chan "Not available"
+  return ()
 
 doSetArchive :: Bool -> ChallengeId -> Handler Html
 doSetArchive status challengeId = do
