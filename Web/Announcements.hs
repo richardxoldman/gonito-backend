@@ -17,7 +17,8 @@ import Data.Maybe
 import Network.HTTP.Req as R
 import Prelude
 import Data.Aeson
-import Data.Default
+import Data.Aeson.Key
+import Text.URI as URI
 
 data AnnouncementHook = SlackWebHook Text | DiscordWebHook Text
 
@@ -47,10 +48,12 @@ sendAnnouncement' (DiscordWebHook hook) message = sendAnnouncementViaJson hook "
 
 sendAnnouncementViaJson :: Text -> Text -> Text -> IO ()
 sendAnnouncementViaJson hook fieldName message = do
-  let (Just (hookUrl, _)) = parseUrlHttps $ DTE.encodeUtf8 hook
+  uri <- URI.mkURI hook
 
-  R.runReq def $ do
-    let payload = object [ fieldName .= message ]
+  let (Just (hookUrl, _)) = useHttpsURI uri
+
+  R.runReq defaultHttpConfig $ do
+    let payload = object [ fromText fieldName .= message ]
     (_ :: IgnoreResponse) <- R.req R.POST
                                  hookUrl
                                  (R.ReqBodyJson payload)

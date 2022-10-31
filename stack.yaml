@@ -6,18 +6,19 @@ packages:
 - '.'
 extra-deps:
   - ./geval
-  - wai-handler-fastcgi-3.0.0.2
   - murmur3-1.0.3
   - random-strings-0.1.1.0
   - naturalcomp-0.0.3
   - Munkres-0.1
-  - Chart-1.9.1
-  - Chart-cairo-1.9.1
+  - Chart-1.9.4
+  - Chart-cairo-1.9.3
+  - cairo-0.13.8.2
   - multiset-0.3.4.1
   - pwstore-fast-2.4.4
   - yesod-table-2.0.3
-  - esqueleto-3.0.0
+  - esqueleto-3.5.8.1
+  - jose-jwt-0.9.4
   - 'ordered-containers-0.2.2@sha256:ebf2be3f592d9cf148ea6b8375f8af97148d44f82d8d04476899285e965afdbf,810'
-  - 'optics-core-0.3.0.1@sha256:50845a47810eb5a5f03dfa9bb1edd8a577fc7ca1702ba4bde68b235f7cb44528,4536'
+  - optics-core-0.4.1
   - 'indexed-profunctors-0.1@sha256:ddf618d0d4c58319c1e735e746bc69a1021f13b6f475dc9614b80af03432e6d4,1016'
-resolver: lts-12.26
+resolver: lts-19.25
