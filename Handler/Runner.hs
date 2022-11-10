@@ -12,6 +12,7 @@ import Control.Concurrent.STM
 import Control.Concurrent.Lifted (threadDelay)
 import qualified Data.ByteString as BS
 import Control.Monad.IO.Class
+import Data.Maybe
 
 type Channel = TChan (Maybe Text)
 
@@ -97,14 +98,14 @@ runProgramWithEnv workingDir extraEnv programPath args chan = do
   liftIO $ putStrLn $ pack $ show extraEnv
   liftIO $ putStrLn $ pack $ show args
   env <- liftIO $ getEnvironment
-  (_, Just hout, Just herr, pid) <-
+  (_, hout, herr, pid) <-
        liftIO $ createProcess (proc programPath args){
       std_out = CreatePipe,
       std_err = CreatePipe,
       -- https://serverfault.com/questions/544156/git-clone-fail-instead-of-prompting-for-credentials
       env = Just (("GIT_TERMINAL_PROMPT", "0") : (env ++ extraEnv)),
       cwd = workingDir}
-  (code, out) <- gatherOutput pid hout herr chan
+  (code, out) <- gatherOutput pid (fromJust hout) (fromJust herr) chan
   _ <- liftIO $ waitForProcess pid
   return (code, out)
 

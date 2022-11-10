@@ -15,6 +15,8 @@ import Gonito.ExtractMetadata (parseTags)
 
 import Data.Text as T
 
+import Data.Maybe (fromJust)
+
 postAddVariantParamR :: SubmissionId -> VariantId -> Handler Html
 postAddVariantParamR submissionId variantId = do
   ((result, _), _) <- runFormPost addVariantParamForm
@@ -73,8 +75,8 @@ postEditSubmissionG submissionId mVariantId = do
 
 getPossibleAchievements :: (BaseBackend backend ~ SqlBackend, PersistUniqueRead backend, PersistQueryRead backend, MonadIO m) => Key User -> Key Submission -> ReaderT backend m [(Entity Achievement, Key WorkingOn)]
 getPossibleAchievements userId submissionId = do
-  (Just submission) <- get submissionId
-  let challengeId = submissionChallenge submission
+  submission <- get submissionId
+  let challengeId = submissionChallenge (fromJust submission)
   achievements <- selectList [AchievementChallenge ==. challengeId] []
   workingOns <- mapM (\a -> getBy $ UniqueWorkingOnAchievementUser (entityKey a) userId) achievements
   let rets = Import.zip achievements workingOns

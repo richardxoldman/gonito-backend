@@ -45,7 +45,9 @@ import Data.Maybe (fromJust)
 
 import Text.Blaze
 
-import Data.Aeson
+import Data.Aeson hiding (Key)
+import Data.Aeson.KeyMap hiding (fromList, map, filter, null, foldr, delete)
+import Data.Aeson.Key (fromText)
 
 import Gonito.ExtractMetadata (ExtractionOptions(..),
                                extractMetadataFromRepoDir,
@@ -92,7 +94,7 @@ instance ToSchema Import.Tag where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     return $ NamedSchema (Just "Tag") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("name", stringSchema)
                      , ("description", stringSchema)
@@ -165,7 +167,7 @@ instance ToSchema LeaderboardView where
     testsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TestReference])
     entriesSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [LeaderboardEntryView])
     return $ NamedSchema (Just "Leaderboard") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("tests", testsSchema)
                      , ("entries", entriesSchema)
@@ -187,7 +189,7 @@ data LeaderboardEntryView = LeaderboardEntryView {
 }
 
 addJsonKey :: Text -> Value -> Value -> Value
-addJsonKey key val (Object xs) = Object $ HMS.insert key val xs
+addJsonKey key val (Object xs) = Object $ Data.Aeson.KeyMap.insert (fromText key) val xs
 addJsonKey _ _ xs = xs
 
 
@@ -241,7 +243,7 @@ instance ToSchema LeaderboardEntryView where
     tagSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Import.Tag)
 
     return $ NamedSchema (Just "LeaderboardEntry") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("submitter", submitterSchema)
                      , ("team", stringSchema)
@@ -287,7 +289,7 @@ getShowChallengeR challengeName = do
 
   isHealthy <- isChallengeHealthy challenge
 
-  Just repo <- runDB $ get $ challengePublicRepo challenge
+  repo <- runDB $ get $ challengePublicRepo challenge
   (leaderboard, (entries, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
 
   showAltLeaderboard <- runDB $ hasMetricsOfSecondPriority challengeId
@@ -312,7 +314,7 @@ getShowChallengeR challengeName = do
                                                          challengeEnt
                                                          scheme
                                                          challengeRepo
-                                                         repo
+                                                         (fromJust repo)
                                                          leaderboard
                                                          altLeaderboard
                                                          params
@@ -468,7 +470,7 @@ instance ToSchema (Repo) where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (Proxy :: Proxy String)
     return $ NamedSchema (Just "DataRepository") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [ ("url", Inline $ toSchema (DPR.Proxy :: DPR.Proxy String)
                               & description .~ Just "Git URL to be cloned (https://, git:// or ssh:// protocol)"
@@ -716,19 +718,19 @@ getChallengeSubmissionR challengeName = do
    challengeEnt@(Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
    maybeUser <- maybeAuth
 
-   Just repo <- runDB $ get $ challengePublicRepo challenge
+   repo <- runDB $ get $ challengePublicRepo challenge
    app <- getYesod
    let scheme = appRepoScheme $ appSettings app
    let repoHost = appRepoHost $ appSettings app
 
-   let defaultUrl = fromMaybe (defaultRepo scheme repoHost challenge repo maybeUser)
+   let defaultUrl = fromMaybe (defaultRepo scheme repoHost challenge (fromJust repo) maybeUser)
                               ((<> challengeName) <$> (join $ userAltRepoScheme <$> entityVal <$> maybeUser))
 
    Entity userId _ <- requireAuth
 
    defaultTeam <- fetchDefaultTeam userId
 
-   (formWidget, formEnctype) <- generateFormPost $ submissionForm userId (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote repo) (Just defaultTeam)
+   (formWidget, formEnctype) <- generateFormPost $ submissionForm userId (Just defaultUrl) (defaultBranch scheme) (repoGitAnnexRemote (fromJust repo)) (Just defaultTeam)
    challengeLayout True challengeEnt $ challengeSubmissionWidget formWidget formEnctype challenge
 
 
@@ -892,26 +894,27 @@ postChallengeSubmissionR challengeName = do
 
 postTriggerLocallyR :: Handler TypedContent
 postTriggerLocallyR = do
-  (Just challengeName) <- lookupPostParam "challenge"
-  (Just localId) <- lookupPostParam "user"
+  challengeName <- lookupPostParam "challenge"
+  localId <- lookupPostParam "user"
   mBranch <- lookupPostParam "branch"
   mGitAnnexRemote <- lookupPostParam "git-annex-remote"
-  [Entity userId _] <- runDB $ selectList [UserLocalId ==. Just localId] []
+  entityUserId <- runDB $ selectList [UserLocalId ==. localId] []
+  let [Entity userId _] = entityUserId
 
   app <- getYesod
   let repoHost = appRepoHost $ appSettings app
 
-  let localRepo = repoHost ++ localId ++ "/" ++ challengeName
-  trigger userId challengeName localRepo mBranch mGitAnnexRemote
+  let localRepo = repoHost ++ (fromJust localId) ++ "/" ++ (fromJust challengeName)
+  trigger userId (fromJust challengeName) localRepo mBranch mGitAnnexRemote
 
 postTriggerRemotelyR :: Handler TypedContent
 postTriggerRemotelyR = do
-  (Just challengeName) <- lookupPostParam "challenge"
-  (Just theUrl) <- lookupPostParam "url"
-  (Just token) <- lookupPostParam "token"
+  challengeName <- lookupPostParam "challenge"
+  theUrl <- lookupPostParam "url"
+  token <- lookupPostParam "token"
   mBranch <- lookupPostParam "branch"
   mGitAnnexRemote <- lookupPostParam "git-annex-remote"
-  doTrigger token challengeName theUrl mBranch mGitAnnexRemote
+  doTrigger (fromJust token) (fromJust challengeName) (fromJust theUrl) mBranch mGitAnnexRemote
 
 postTriggerRemotelySimpleR :: Text -> Text -> Text -> Text -> Handler TypedContent
 postTriggerRemotelySimpleR token challengeName theUrl branch =
@@ -955,7 +958,8 @@ postTriggerByWebhookR token challengeName = do
 
 doTrigger :: Text -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
 doTrigger token challengeName theUrl mBranch mGitAnnexRemote = do
-  [Entity userId _] <- runDB $ selectList [UserTriggerToken ==. Just token] []
+  entityUserId <- runDB $ selectList [UserTriggerToken ==. Just token] []
+  let [Entity userId _] = entityUserId
   trigger userId challengeName theUrl mBranch mGitAnnexRemote
 
 trigger :: UserId -> Text -> Text -> Maybe Text -> Maybe Text -> Handler TypedContent
@@ -1091,7 +1095,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                    (gonitoMetadataDescription gonitoMetadata)
                                    chan
 
-      _ <- runDB $ mapM insert $ map (\l -> ExternalLink {
+      _ <- runDB $ mapM Import.insert $ map (\l -> ExternalLink {
                                         externalLinkSubmission = submissionId,
                                         externalLinkTitle = linkTitle l,
                                         externalLinkUrl = linkUrl l }) $ gonitoMetadataExternalLinks gonitoMetadata
@@ -1222,7 +1226,7 @@ getSubmission userId mTeamId repoId commit challengeId subDescription chan = do
     Nothing -> do
       msg chan "Creating new submission"
       time <- liftIO getCurrentTime
-      runDB $ insert $ Submission {
+      runDB $ Import.insert $ Submission {
         submissionRepo=repoId,
         submissionCommit=commit,
         submissionChallenge=challengeId,
@@ -1353,7 +1357,7 @@ getAddUserR = do
                       then Nothing
                       else (Just uname)
 
-          userId <- runDB $ insert User
+          userId <- runDB $ Import.insert User
             { userIdent = ident
             , userPassword = Nothing
             , userName = mUName
@@ -1375,7 +1379,7 @@ getAddUserR = do
                   (teamId, isCaptain) <- case t of
                     Just (Entity existingTeamId _) -> return (existingTeamId, False)
                     Nothing -> do
-                      newTeamId <- runDB $ insert $ Team {teamIdent = team,
+                      newTeamId <- runDB $ Import.insert $ Team {teamIdent = team,
                                                          teamAvatar = Nothing}
                       return (newTeamId, True)
                   runDB $ addMemberToTeam userId teamId isCaptain
@@ -1645,7 +1649,7 @@ instance ToSchema EvaluationView where
     doubleSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Double)
     testRefSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy TestReference)
     return $ NamedSchema (Just "Evaluation") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("score", stringSchema)
                      , ("full-score", doubleSchema)
@@ -1673,7 +1677,7 @@ instance ToSchema TagView where
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
     return $ NamedSchema (Just "TagView") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("name", stringSchema)
                      , ("description", stringSchema)
@@ -1730,7 +1734,7 @@ instance ToSchema SubmissionView where
     evalsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
     tagSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Import.Tag])
     return $ NamedSchema (Just "SubmissionView") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("id", submissionIdSchema)
                      , ("variant", variantIdSchema)
@@ -1769,7 +1773,7 @@ instance ToSchema SubmissionsView where
     submissionViewsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [SubmissionView])
     testRefsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TestReference])
     return $ NamedSchema (Just "SubmissionsView") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("submissions", submissionViewsSchema)
                      , ("tests", testRefsSchema)

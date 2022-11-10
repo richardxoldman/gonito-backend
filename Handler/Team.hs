@@ -83,7 +83,7 @@ instance ToSchema TeamMemberView where
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
     return $ NamedSchema (Just "TeamMember") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("name", stringSchema)
                      , ("isCaptain", boolSchema)
@@ -107,7 +107,7 @@ instance ToSchema TeamView where
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     membersSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TeamMemberView])
     return $ NamedSchema (Just "Team") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("ident", stringSchema)
                      , ("members", membersSchema)

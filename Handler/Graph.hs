@@ -15,6 +15,7 @@ import qualified Data.Map as M
 import qualified Data.Text as T
 
 import Data.Aeson (KeyValue)
+import Data.Aeson.Key (fromText)
 
 import Data.SubmissionConditions (parseCondition, checkCondition, VariantEntry(..))
 
@@ -44,7 +45,7 @@ getChallengeParamGraphDataR challengeName testId paramName = do
                $ map (\(ParamGraphItem entry label x y) -> (label, (entry, x, y))) items
 
   return $ object [
-    "xs" .= object (map (\(ParamGraphSeries seriesName _) -> (seriesName .= (xSeriesName seriesName))) series),
+    "xs" .= object (map (\(ParamGraphSeries seriesName _) -> ((fromText seriesName) .= (xSeriesName seriesName))) series),
     "columns" .= ((map (toYColumn $ testPrecision test) series) ++ (map toXColumn series))
                   ]
 
@@ -208,8 +209,8 @@ getIndicatorGraphDataR indicatorId = do
     "bindto" .=  ("#indicator-chart-" ++ (show $ unSqlBackendKey $ unIndicatorKey indicatorId)),
     "data" .= object [
         "xs" .= object ([
-           label .= ("xt" :: String)
-           ] ++ (listIf (not $ null otherScores) [otherLabel .= ("xo" :: String)])),
+           (fromText label) .= ("xt" :: String)
+           ] ++ (listIf (not $ null otherScores) [(fromText otherLabel) .= ("xo" :: String)])),
         "columns" .= ([
             ("xt" : timePoints),
             (label : (map (formatScore mPrecision) scores))]
@@ -217,8 +218,8 @@ getIndicatorGraphDataR indicatorId = do
                    ("xo" : otherTimePoints),
                    (otherLabel : (map (formatScore mPrecision) otherScores))])),
         "types" .= object [
-            label .= ("area-step" :: String),
-            otherLabel .= ("step" :: String)
+            (fromText label) .= ("area-step" :: String),
+            (fromText otherLabel) .= ("step" :: String)
             ]
         ],
     "axis" .= object [
@@ -294,7 +295,7 @@ getBound comparator mainList extraList =
 getBoundAttr :: KeyValue p => Text -> Maybe Double -> [p]
 getBoundAttr _ Nothing = []
 getBoundAttr label (Just s) = [
-    label .= s
+    (fromText label) .= s
   ]
 
 listIf :: Bool -> [a] -> [a]

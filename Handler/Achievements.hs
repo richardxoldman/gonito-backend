@@ -73,7 +73,7 @@ doAchievements mUser formWidget formEnctype = do
 
 isParticipant :: [CourseId] -> AchievementInfo -> Bool
 isParticipant [] _ = True
-isParticipant courses info = (entityKey $ achievementInfoCourse info) `elem` courses
+isParticipant courses info = (entityKey $ achievementInfoCourse info) `Import.elem` courses
 
 achievementsTable :: Bool -> Table.Table App (AchievementInfo)
 achievementsTable canEdit = mempty

@@ -29,7 +29,7 @@ instance ToSchema (Entity Tag) where
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
     return $ NamedSchema (Just "Tag") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("name", stringSchema)
                      , ("description", stringSchema)

@@ -31,6 +31,8 @@ import qualified Data.ByteString.Lazy as L
 
 import Data.Conduit.Binary (sinkLbs, sourceFile)
 
+import Data.Maybe (fromJust)
+
 data ChallengeCreationData = ChallengeCreationData {
   challengeCreationDataName :: Text,
   challengeCreationMetadata :: ChallengeMetadata }
@@ -222,7 +224,7 @@ doChallengeUpdate challengeId challengeData chan = do
   msg chan ("UPDATING TO VERSION: " ++ (pack $ show newMajor) ++ "." ++ (pack $ show newMinor) ++ "." ++ (pack $ show newPatch))
 
   userId <- requireAuthId
-  (Just publicRepoId) <- getPossiblyExistingRepo (\_ _ _ -> return True)
+  publicRepoId <- getPossiblyExistingRepo (\_ _ _ -> return True)
                                                 userId
                                                 challengeId
                                                 RepoSpec {
@@ -231,7 +233,7 @@ doChallengeUpdate challengeId challengeData chan = do
                                                   repoSpecGitAnnexRemote = publicGitAnnexRemote}
                                                 chan
 
-  (Just privateRepoId) <- getPossiblyExistingRepo (\_ _ _ -> return True)
+  privateRepoId <- getPossiblyExistingRepo (\_ _ _ -> return True)
                                                  userId
                                                  challengeId
                                                  RepoSpec {
@@ -240,13 +242,13 @@ doChallengeUpdate challengeId challengeData chan = do
                                                    repoSpecGitAnnexRemote = privateGitAnnexRemote}
                                                  chan
 
-  isValidated <- validateChallenge shouldBeValidated privateRepoId chan
+  isValidated <- validateChallenge shouldBeValidated (fromJust privateRepoId) chan
 
   when isValidated $
      do
-        privateRepo <- runDB $ get404 $ privateRepoId
-        repoDir <- getRepoDirOrClone privateRepoId chan
-        (Just versionDescription) <- liftIO $ getLastCommitMessage repoDir
+        privateRepo <- runDB $ get404 $ (fromJust privateRepoId)
+        repoDir <- getRepoDirOrClone (fromJust privateRepoId) chan
+        versionDescription <- liftIO $ getLastCommitMessage repoDir
         theNow <- liftIO getCurrentTime
         let commit = (repoCurrentCommit privateRepo)
 
@@ -257,7 +259,7 @@ doChallengeUpdate challengeId challengeData chan = do
                                                                  VersionMajor =. newMajor,
                                                                  VersionMinor =. newMinor,
                                                                  VersionPatch =. newPatch,
-                                                                 VersionDescription =. versionDescription,
+                                                                 VersionDescription =. fromJust versionDescription,
                                                                  VersionStamp =. theNow,
                                                                  VersionPhase =. mPhaseTagId]
 
@@ -268,18 +270,18 @@ doChallengeUpdate challengeId challengeData chan = do
                                                   newMajor
                                                   newMinor
                                                   newPatch
-                                                  versionDescription
+                                                  (fromJust versionDescription)
                                                   theNow
                                                   mPhaseTagId
                      return ()
 
-        (title, description, mImage, tags) <- extractChallengeMetadata publicRepoId chan
+        (title, description, mImage, tags) <- extractChallengeMetadata (fromJust publicRepoId) chan
 
         runDB $ deleteWhere [ChallengeTagChallenge ==.challengeId]
         addChallengeTags challengeId tags
 
-        runDB $ update challengeId [ChallengePublicRepo =. publicRepoId,
-                                    ChallengePrivateRepo =. privateRepoId,
+        runDB $ update challengeId [ChallengePublicRepo =. fromJust publicRepoId,
+                                    ChallengePrivateRepo =. fromJust privateRepoId,
                                     ChallengeVersion =. commit,
                                     ChallengeTitle =. title,
                                     ChallengeDescription =. description,

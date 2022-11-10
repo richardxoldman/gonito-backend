@@ -13,6 +13,8 @@ import qualified Yesod.Table as Table
 
 import Text.Hamlet (hamletFile)
 
+import Data.Maybe (fromJust)
+
 sampleChallengeName :: Text
 sampleChallengeName = "petite-difference-challenge2"
 
@@ -34,7 +36,8 @@ getPresentation4RealR = do
 
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName sampleChallengeName
 
-  (Just (Entity sampleUserId _)) <- runDB $ getBy $ UniqueUser sampleUserIdent
+  entitySampleUserId <- runDB $ getBy $ UniqueUser sampleUserIdent
+  let (Entity sampleUserId _) = fromJust entitySampleUserId
   let condition = (\(Entity _ submission) -> (submissionSubmitter submission == sampleUserId))
   (evaluationMaps', tests) <- runDB $ getChallengeSubmissionInfos 1 condition (const True) onlyTheBestVariant challengeId
   let evaluationMaps = take 10 evaluationMaps'
@@ -55,7 +58,8 @@ getPresentationPSNC2019R = do
 
   (Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName sampleChallengeName
 
-  (Just (Entity sampleUserId _)) <- runDB $ getBy $ UniqueUser sampleUserIdent
+  entitySampleUserId <- runDB $ getBy $ UniqueUser sampleUserIdent
+  let (Entity sampleUserId _) = fromJust entitySampleUserId
   let condition = (\(Entity _ submission) -> (submissionSubmitter submission == sampleUserId))
   (evaluationMaps', tests) <- runDB $ getChallengeSubmissionInfos 1 condition (const True) onlyTheBestVariant challengeId
   let evaluationMaps = take 10 evaluationMaps'

@@ -51,7 +51,7 @@ fetchIndividualKey (Just localId) = do
    else
     return ()
 
-  fhandle <- liftIO $ openFile individualPubKeyPath ReadMode
+  fhandle <- liftIO $ System.IO.openFile individualPubKeyPath ReadMode
   contents <- liftIO $ System.IO.hGetContents fhandle
 
   return $ Just $ pack contents

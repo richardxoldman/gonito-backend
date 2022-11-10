@@ -36,7 +36,7 @@ instance ToSchema FullSubmissionInfo where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     return $ NamedSchema (Just "SubmissionInfo") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("hash", stringSchema)
                      , ("submitter", stringSchema)

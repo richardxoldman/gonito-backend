@@ -93,6 +93,8 @@ library
                 RecordWildCards
 
     build-depends: base                          >= 4          && < 5
+                 , wai
+                 , wai-extra
                  , yesod                         >= 1.6
                  , yesod-core                    >= 1.6
                  , yesod-auth                    >= 1.6
@@ -109,7 +111,6 @@ library
                  , template-haskell
                  , shakespeare                   >= 2.0
                  , monad-control                 >= 0.3
-                 , wai-extra                     >= 3.0
                  , yaml                          >= 0.8
                  , http-conduit                  >= 2.1
                  , directory                     >= 1.1
@@ -153,7 +154,6 @@ library
                  , extra
                  , attoparsec
                  , random-strings
-                 , wai
                  , megaparsec
                  , Glob
                  , req
@@ -168,6 +168,7 @@ library
                  , MissingH
                  , modern-uri
                  , data-default-class
+                 , parser-combinators
 
 executable         gonito
     if flag(library-only)
@@ -227,6 +228,7 @@ test-suite test
                  , classy-prelude
                  , classy-prelude-yesod
                  , wai
+                 , wai-extra
                  , containers
                  , unordered-containers
                  , yesod-websockets

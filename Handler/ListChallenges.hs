@@ -54,7 +54,7 @@ instance ToSchema ChallengeView where
     tagsSchema <- declareSchemaRef (Proxy :: Proxy [Entity Tag])
     utcSchema <- declareSchemaRef (Proxy :: Proxy UTCTime)
     return $ NamedSchema (Just "Challenge") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [ ("name", stringSchema)
                     , ("title", stringSchema)
@@ -178,7 +178,7 @@ instance ToSchema (Entity Version) where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (Proxy :: Proxy String)
     return $ NamedSchema (Just "Version") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [ ("deadline", stringSchema)
                     , ("version", versionSchema)

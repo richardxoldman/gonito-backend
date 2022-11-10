@@ -39,6 +39,8 @@ import Data.HashMap.Strict.InsOrd (fromList)
 
 import qualified Data.Set as S
 
+import Data.Maybe
+
 data TestReference = TestReference Text Text
                      deriving (Show, Eq, Ord)
 
@@ -52,7 +54,7 @@ instance ToSchema TestReference where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     return $ NamedSchema (Just "TestReference") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            Data.HashMap.Strict.InsOrd.fromList [  ("name", stringSchema)
                                                , ("metric", stringSchema)
@@ -390,7 +392,8 @@ toLeaderboardEntry challengeId tests ss = do
   theParameters <- runDB $ selectList [ParameterVariant ==. (entityKey bestVariant)] [Asc ParameterName]
 
   submission <- runDB $ get404 submissionId
-  (Just (Entity _ itsVersion)) <- runDB $ getBy $ UniqueVersionByCommit $ submissionVersion submission
+  (entity) <- runDB $ getBy $ UniqueVersionByCommit $ submissionVersion submission
+  let (Entity _ itsVersion) = fromJust entity
 
   mPhaseTag <- case versionPhase itsVersion of
                    Just phaseId -> runDB $ get phaseId

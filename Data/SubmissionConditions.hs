@@ -7,7 +7,7 @@ import Control.Monad (void)
 import Data.Void
 import Text.Megaparsec
 import Text.Megaparsec.Char
-import Text.Megaparsec.Expr
+import Control.Monad.Combinators.Expr
 import qualified Text.Megaparsec.Char.Lexer as L
 import Data.Text as T hiding (empty)
 import Text.Read (readMaybe)
@@ -122,7 +122,7 @@ literalP :: Parser Text
 literalP = quotedP '"' <|> quotedP '\''
 
 quotedP :: Char -> Parser Text
-quotedP q = lexeme (T.pack <$> ((char q) *> (many $ notChar q) <* (char q)))
+quotedP q = lexeme (T.pack <$> ((char q) *> (many $ anySingleBut q) <* (char q)))
 
 valueHolderP :: Parser ValueHolder
 valueHolderP = lexeme $ ValueHolder <$> T.pack <$> ((:) <$> letterChar <*> many (alphaNumChar <|> char '-'))

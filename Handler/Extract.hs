@@ -11,7 +11,7 @@ import Data.String.Utils (strip, split)
 import Data.List.Utils (replace)
 
 extractHeaders :: Block -> [String]
-extractHeaders (Header 1 _ x) = [stringify x]
+extractHeaders (Header 1 _ x) = [unpack $ stringify x]
 extractHeaders _ = []
 
 extractFirstHeader :: Pandoc -> Maybe String
@@ -20,7 +20,7 @@ extractFirstHeader doc = case queryWith extractHeaders doc of
   [] -> Nothing
 
 extractParas :: Block -> [String]
-extractParas (Para x) = [stringify x]
+extractParas (Para x) = [unpack $ stringify x]
 extractParas _ = []
 
 extractFirstPara :: Pandoc -> Maybe String

@@ -75,7 +75,7 @@ instance ToSchema Parameter where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     return $ NamedSchema (Just "Parameter") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("name", stringSchema),
                        ("value", stringSchema)
@@ -98,7 +98,7 @@ instance ToSchema VariantView where
     evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
     paramsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Parameter])
     return $ NamedSchema (Just "Variant") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("id", intSchema),
                        ("name", stringSchema),
@@ -125,7 +125,7 @@ instance ToSchema QueryResultView where
   declareNamedSchema _ = do
     submissionInfoSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy FullSubmissionInfo)
     return $ NamedSchema (Just "QueryResult") $ mempty
-        & type_ .~ SwaggerObject
+        & type_ .~ Just SwaggerObject
         & properties .~
            fromList [  ("submissionInfo", submissionInfoSchema),
                        ("variants", Inline $ toSchema (DPR.Proxy :: DPR.Proxy [VariantView])
@@ -426,12 +426,13 @@ fetchViewVariantData variantId = do
 
   theVersion <- realSubmissionVersion $ Entity theSubmissionId theSubmission
 
-  ([entry], tests') <- runDB $ getChallengeSubmissionInfosForVersion priorityLimitForViewVariant
+  entryTests <- runDB $ getChallengeSubmissionInfosForVersion priorityLimitForViewVariant
                                                                     (\e -> entityKey e == theSubmissionId)
                                                                     (\e -> entityKey e == variantId)
                                                                     id
                                                                     (submissionChallenge theSubmission)
                                                                     theVersion
+  let ([entry], tests') = entryTests
   let tests = sortBy (flip testComparator) tests'
 
   let isViewable = True
@@ -470,7 +471,8 @@ postCompareFormR variantId testId = do
     ((result, _), _) <- runFormPost outQueryForm
     case result of
       FormSuccess outQuery -> do
-        (out:_) <- runDB $ rawOutQuery outQuery
+        outlist <- runDB $ rawOutQuery outQuery
+        let (out:_) = outlist
         let otherVariantId = outVariant $ entityVal out
         doViewVariantTestR (TwoThings otherVariantId variantId) testId
 
@@ -675,7 +677,8 @@ viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) 
                                    ExpectedFromChallenge -> challengeRepoDir
                                    NoExpectedFound -> error "Should not be here"
 
-                Right opts <- liftIO $ readOptsFromConfigFile [] (theRepoDir </> "config.txt")
+                rightOpts <- liftIO $ readOptsFromConfigFile [] (theRepoDir </> "config.txt")
+                let Right opts = rightOpts
                 let spec = GEvalSpecification {
                   gesOutDirectory = current repoDir,
                   gesExpectedDirectory = Just theRepoDir,
