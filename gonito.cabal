@@ -176,7 +176,7 @@ executable         gonito
 
     main-is:           main.hs
     hs-source-dirs:    app
-    build-depends:     base, gonito
+    build-depends:     base, gonito, wai-extra
 
     ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
 
@@ -186,7 +186,7 @@ executable         gonito-bin
 
     main-is:           main-bin.hs
     hs-source-dirs:    app
-    build-depends:     base, gonito
+    build-depends:     base, gonito, wai-extra
 
     ghc-options:       -threaded -O2 -rtsopts -with-rtsopts=-N
 
