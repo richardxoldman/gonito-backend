@@ -91,6 +91,7 @@
 
 /challenge-archive/#ChallengeId ArchiveR POST
 /challenge-unarchive/#ChallengeId UnarchiveR POST
+/challenge-wipe/#ChallengeId WipeR POST
 /challenge-heal/#ChallengeId HealR POST
 
 /account YourAccountR GET POST

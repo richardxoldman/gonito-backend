@@ -5,7 +5,8 @@
     $nothing
 
 $if (challengeArchived challenge == Just True)
-  <p><b>_{MsgChallengeIsArchived}
+  <p>
+    <b>_{MsgChallengeIsArchived}
 
 $if (checkIfAdmin mUserEnt)
   $if (challengeArchived challenge /= Just True)
@@ -19,6 +20,8 @@ $if (checkIfAdmin mUserEnt)
  $if (challengeArchived challenge == Just True)
     <form method=post action=@{UnarchiveR challengeId}#form enctype="text/plain">
       <button>_{MsgUnarchive}
+    <form method=post action=@{WipeR challengeId}#form enctype="text/plain">
+      <button>_{MsgWipe}
 
  $if not isHealthy
      _{MsgChallengeNotHealthy} <form method=post action=@{HealR challengeId}#form enctype="text/plain">
