@@ -1,3 +1,11 @@
+## 3.20.3 (2022-11-18)
+
+Last version before switching to LTS 19.25.
+
+Bug fixes:
+
+* Fix tests
+
 ## 3.20.0 (2022-08-17)
 
 Enhancements:
