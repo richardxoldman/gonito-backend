@@ -52,7 +52,7 @@ spec = do
     it "simple condition" $ do
       let fakeKey :: Key Variant = toSqlKey 1
       let sampleEntry = VariantEntry {
-            variantEntryTags = [Tag "foo" Nothing, Tag "neural-network" (Just "description")],
+            variantEntryTags = [Tag "foo" Nothing Nothing, Tag "neural-network" (Just "description") Nothing],
             variantEntryParams = [Parameter fakeKey "z" "80", Parameter fakeKey "learning-rate" "0.0001", Parameter fakeKey "type" "supervised"]
             }
       checkCondition (parseCondition "z < 100") sampleEntry `shouldBe` True
