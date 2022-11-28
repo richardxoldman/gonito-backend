@@ -169,6 +169,7 @@ library
                  , modern-uri
                  , data-default-class
                  , parser-combinators
+                 , http-client-tls
 
 executable         gonito
     if flag(library-only)
