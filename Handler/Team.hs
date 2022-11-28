@@ -309,3 +309,14 @@ postTeamInvitationLinkR key = do
       setMessage $ toHtml ("There is something wrong with this invitation link" :: Text)
 
   doMyTeams
+
+isChallengeAccessibleForUser :: (PersistQueryRead backend, MonadIO m, BaseBackend backend ~ SqlBackend) => Challenge -> Maybe UserId -> ReaderT backend m Bool
+isChallengeAccessibleForUser challenge mUserId = do
+  case challengeTeamId challenge of
+    Nothing -> pure True
+    Just teamId ->
+      case mUserId of
+        Nothing -> pure False
+        Just userId ->  do
+          result <- selectList [TeamMemberTeam ==. teamId, TeamMemberUser ==. userId] [LimitTo 1]
+          pure $ not $ null result

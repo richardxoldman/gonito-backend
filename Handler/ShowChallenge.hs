@@ -173,8 +173,10 @@ instance ToSchema LeaderboardView where
         & required .~ [ "tests", "entries" ]
 
 getLeaderboardJsonR :: Text -> Handler Value
-getLeaderboardJsonR challengeName = do
-  Entity challengeId challenge <- runDB $ getBy404 $ UniqueName challengeName
+getLeaderboardJsonR = makeSureChallengeAccessible getLeaderboardJsonR'
+
+getLeaderboardJsonR' :: Maybe (Entity User) -> Entity Challenge -> Handler Value
+getLeaderboardJsonR' _ (Entity challengeId challenge) = do
   leaderboardStyle <- determineLeaderboardStyle challenge
   (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
   return $ toJSON $ LeaderboardView {
@@ -279,10 +281,24 @@ determineLeaderboardStyle challenge = do
              Just True -> BySubmitter
              _ -> leaderboardStyle
 
+makeSureChallengeAccessible :: (Maybe (Entity User) -> Entity Challenge -> Handler a) -> Text -> Handler a
+makeSureChallengeAccessible rt challengeName = do
+  mUserEnt <- maybeAuthPossiblyByToken
+  challengeEnt@(Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
+
+  isAccessible <- runDB $ isChallengeAccessibleForUser challenge (entityKey <$> mUserEnt)
+  if isAccessible
+    then
+      rt mUserEnt challengeEnt
+    else
+      error $ "The challenge is inaccessible for the user"
+
 getShowChallengeR :: Text -> Handler Html
-getShowChallengeR challengeName = do
+getShowChallengeR = makeSureChallengeAccessible getShowChallengeR'
+
+getShowChallengeR' :: Maybe (Entity User) -> Entity Challenge -> Handler Html
+getShowChallengeR' _ challengeEnt@(Entity challengeId challenge) = do
   app <- getYesod
-  challengeEnt@(Entity challengeId challenge) <- runDB $ getBy404 $ UniqueName challengeName
   leaderboardStyle <- determineLeaderboardStyle challenge
 
   isHealthy <- isChallengeHealthy challenge
@@ -326,11 +342,12 @@ hasMetricsOfSecondPriority challengeId = do
   let tests = filter (\t -> (evaluationSchemePriority $ testMetric $ entityVal t) == 2) tests'
   return $ not (null tests)
 
-
 getChallengeReadmeR :: Text -> Handler Html
-getChallengeReadmeR challengeName = do
-  challengeEnt <- runDB $ getBy404 $ UniqueName challengeName
-  readme <- challengeReadme challengeName
+getChallengeReadmeR = makeSureChallengeAccessible (const getChallengeReadmeR')
+
+getChallengeReadmeR' :: Entity Challenge -> Handler Html
+getChallengeReadmeR' challengeEnt@(Entity _ challenge) = do
+  readme <- challengeReadme $ challengeName challenge
   challengeLayout False challengeEnt $ toWidget readme
 
 challengeReadmeInMarkdownApi :: Swagger
@@ -357,8 +374,12 @@ declareChallengeReadmeInMarkdownSwagger = do
                                         & description ?~ "Returns the challenge README in Markdown"))
                  ]
 
+
 getChallengeReadmeInMarkdownR :: Text -> Handler TL.Text
-getChallengeReadmeInMarkdownR challengeName = doChallengeReadmeContents challengeName
+getChallengeReadmeInMarkdownR = makeSureChallengeAccessible (const getChallengeReadmeInMarkdownR')
+
+getChallengeReadmeInMarkdownR' :: Entity Challenge -> Handler TL.Text
+getChallengeReadmeInMarkdownR' (Entity _ challenge) = doChallengeReadmeContents $ challengeName challenge
 
 challengeReadme :: Text -> Handler Html
 challengeReadme challengeName = do
@@ -513,10 +534,10 @@ challengeRepoApi = spec & definitions .~ defs
 
 
 getChallengeHowToR :: Text -> Handler Html
-getChallengeHowToR challengeName = do
-  challengeEnt@(Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
-  maybeUser <- maybeAuth
+getChallengeHowToR = makeSureChallengeAccessible getChallengeHowToR'
 
+getChallengeHowToR' :: Maybe (Entity User) -> Entity Challenge -> Handler Html
+getChallengeHowToR' maybeUser challengeEnt@(Entity _ challenge) = do
   app <- getYesod
   let settings = appSettings app
 
@@ -712,17 +733,18 @@ archiveForm :: ChallengeId -> Form ChallengeId
 archiveForm challengeId = renderBootstrap3 BootstrapBasicForm $ areq hiddenField "" (Just challengeId)
 
 getChallengeSubmissionR :: Text -> Handler Html
-getChallengeSubmissionR challengeName = do
-   challengeEnt@(Entity _ challenge) <- runDB $ getBy404 $ UniqueName challengeName
-   maybeUser <- maybeAuth
+getChallengeSubmissionR = makeSureChallengeAccessible getChallengeSubmissionR'
 
+getChallengeSubmissionR' :: Maybe (Entity User) -> Entity Challenge -> Handler Html
+getChallengeSubmissionR' maybeUser challengeEnt@(Entity _ challenge) = do
+   let chName = challengeName challenge
    Just repo <- runDB $ get $ challengePublicRepo challenge
    app <- getYesod
    let scheme = appRepoScheme $ appSettings app
    let repoHost = appRepoHost $ appSettings app
 
    let defaultUrl = fromMaybe (defaultRepo scheme repoHost challenge repo maybeUser)
-                              ((<> challengeName) <$> (join $ userAltRepoScheme <$> entityVal <$> maybeUser))
+                              ((<> chName) <$> (join $ userAltRepoScheme <$> entityVal <$> maybeUser))
 
    Entity userId _ <- requireAuth
 
@@ -840,10 +862,11 @@ instance ToJSON GonitoStatus
 instance ToSchema GonitoStatus
 
 postChallengeSubmissionJsonR :: Text -> Handler Value
-postChallengeSubmissionJsonR challengeName = do
-    Entity userId _ <- requireAuthPossiblyByToken
+postChallengeSubmissionJsonR = makeSureChallengeAccessible postChallengeSubmissionJsonR'
 
-    challengeEnt@(Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
+postChallengeSubmissionJsonR' :: Maybe (Entity User) -> Entity Challenge -> Handler Value
+postChallengeSubmissionJsonR' mUserEnt challengeEnt@(Entity challengeId _) = do
+    let Just (Entity userId _) = mUserEnt
     ((result, _), _) <- runFormPostNoToken $ submissionForm userId Nothing Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
@@ -878,10 +901,12 @@ checkSubmission (Entity _ challenge) submissionData = do
           return $ SubmissionWrong "Refusing to clone the submission from this URL."
 
 postChallengeSubmissionR :: Text -> Handler TypedContent
-postChallengeSubmissionR challengeName = do
-    userId <- requireAuthId
+postChallengeSubmissionR = makeSureChallengeAccessible postChallengeSubmissionR'
 
-    (Entity challengeId _) <- runDB $ getBy404 $ UniqueName challengeName
+
+postChallengeSubmissionR' :: Maybe (Entity User) -> Entity Challenge -> Handler TypedContent
+postChallengeSubmissionR' mUserEnt (Entity challengeId _) = do
+    let Just (Entity userId _) = mUserEnt
     ((result, _), _) <- runFormPost $ submissionForm userId Nothing Nothing Nothing Nothing
     let submissionData' = case result of
           FormSuccess res -> Just res
@@ -1533,13 +1558,19 @@ mySubmissionsApi = spec & definitions .~ defs
     (defs, spec) = runDeclare (declareAllSubmissionsApi "challenge-my-submissions" "Returns all submissions for a challenge for the user") mempty
 
 getChallengeAllSubmissionsJsonR :: Text -> Handler Value
-getChallengeAllSubmissionsJsonR challengeName = do
-  v <- fetchAllSubmissionsView challengeName
+getChallengeAllSubmissionsJsonR = makeSureChallengeAccessible (const getChallengeAllSubmissionsJsonR')
+
+getChallengeAllSubmissionsJsonR' :: Entity Challenge -> Handler Value
+getChallengeAllSubmissionsJsonR' (Entity _ challenge) = do
+  v <- fetchAllSubmissionsView $ challengeName challenge
   return $ toJSON v
 
 getChallengeMySubmissionsJsonR :: Text -> Handler Value
-getChallengeMySubmissionsJsonR challengeName = do
-  v <- fetchMySubmissionsView challengeName
+getChallengeMySubmissionsJsonR = makeSureChallengeAccessible (const getChallengeMySubmissionsJsonR')
+
+getChallengeMySubmissionsJsonR' :: (Entity Challenge) -> Handler Value
+getChallengeMySubmissionsJsonR' (Entity _ challenge) = do
+  v <- fetchMySubmissionsView $ challengeName challenge
   return $ toJSON v
 
 fetchAllSubmissionsView :: Text -> Handler SubmissionsView
@@ -1619,12 +1650,18 @@ fetchChallengeSubmissionsView condition challengeName = do
 
 -- TODO switch to fetchChallengeSubmissionSview
 getChallengeMySubmissionsR :: Text -> Handler Html
-getChallengeMySubmissionsR challengeName = do
-  userId <- requireAuthId
-  getChallengeSubmissions (\(Entity _ submission) -> (submissionSubmitter submission == userId)) challengeName
+getChallengeMySubmissionsR = makeSureChallengeAccessible getChallengeMySubmissionsR'
+
+getChallengeMySubmissionsR' :: Maybe (Entity User) -> Entity Challenge -> Handler Html
+getChallengeMySubmissionsR' mUserEnt (Entity _ challenge) = do
+  let Just (Entity userId _) = mUserEnt
+  getChallengeSubmissions (\(Entity _ submission) -> (submissionSubmitter submission == userId)) $ challengeName challenge
 
 getChallengeAllSubmissionsR :: Text -> Handler Html
-getChallengeAllSubmissionsR challengeName = getChallengeSubmissions (\_ -> True) challengeName
+getChallengeAllSubmissionsR = makeSureChallengeAccessible (const getChallengeAllSubmissionsR')
+
+getChallengeAllSubmissionsR' :: Entity Challenge -> Handler Html
+getChallengeAllSubmissionsR' (Entity _ challenge) = getChallengeSubmissions (\_ -> True) $ challengeName challenge
 
 data EvaluationView = EvaluationView {
   evaluationViewScore :: Text,
