@@ -28,17 +28,30 @@ By default, Gonito uses [Postgresql](http://www.postgresql.org/), so it needs to
 
 After installing Stack:
 
-    createdb -E utf8 gonito   # Postgres needs to be configured
+    createdb -E utf8 gonito   # Postgres needs to be configured beforehand
     git clone --recurse-submodules git://gonito.net/gonito
     cd gonito
     stack setup
     # before starting the build you might need some non-Haskell dependencies, e.g. in Ubuntu:
     # sudo apt-get install libbz2-dev liblzma-dev libpcre3-dev libcairo-dev libfcgi-dev
     stack build
+
+You will also need `yesod-bin` installed:
+
+    stack install yesod-bin
+
+Now you can start Gonito in the development mode.
+
     stack exec yesod devel
 
 The last command will start the Web server with Gonito (go to
-http://127.0.0.1:3000 in your browser).
+http://127.0.0.1:3000 in your browser). Now, whenever you change the
+Gonito source code, Yesod will re-compile the source code.
+
+When you are running the server for the first time in the development
+mode, it's a good idea to create an admin account:
+
+    ADMINUSER=admin ADMINPASS=somepassword stack exec yesod devel
 
 ## With docker-compose
 
@@ -227,6 +240,7 @@ Authors
 -------
 
 * Filip Graliński
+* Andrzej Gajda
 
 References
 ----------
