@@ -1,8 +1,10 @@
-FROM fpco/stack-build:lts-12.26 AS gonito-build
+FROM fpco/stack-build:lts-19.25 AS gonito-build
 
 MAINTAINER Filip Gralinski <filipg@ceti.pl>
 
 WORKDIR /root/
+
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A4B469963BF863CC
 
 RUN apt-get -y update && apt-get -y install libfcgi-dev && apt-get clean && rm -rf /var/lib/apt/lists/*
 
