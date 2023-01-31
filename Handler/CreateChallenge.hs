@@ -48,7 +48,9 @@ data ChallengeMetadata = ChallengeMetadata {
 
   challengeMetadataDeadline :: Maybe UTCTime,
   challengeMetadataValidate :: Bool,
-  challengeMetadataPhase :: Maybe Text }
+  challengeMetadataPhase :: Maybe Text,
+
+  challengeMetadataDisclosed :: Maybe Int }
 
 getCreateChallengeR :: Handler Html
 getCreateChallengeR = do
@@ -212,6 +214,8 @@ doChallengeUpdate challengeId challengeData chan = do
   let newDeadline = challengeMetadataDeadline metadata
   let shouldBeValidated = challengeMetadataValidate metadata
 
+  let mDisclosed = challengeMetadataDisclosed metadata
+
   mPhaseTagId <- fetchPhaseTagId (challengeMetadataPhase metadata)
 
 
@@ -261,7 +265,8 @@ doChallengeUpdate challengeId challengeData chan = do
                                                                  VersionPatch =. newPatch,
                                                                  VersionDescription =. fromJust versionDescription,
                                                                  VersionStamp =. theNow,
-                                                                 VersionPhase =. mPhaseTagId]
+                                                                 VersionPhase =. mPhaseTagId,
+                                                                 VersionDisclosed =. mDisclosed]
 
           Nothing -> do
                      _ <- runDB $ insert $ Version (Just challengeId)
@@ -273,6 +278,7 @@ doChallengeUpdate challengeId challengeData chan = do
                                                   (fromJust versionDescription)
                                                   theNow
                                                   mPhaseTagId
+                                                  mDisclosed
                      return ()
 
         (title, description, mImage, tags) <- extractChallengeMetadata (fromJust publicRepoId) chan
@@ -380,7 +386,8 @@ addChallenge name publicRepoId privateRepoId deadline mPhaseTagId chan = do
     versionPatch=defaultPatchVersion,
     versionDescription=defaultInitialDescription,
     versionStamp=time,
-    versionPhase=mPhaseTagId }
+    versionPhase=mPhaseTagId,
+    versionDisclosed=Nothing }
 
   updateTests challengeId chan
 
@@ -488,6 +495,7 @@ challengeMetadataInputs mPublicRepo mPrivateRepo mDeadline mPhase =
                                                 <*> aopt timeFieldTypeTime (fieldWithTooltip MsgChallengeDeadlineTime MsgChallengeDeadlineTooltip) (Just $ timeToTimeOfDay <$> utctDayTime <$> mDeadline))
                     <*> areq checkBoxField (bfs MsgShouldChallengeBeValidated) (Just True)
                     <*> aopt textField (bfs MsgPhase) (Just (tagName <$> mPhase))
+                    <*> aopt intField (bfs MsgDisclosed) Nothing
 
 updateChallengeForm :: Repo -> Repo -> Maybe UTCTime -> Maybe Tag -> Form ChallengeUpdateData
 updateChallengeForm publicRepo privateRepo mDeadline mPhase = renderBootstrap3 BootstrapBasicForm $ ChallengeUpdateData
