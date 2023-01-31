@@ -1094,8 +1094,12 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
           return bestScoreSoFar'
         Nothing -> return Nothing
 
+      disclosedInfo <- fetchDisclosedInfo challenge
+
       case bestScoreSoFar of
-        Just s -> msg chan ("best score so far is: " ++ (Data.Text.pack $ show s))
+        Just s -> case disclosedInfo of
+                   DisclosedInfo Nothing -> msg chan ("best score so far is: " ++ (Data.Text.pack $ show s))
+                   _ -> return ()
         Nothing -> msg chan "first submission so far"
 
       repo <- runDB $ get404 repoId
@@ -1182,8 +1186,12 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
                                                ++ " See "),
                                                submissionLink,
                                                AnnouncementText ("." ++ " :clap:")]
-                                msg chan $ renderAnnouncementMessage Nothing message
-                                sendChallengeAnnouncement challengeId message
+                                case disclosedInfo of
+                                  DisclosedInfo Nothing ->
+                                    do
+                                      msg chan $ renderAnnouncementMessage Nothing message
+                                      sendChallengeAnnouncement challengeId message
+                                  _ -> return ()
                              else return ()
                     [] -> return ()
             Nothing -> return ()
