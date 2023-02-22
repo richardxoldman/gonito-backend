@@ -170,6 +170,7 @@ library
                  , data-default-class
                  , parser-combinators
                  , http-client-tls
+                 , pureMD5
 
 executable         gonito
     if flag(library-only)
