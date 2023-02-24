@@ -5,7 +5,7 @@
 
 module Handler.Shared where
 
-import Import
+import Import hiding (openFile, replace)
 
 import qualified Data.IntMap            as IntMap
 
@@ -18,12 +18,17 @@ import Web.Announcements
 
 import qualified Data.Text as T
 
+import Data.List.Utils (replace)
+
 import Database.Persist.Sql (fromSqlKey)
 
 import Control.Concurrent.Lifted (threadDelay)
 import Control.Concurrent (forkIO)
 
 import System.Directory
+import System.IO hiding (readFile)
+import System.Process
+import Data.Digest.Pure.MD5
 
 import qualified Crypto.Hash.SHA1 as CHS
 
@@ -474,21 +479,50 @@ cloneRepo' userId repoCloningSpec chan = do
 fixGitRepoUrl :: Text -> Text
 fixGitRepoUrl = id
 
-fetchIndividualKeyPath :: User -> HandlerFor App (Maybe FilePath)
+fetchIndividualKeyPath :: User -> Handler (Maybe FilePath)
 fetchIndividualKeyPath user = do
-  arenaDir <- arena
-  let mLocalId = userLocalId user
-  case mLocalId of
-    Just localId -> do
-      let individualKeysDir = arenaDir ++ "/individual-keys"
-      let individualKeyPath = (unpack individualKeysDir) ++ "/" ++ (unpack localId)
+  mIndividualPubKeyPath <- fetchIndividualPubKeyPath user
+  case mIndividualPubKeyPath of
+    Just individualPubKeyPath -> return $ Just $ replace ".pub" "" individualPubKeyPath
+    Nothing -> return Nothing
 
-      isKeyGenerated <- liftIO $ doesFileExist individualKeyPath
-      if isKeyGenerated
-        then
-          return $ Just individualKeyPath
-        else
-          return Nothing
+fetchIndividualPubKeyPath :: User -> Handler (Maybe FilePath)
+fetchIndividualPubKeyPath user = do
+  let keyName = case userLocalId user of
+                  Just localId -> localId
+                  Nothing -> pack $ show $ md5 $ fromStrict $ encodeUtf8 $ userIdent user
+
+  arenaDir <- arena
+  let individualKeysDir = arenaDir ++ "/individual-keys"
+  liftIO $ createDirectoryIfMissing True individualKeysDir
+
+  let individualKeyPath = (unpack individualKeysDir) ++ "/" ++ (unpack keyName)
+  let individualComment = (unpack keyName) ++ "@gonito"
+
+  let individualPubKeyPath = individualKeyPath ++ ".pub"
+
+  isKeyGenerated <- liftIO $ doesFileExist individualPubKeyPath
+  if not isKeyGenerated
+   then
+    do
+          _ <- liftIO $ callProcess "/usr/bin/ssh-keygen" ["-t", "RSA", "-f", individualKeyPath, "-N",  "", "-C", individualComment]
+          return ()
+   else
+    return ()
+
+  _ <- liftIO $ callProcess "/usr/bin/chmod" ["go-rwx", individualKeyPath]
+
+  return $ Just individualPubKeyPath
+
+fetchIndividualKey :: User -> Handler (Maybe Text)
+fetchIndividualKey user = do
+  mIndividualPubKeyPath <- fetchIndividualPubKeyPath user
+
+  case mIndividualPubKeyPath of
+    Just individualPubKeyPath -> do
+      fhandle <- liftIO $ openFile individualPubKeyPath ReadMode
+      contents <- liftIO $ System.IO.hGetContents fhandle
+      return $ Just $ T.strip $ pack contents
     Nothing -> return Nothing
 
 isUserLocalRepo :: User -> RepoCloningSpec -> Bool
@@ -528,9 +562,8 @@ getGitEnv mUserId repoCloningSpec = do
                    mInvidualPrivateKey <- fetchIndividualKeyPath user
                    case mInvidualPrivateKey of
                      Just individualPrivateKey -> do
-                       curr_dir <- liftIO $ getCurrentDirectory
                        return $ Just [("GIT_SSH_COMMAND",
-                                       "/usr/bin/ssh -o StrictHostKeyChecking=no  -i " ++ curr_dir ++ "/" ++ individualPrivateKey)]
+                                       "/usr/bin/ssh -o StrictHostKeyChecking=no  -i " ++ individualPrivateKey)]
                      Nothing -> return $ Nothing
           Nothing -> return $ Nothing
 

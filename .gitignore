@@ -20,6 +20,7 @@ cabal.sandbox.config
 *~
 arena/t*
 arena/r*
+arena/individual-keys
 gonito-*.tar.gz
 stack.yaml.lock
 .env
