@@ -10,7 +10,7 @@ import PersistSHA1
 import Data.HashMap.Strict.InsOrd (fromList)
 
 import Data.Proxy
-import Control.Lens hiding ((.=))
+import Control.Lens hiding ((.=), (^.))
 import Data.Swagger hiding (Tag(..))
 import Data.Swagger.Declare
 
@@ -22,13 +22,19 @@ import Handler.Tags ()
 
 import GEval.EvaluationScheme
 
+import qualified Database.Esqueleto as E
+import Database.Esqueleto ((^.))
+
+import Data.Maybe
+
 -- helper data type combining information on a challenge
 -- from various tables
 data ChallengeView = ChallengeView {
   challengeViewChallenge :: Entity Challenge,
   challengeViewTags :: [Entity Tag],
   challengeDeadline :: Maybe UTCTime,
-  challengeMainMetric :: Maybe EvaluationScheme
+  challengeMainMetric :: Maybe EvaluationScheme,
+  challengeBestScore :: Maybe String
 }
 
 instance ToJSON ChallengeView where
@@ -43,6 +49,7 @@ instance ToJSON ChallengeView where
         , "tags" .= challengeViewTags chV
         , "deadline" .= challengeDeadline chV
         , "mainMetric" .= (evaluationSchemeName <$> challengeMainMetric chV)
+        , "bestScore" .= challengeBestScore chV
         ]
       where ch = entityVal chEnt
             chEnt = challengeViewChallenge chV
@@ -205,12 +212,22 @@ fetchChallengeView entCh@(Entity challengeId challenge) = do
 
   metrics <- runDB $ selectList [TestChallenge ==. challengeId, TestCommit ==. challengeVersion challenge] [Asc TestPriority]
   let mainMetric = testMetric <$> entityVal <$> listToMaybe metrics
+      mainTestId = entityKey $ fromJust $ listToMaybe metrics
+
+  bestEvaluation <- runDB $ E.select $ E.from $ \evaluation -> do
+    E.where_ (evaluation ^. EvaluationTest E.==. E.val mainTestId)
+    E.orderBy [E.desc (evaluation ^. EvaluationScore)]
+    E.limit 1
+    return evaluation
+
+  let bestScore = Just $ show $ evaluationScore $ entityVal $ fromJust $ listToMaybe bestEvaluation
 
   return $ ChallengeView {
      challengeViewChallenge = entCh,
      challengeViewTags = ts,
      challengeDeadline = versionDeadline $ entityVal ver,
-     challengeMainMetric = mainMetric
+     challengeMainMetric = mainMetric,
+     challengeBestScore = bestScore
   }
 
 
