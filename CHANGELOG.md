@@ -1,3 +1,9 @@
+## 3.24.6 (2022-02-25)
+
+Bug fixes:
+
+* fix disclosing scores when there is more than one metric
+
 ## 3.24.5 (2022-02-25)
 
 Bug fixes:
