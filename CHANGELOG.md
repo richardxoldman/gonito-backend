@@ -1,3 +1,9 @@
+## 3.24.5 (2022-02-25)
+
+Bug fixes:
+
+* fix individual keys
+
 ## 3.24.0 (2022-02-22)
 
 Enhancements:
