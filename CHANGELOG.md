@@ -1,3 +1,9 @@
+## 3.24.7 (2022-02-25)
+
+Bug fixes:
+
+* fix fetching submissions with individual keys
+
 ## 3.24.6 (2022-02-25)
 
 Bug fixes:
