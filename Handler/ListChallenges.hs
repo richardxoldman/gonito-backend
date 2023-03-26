@@ -27,6 +27,8 @@ import Database.Esqueleto ((^.))
 
 import Data.Maybe
 
+import Text.Printf
+
 -- helper data type combining information on a challenge
 -- from various tables
 data ChallengeView = ChallengeView {
@@ -220,7 +222,8 @@ fetchChallengeView entCh@(Entity challengeId challenge) = do
     E.limit 1
     return evaluation
 
-  let bestScore = Just $ show $ evaluationScore $ entityVal $ fromJust $ listToMaybe bestEvaluation
+  let bestScore = Just $ printf "%.2f" $ fromJust $ evaluationScore $ entityVal $ fromJust $ listToMaybe bestEvaluation
+  --let bestScore = Just $ show $ fromJust $ evaluationScore $ entityVal $ fromJust $ listToMaybe bestEvaluation
 
   return $ ChallengeView {
      challengeViewChallenge = entCh,
