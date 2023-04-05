@@ -75,6 +75,7 @@ instance ToSchema ChallengeView where
                     , ("tags", tagsSchema)
                     , ("deadline", utcSchema)
                     , ("mainMetric", stringSchema)
+                    , ("bestScore", stringSchema)
                     ]
         & required .~ [ "name", "title", "description", "starred", "archived", "version" ]
 
