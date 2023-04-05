@@ -1,42 +1,42 @@
+{-# LANGUAGE OverloadedLists   #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE OverloadedLists #-}
 
 module Handler.ListChallenges where
 
-import Import hiding (get, fromList, Proxy)
+import           Import                     hiding (Proxy, fromList, get)
 
-import PersistSHA1
+import           PersistSHA1
 
-import Data.HashMap.Strict.InsOrd (fromList)
+import           Data.HashMap.Strict.InsOrd (fromList)
 
-import Data.Proxy
-import Control.Lens hiding ((.=), (^.))
-import Data.Swagger hiding (Tag(..))
-import Data.Swagger.Declare
+import           Control.Lens               hiding ((.=), (^.))
+import           Data.Proxy
+import           Data.Swagger               hiding (Tag (..))
+import           Data.Swagger.Declare
 
-import Data.Text (splitOn, strip)
+import           Data.Text                  (splitOn, strip)
 
-import qualified Data.Set as S
+import qualified Data.Set                   as S
 
-import Handler.Tags ()
+import           Handler.Tags               ()
 
-import GEval.EvaluationScheme
+import           GEval.EvaluationScheme
 
-import qualified Database.Esqueleto as E
-import Database.Esqueleto ((^.))
+import           Database.Esqueleto         ((^.))
+import qualified Database.Esqueleto         as E
 
-import Data.Maybe
+import           Data.Maybe
 
-import Text.Printf
+import           Text.Printf
 
 -- helper data type combining information on a challenge
 -- from various tables
 data ChallengeView = ChallengeView {
-  challengeViewChallenge :: Entity Challenge,
-  challengeViewTags :: [Entity Tag],
-  challengeDeadline :: Maybe UTCTime,
-  challengeMainMetric :: Maybe EvaluationScheme,
-  challengeBestScore :: Maybe String
+    challengeViewChallenge :: Entity Challenge,
+    challengeViewTags      :: [Entity Tag],
+    challengeDeadline      :: Maybe UTCTime,
+    challengeMainMetric    :: Maybe EvaluationScheme,
+    challengeBestScore     :: Maybe String
 }
 
 instance ToJSON ChallengeView where
@@ -46,14 +46,15 @@ instance ToJSON ChallengeView where
         , "description" .= challengeDescription ch
         , "starred" .= challengeStarred ch
         , "archived" .= challengeArchived ch
-        , "imageUrl" .= (("/" <>) <$> intercalate "/" <$> fst <$> renderRoute <$> imageUrl chEnt)
-        , "version" .= (fromSHA1ToText $ challengeVersion ch)
+        , "imageUrl" .= ((("/" <>) . intercalate "/" . fst) . renderRoute <$> imageUrl chEnt)
+        , "version" .= fromSHA1ToText (challengeVersion ch)
         , "tags" .= challengeViewTags chV
         , "deadline" .= challengeDeadline chV
         , "mainMetric" .= (evaluationSchemeName <$> challengeMainMetric chV)
         , "bestScore" .= challengeBestScore chV
         ]
-      where ch = entityVal chEnt
+        where
+            ch = entityVal chEnt
             chEnt = challengeViewChallenge chV
 
 instance ToSchema ChallengeView where
@@ -63,7 +64,7 @@ instance ToSchema ChallengeView where
     tagsSchema <- declareSchemaRef (Proxy :: Proxy [Entity Tag])
     utcSchema <- declareSchemaRef (Proxy :: Proxy UTCTime)
     return $ NamedSchema (Just "Challenge") $ mempty
-        & type_ .~ Just SwaggerObject
+        & (type_ ?~ SwaggerObject)
         & properties .~
            fromList [ ("name", stringSchema)
                     , ("title", stringSchema)
@@ -170,25 +171,26 @@ versionInfoApi = spec & definitions .~ defs
 
 instance ToJSON (Entity Version) where
     toJSON (Entity _ ver) = object
-        [ "deadline"  .= versionDeadline ver
-        , "version" .= ((versionMajor ver),
-                        (versionMinor ver),
-                        (versionPatch ver))
+        [ "deadline"    .= versionDeadline ver
+        , "version"     .= ( versionMajor ver
+                           , versionMinor ver
+                           , versionPatch ver
+                           )
         , "description" .= versionDescription ver
-        , "when" .= versionStamp ver
-        , "commit" .= (fromSHA1ToText $ versionCommit ver)
+        , "when"        .= versionStamp ver
+        , "commit"      .= fromSHA1ToText (versionCommit ver)
         ]
 
 versionSchema :: Referenced Schema
 versionSchema = Inline $ toSchema (Proxy :: Proxy [Int])
-  & description .~ Just "Challenge version"
-  & example .~ Just (toJSON ([2, 0, 1] :: [Int]))
+  & (description ?~ "Challenge version")
+  & example ?~ toJSON ([2, 0, 1] :: [Int])
 
 instance ToSchema (Entity Version) where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (Proxy :: Proxy String)
     return $ NamedSchema (Just "Version") $ mempty
-        & type_ .~ Just SwaggerObject
+        & (type_ ?~ SwaggerObject)
         & properties .~
            fromList [ ("deadline", stringSchema)
                     , ("version", versionSchema)
@@ -203,7 +205,7 @@ getChallengeTags :: (BaseBackend backend ~ SqlBackend, MonadIO m, PersistQueryRe
 getChallengeTags challengeId = do
   sts <- selectList [ChallengeTagChallenge ==. challengeId] []
   let tagIds = Import.map (challengeTagTag . entityVal) sts
-  ts <- mapM get404 $ tagIds
+  ts <- mapM get404 tagIds
   let tagEnts = Import.map (\(k, v) -> Entity k v) $ Import.zip tagIds ts
   return tagEnts
 
@@ -214,7 +216,7 @@ fetchChallengeView entCh@(Entity challengeId challenge) = do
   ver <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
 
   metrics <- runDB $ selectList [TestChallenge ==. challengeId, TestCommit ==. challengeVersion challenge] [Asc TestPriority]
-  let mainMetric = testMetric <$> entityVal <$> listToMaybe metrics
+  let mainMetric = testMetric . entityVal <$> listToMaybe metrics
       mainTestId = entityKey $ fromJust $ listToMaybe metrics
 
   bestEvaluation <- runDB $ E.select $ E.from $ \evaluation -> do
