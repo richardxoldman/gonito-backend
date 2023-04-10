@@ -6,6 +6,8 @@
 
 / HomeR GET
 
+/api/user-submission-ability UserSubmissionAbilityR GET
+
 /create-challenge CreateChallengeR GET POST
 /view-progress/#Int ViewProgressR GET
 /open-view-progress/#Int OpenViewProgressR GET

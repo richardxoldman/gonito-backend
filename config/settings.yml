@@ -46,7 +46,7 @@ viewing-progress-style: "_env:VIEWING_PROGRESS_STYLE:with-plain-text"
 # skip-combining: false
 
 database:
-  user:     "_env:PGUSER:filipg"
+  user:     "_env:PGUSER:amg"
   password: "_env:PGPASS:gonito"
   host:     "_env:PGHOST:localhost"
   port:     "_env:PGPORT:5432"
