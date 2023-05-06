@@ -14,13 +14,16 @@ import           Data.Proxy
 import           Data.Swagger               hiding (Tag (..))
 import           Data.Swagger.Declare
 
-import           Data.Text                  (splitOn, strip)
+import           Data.Text                  (splitOn, strip, unpack)
 
 import qualified Data.Set                   as S
 
 import           Handler.Tags               ()
+import           Handler.Shared             (formatTruncatedScore, fetchDisclosedInfo, getTestFormattingOpts, getMainTest)
 
+import           GEval.Common
 import           GEval.EvaluationScheme
+import           GEval.Formatting
 
 import           Database.Esqueleto         ((^.))
 import qualified Database.Esqueleto         as E
@@ -215,9 +218,15 @@ fetchChallengeView entCh@(Entity challengeId challenge) = do
 
   ver <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
 
+  -- list of all tests regarding the challange
   metrics <- runDB $ selectList [TestChallenge ==. challengeId, TestCommit ==. challengeVersion challenge] [Asc TestPriority]
-  let mainMetric = testMetric . entityVal <$> listToMaybe metrics
-      mainTestId = entityKey $ fromJust $ listToMaybe metrics
+
+  -- getMainTest -- gets the main test (the highest priority)
+  let mainTest = getMainTest metrics
+
+  let mainMetric = testMetric . entityVal <$> mainTest
+      mainTestId = entityKey $ fromJust mainTest
+      formattingOpts = getTestFormattingOpts $ entityVal $ fromJust mainTest
 
   bestEvaluation <- runDB $ E.select $ E.from $ \evaluation -> do
     E.where_ (evaluation ^. EvaluationTest E.==. E.val mainTestId)
@@ -225,8 +234,9 @@ fetchChallengeView entCh@(Entity challengeId challenge) = do
     E.limit 1
     return evaluation
 
-  let bestScore = Just $ printf "%.2f" $ fromJust $ evaluationScore $ entityVal $ fromJust $ listToMaybe bestEvaluation
-  --let bestScore = Just $ show $ fromJust $ evaluationScore $ entityVal $ fromJust $ listToMaybe bestEvaluation
+  disclosedInfo <- fetchDisclosedInfo challenge
+  
+  let bestScore = Just $ Data.Text.unpack $ formatTruncatedScore disclosedInfo formattingOpts $ entityVal <$> listToMaybe bestEvaluation
 
   return $ ChallengeView {
      challengeViewChallenge = entCh,
