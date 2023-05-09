@@ -1,35 +1,40 @@
 module Handler.YourAccount where
 
-import Import hiding (Proxy, fromList, encodeUtf8)
-import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
+import           Import                     hiding (Proxy, encodeUtf8, fromList)
+import           Yesod.Form.Bootstrap3      (BootstrapFormLayout (..), bfs,
+                                             renderBootstrap3)
 
-import Data.Conduit.Binary
-import qualified Data.ByteString as S
-import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString            as S
+import qualified Data.ByteString.Lazy       as L
+import           Data.Conduit.Binary
 
-import System.Directory
-import System.Process
-import System.IO
+import           System.Directory
+import           System.IO
+import           System.Process
 
-import Handler.Common (passwordConfirmField, updatePassword, isPasswordAcceptable, tooWeakPasswordMessage)
-import Handler.JWT
-import Handler.Shared
+import           Handler.Common             (isPasswordAcceptable,
+                                             passwordConfirmField,
+                                             tooWeakPasswordMessage,
+                                             updatePassword)
+import           Handler.JWT
+import           Handler.Shared
 
-import Data.Swagger hiding (get, tags, delete)
-import qualified Data.Swagger as DS
+import           Data.Swagger               hiding (delete, get, tags)
+import qualified Data.Swagger               as DS
 
-import Data.Swagger.Declare
-import Control.Lens hiding ((.=), (^.))
-import Data.Proxy as DPR
+import           Control.Lens               hiding ((.=), (^.))
+import           Data.Proxy                 as DPR
+import           Data.Swagger.Declare
 
-import Data.Aeson hiding (Key)
-import Data.Aeson.KeyMap hiding (fromList, map, filter, null, foldr, delete, insert)
-import Data.Aeson.Key (fromText)
+import           Data.Aeson                 hiding (Key)
+import           Data.Aeson.Key             (fromText)
+import           Data.Aeson.KeyMap          hiding (delete, filter, foldr,
+                                             fromList, insert, map, null)
 
-import Data.HashMap.Strict.InsOrd (fromList)
+import           Data.HashMap.Strict.InsOrd (fromList)
 
-import Data.Text (strip)
-import Data.Text.Encoding (encodeUtf8)
+import           Data.Text                  (strip)
+import           Data.Text.Encoding         (encodeUtf8)
 
 getYourAccountR :: Handler Html
 getYourAccountR = do
@@ -41,7 +46,7 @@ getYourAccountR = do
     mIndividualKey <- fetchIndividualKey user
 
     keyS <- runDB $ selectFirst [PublicKeyUser ==. userId] []
-    let key = publicKeyPubkey <$> entityVal <$> keyS
+    let key = publicKeyPubkey . entityVal <$> keyS
     (formWidget, formEnctype) <- generateFormPost (yourAccountForm (userName user) (userLocalId user) key (userAltRepoScheme user) (userIsAnonymous user))
     defaultLayout $ do
         setTitle "Your account"
@@ -57,26 +62,25 @@ postYourAccountR = do
 
     let accountData = case result of
             FormSuccess res -> Just res
-            _ -> Nothing
+            _               -> Nothing
+
     mIndividualKey <- case accountData of
         Just (name, localId, mPassword, sshPubKey, mAltRepoScheme, avatarFile, anonimised) -> do
-          if checkPassword mPassword
-            then
-             do
-              updateUserAccount userId name localId mPassword sshPubKey mAltRepoScheme avatarFile anonimised
-              user' <- runDB $ get404 userId
-              mIndKey <- fetchIndividualKey user'
-              return mIndKey
-             else
-              do
-               tooWeakPasswordMessage
-               return Nothing
+            if checkPassword mPassword
+                then do
+                    updateUserAccount userId name localId mPassword sshPubKey mAltRepoScheme avatarFile anonimised
+                    user' <- runDB $ get404 userId
+                    fetchIndividualKey user'
+                else do
+                    tooWeakPasswordMessage
+                    return Nothing
         Nothing -> do
-          setMessage $ toHtml ("Something went wrong, probably the password did not match" :: Text)
-          return Nothing
+            setMessage $ toHtml ("Something went wrong, probably the password did not match" :: Text)
+            return Nothing
+
     defaultLayout $ do
-      setTitle "Your account"
-      $(widgetFile "your-account")
+        setTitle "Your account"
+        $(widgetFile "your-account")
 
 checkPassword :: Maybe Text -> Bool
 checkPassword Nothing = True
@@ -84,7 +88,7 @@ checkPassword (Just "") = True
 checkPassword (Just passwd) = isPasswordAcceptable passwd
 
 autocompleteOff :: (RenderMessage master msg2, RenderMessage master msg1) => msg1 -> msg2 -> FieldSettings master
-autocompleteOff name tooltip = setts { fsAttrs = (fsAttrs setts) ++ [("autocomplete", "nope")]}
+autocompleteOff name tooltip = setts { fsAttrs = fsAttrs setts ++ [("autocomplete", "nope")] }
    where setts = (bfs name) { fsTooltip = Just $ SomeMessage tooltip }
 
 yourAccountForm :: Maybe Text -> Maybe Text -> Maybe Text -> Maybe Text -> Bool -> Form (Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe Text, Maybe FileInfo, Bool)
@@ -120,7 +124,7 @@ updateLocalIdAndPubKey userId (Just localId) maybeSshPubKey = do
   if isLocalIdAcceptable localId
     then
      do
-      otherTheSame <- runDB $ selectFirst [UserLocalId ==. (Just localId), UserId !=. userId] []
+      otherTheSame <- runDB $ selectFirst [UserLocalId ==. Just localId, UserId !=. userId] []
       case otherTheSame of
         Just _ -> do
           setMessage $ toHtml ("ID already used" :: Text)
@@ -184,7 +188,7 @@ instance ToSchema FullUserInfoView where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     return $ NamedSchema (Just "FullUserInfo") $ mempty
-        & type_ .~ Just SwaggerObject
+        & (type_ ?~ SwaggerObject)
         & properties .~
            fromList [  ("ident", stringSchema)
                      , ("name", stringSchema)
@@ -224,14 +228,15 @@ declareUserInfoApi = do
   response <- declareResponse (Proxy :: Proxy String)
 
   return $ mempty
-    & paths .~
-        fromList [ ("/api/user-info",
-                    mempty & DS.get ?~ (mempty
-                                        & parameters .~ [ ]
-                                        & produces ?~ MimeList ["application/json"]
-                                        & description ?~ "Returns the identifier of the user"
-                                        & at 200 ?~ Inline response))
-                 ]
+    & paths .~ fromList [
+        ("/api/user-info"
+        , mempty & DS.get ?~
+            ( mempty
+            & parameters .~ [ ]
+            & produces ?~ MimeList ["application/json"]
+            & description ?~ "Returns the identifier of the user"
+            & at 200 ?~ Inline response))
+        ]
 
 fullUserInfoApi :: Swagger
 fullUserInfoApi = spec & definitions .~ defs
@@ -244,11 +249,12 @@ declareFullUserInfoApi = do
   response <- declareResponse (Proxy :: Proxy FullUserInfoView)
 
   return $ mempty
-    & paths .~
-        fromList [ ("/api/full-user-info",
-                    mempty & DS.get ?~ (mempty
-                                        & parameters .~ [ ]
-                                        & produces ?~ MimeList ["application/json"]
-                                        & description ?~ "Returns info about the user"
-                                        & at 200 ?~ Inline response))
-                 ]
+    & paths .~ fromList [
+        ("/api/full-user-info"
+        , mempty & DS.get ?~
+            ( mempty
+            & parameters .~ [ ]
+            & produces ?~ MimeList ["application/json"]
+            & description ?~ "Returns info about the user"
+            & at 200 ?~ Inline response ))
+        ]

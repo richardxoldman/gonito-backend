@@ -9,6 +9,7 @@ import Handler.Query
 import Handler.Tags
 import Handler.Team
 import Handler.YourAccount
+import Handler.SubmissionAbility
 
 
 import Control.Lens hiding ((.=))
@@ -39,6 +40,7 @@ apiDescription = generalApi
                  <> viewProgressLog
                  <> currentTimeApi
                  <> formatAsLocalTimeApi
+                 <> userSubmissionAbilityApi
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)
