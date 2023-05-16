@@ -1552,20 +1552,20 @@ getChallengeAllSubmissionsJsonR = makeSureChallengeAccessible (const getChalleng
 
 getChallengeAllSubmissionsJsonR' :: Entity Challenge -> Handler Value
 getChallengeAllSubmissionsJsonR' (Entity _ challenge) = do
-  v <- fetchAllSubmissionsView $ challengeName challenge
-  return $ toJSON v
+    v <- fetchAllSubmissionsView $ challengeName challenge
+    return $ toJSON v
 
 getChallengeMySubmissionsJsonR :: Text -> Handler Value
 getChallengeMySubmissionsJsonR = makeSureChallengeAccessible (const getChallengeMySubmissionsJsonR')
 
 getChallengeMySubmissionsJsonR' :: (Entity Challenge) -> Handler Value
 getChallengeMySubmissionsJsonR' (Entity _ challenge) = do
-  v <- fetchMySubmissionsView $ challengeName challenge
-  return $ toJSON v
+    v <- fetchMySubmissionsView $ challengeName challenge
+    return $ toJSON v
 
 fetchAllSubmissionsView :: Text -> Handler SubmissionsView
 fetchAllSubmissionsView challengeName = do
-  fetchChallengeSubmissionsView (const True) challengeName
+    fetchChallengeSubmissionsView (const True) challengeName
 
 fetchMySubmissionsView :: Text -> Handler SubmissionsView
 fetchMySubmissionsView challengeName = do
@@ -1715,23 +1715,23 @@ instance ToSchema TagView where
         & required .~ [ "name", "color", "description" ]
 
 
-data SubmissionView = SubmissionView {
-  submissionViewId :: Int64,
-  submissionViewVariantId :: Int64,
-  submissionViewRank :: Int,
-  submissionViewSubmitter :: Text,
-  submissionViewWhen :: UTCTime,
-  submissionViewVersion :: ((Int, Int, Int), Maybe Import.Tag),
-  submissionViewDescription :: Text,
-  submissionViewTags :: [TagView],
-  submissionViewHash :: Text,
-  submissionViewEvaluations :: [EvaluationView],
-  submissionViewIsOwner :: Bool,
-  submissionViewIsReevaluable :: Bool,
-  submissionViewIsVisible :: Bool,
-  submissionViewIsPublic :: Bool,
-  submissionViewTeam :: Maybe Text
-}
+data SubmissionView = SubmissionView
+    { submissionViewId            :: Int64
+    , submissionViewVariantId     :: Int64
+    , submissionViewRank          :: Int
+    , submissionViewSubmitter     :: Text
+    , submissionViewWhen          :: UTCTime
+    , submissionViewVersion       :: ((Int, Int, Int), Maybe Import.Tag)
+    , submissionViewDescription   :: Text
+    , submissionViewTags          :: [TagView]
+    , submissionViewHash          :: Text
+    , submissionViewEvaluations   :: [EvaluationView]
+    , submissionViewIsOwner       :: Bool
+    , submissionViewIsReevaluable :: Bool
+    , submissionViewIsVisible     :: Bool
+    , submissionViewIsPublic      :: Bool
+    , submissionViewTeam          :: Maybe Text
+    }
 
 instance ToJSON SubmissionView where
   toJSON s = object
@@ -1754,46 +1754,48 @@ instance ToJSON SubmissionView where
     ]
 
 instance ToSchema SubmissionView where
-  declareNamedSchema _ = do
-    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
-    boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
-    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
-    tagsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TagView])
-    evalsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
-    tagSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Import.Tag])
-    return $ NamedSchema (Just "SubmissionView") $ mempty
-        & type_ .~ Just SwaggerObject
-        & properties .~
-           fromList [  ("id", submissionIdSchema)
-                     , ("variant", variantIdSchema)
-                     , ("rank", intSchema)
-                     , ("submitter", submitterSchema)
-                     , ("when", stringSchema)
-                     , ("version", versionSchema)
-                     , ("phase", tagSchema)
-                     , ("description", stringSchema)
-                     , ("tags", tagsSchema)
-                     , ("hash", hashSchema)
-                     , ("evaluations", evalsSchema)
-                     , ("isOwner", boolSchema)
-                     , ("isReevaluable", boolSchema)
-                     , ("isVisible", isVisibleSchema)
-                     , ("isPublic", isPublicSchema)
-                     , ("team", stringSchema)
+    declareNamedSchema _ = do
+        stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+        boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
+        intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
+        tagsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TagView])
+        evalsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+        tagSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [Import.Tag])
+        return $ NamedSchema (Just "SubmissionView") $ mempty
+            & type_ .~ Just SwaggerObject
+            & properties .~
+                fromList
+                    [ ("id", submissionIdSchema)
+                    , ("variant", variantIdSchema)
+                    , ("rank", intSchema)
+                    , ("submitter", submitterSchema)
+                    , ("when", stringSchema)
+                    , ("version", versionSchema)
+                    , ("phase", tagSchema)
+                    , ("description", stringSchema)
+                    , ("tags", tagsSchema)
+                    , ("hash", hashSchema)
+                    , ("evaluations", evalsSchema)
+                    , ("isOwner", boolSchema)
+                    , ("isReevaluable", boolSchema)
+                    , ("isVisible", isVisibleSchema)
+                    , ("isPublic", isPublicSchema)
+                    , ("team", stringSchema)
                     ]
-        & required .~ [ "id", "variant", "rank", "submitter", "when", "version",
-                        "description", "tags", "hash", "evaluations",
-                        "isOwner", "isReevaluable", "isVisible", "isPublic" ]
+            & required .~
+                [ "id", "variant", "rank", "submitter", "when", "version",
+                  "description", "tags", "hash", "evaluations", "isOwner",
+                  "isReevaluable", "isVisible", "isPublic" ]
 
-data SubmissionsView = SubmissionsView {
-  submissionsViewSubmissions :: [SubmissionView],
-  submissionsViewTests :: [TestReference]
-}
+data SubmissionsView = SubmissionsView
+    { submissionsViewSubmissions :: [SubmissionView]
+    , submissionsViewTests       :: [TestReference]
+    }
 
 instance ToJSON SubmissionsView where
   toJSON ss = object
-    [ "tests" .= submissionsViewTests ss,
-      "submissions" .= submissionsViewSubmissions ss
+    [ "tests" .= submissionsViewTests ss
+    , "submissions" .= submissionsViewSubmissions ss
     ]
 
 instance ToSchema SubmissionsView where
@@ -1896,20 +1898,20 @@ getChartJs :: Challenge
              -> Text
              -> JavascriptUrl (Route App)
 getChartJs challenge (Entity testId test) param = [julius|
-$.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) testId param}", function(data) {
-        c3.generate({
-                bindto: '#chart-' + #{toJSON param} + '-' + #{toJSON testId},
-                data: data,
-                axis: {
-                   x: {
-                     label: #{toJSON param},
-                   },
-                   y: {
-                     label: #{toJSON testFormatted},
-                   }
-                }
-    }) });
-|]
+    $.getJSON("@{ChallengeParamGraphDataR (challengeName challenge) testId param}", function(data) {
+            c3.generate({
+                    bindto: '#chart-' + #{toJSON param} + '-' + #{toJSON testId},
+                    data: data,
+                    axis: {
+                       x: {
+                         label: #{toJSON param},
+                       },
+                       y: {
+                         label: #{toJSON testFormatted},
+                       }
+                    }
+        }) });
+    |]
    where testFormatted = formatTest test
 
 
