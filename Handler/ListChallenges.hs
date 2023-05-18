@@ -230,7 +230,7 @@ fetchChallengeView entCh@(Entity challengeId challenge) = do
 
   bestEvaluation <- runDB $ E.select $ E.from $ \evaluation -> do
     E.where_ (evaluation ^. EvaluationTest E.==. E.val mainTestId)
-    E.orderBy [E.asc (evaluation ^. EvaluationScore)]
+    E.orderBy [E.desc (evaluation ^. EvaluationScore)]
     E.limit 1
     return evaluation
 
