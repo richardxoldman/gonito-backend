@@ -18,10 +18,14 @@ import           Data.Text                  (splitOn, strip, unpack)
 
 import qualified Data.Set                   as S
 
+import           Handler.Shared             (fetchDisclosedInfo,
+                                             formatTruncatedScore, getMainTest,
+                                             getTestFormattingOpts)
 import           Handler.Tags               ()
-import           Handler.Shared             (formatTruncatedScore, fetchDisclosedInfo, getTestFormattingOpts, getMainTest)
 
 import           GEval.Common
+import           GEval.Common               (MetricResult (..))
+import           GEval.Core
 import           GEval.EvaluationScheme
 import           GEval.Formatting
 
@@ -214,37 +218,40 @@ getChallengeTags challengeId = do
 
 fetchChallengeView :: Entity Challenge -> Handler ChallengeView
 fetchChallengeView entCh@(Entity challengeId challenge) = do
-  ts <- runDB $ getChallengeTags challengeId
+    ts <- runDB $ getChallengeTags challengeId
 
-  ver <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
+    ver <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
 
-  -- list of all tests regarding the challange
-  metrics <- runDB $ selectList [TestChallenge ==. challengeId, TestCommit ==. challengeVersion challenge] [Asc TestPriority]
+    -- list of all tests regarding the challange
+    metrics <- runDB $ selectList [TestChallenge ==. challengeId, TestCommit ==. challengeVersion challenge] [Asc TestPriority]
 
-  -- getMainTest -- gets the main test (the highest priority)
-  let mainTest = getMainTest metrics
+    -- getMainTest -- gets the main test (the highest priority)
+    let mainTest = getMainTest metrics
+        mainMetric = testMetric . entityVal <$> mainTest
+        mainTestId = entityKey $ fromJust mainTest
+        formattingOpts = getTestFormattingOpts $ entityVal $ fromJust mainTest
 
-  let mainMetric = testMetric . entityVal <$> mainTest
-      mainTestId = entityKey $ fromJust mainTest
-      formattingOpts = getTestFormattingOpts $ entityVal $ fromJust mainTest
+    let orderDirection = case getMetricOrdering (evaluationSchemeMetric $ fromJust mainMetric) of
+            TheHigherTheBetter -> E.desc
+            TheLowerTheBetter  -> E.asc
 
-  bestEvaluation <- runDB $ E.select $ E.from $ \evaluation -> do
-    E.where_ (evaluation ^. EvaluationTest E.==. E.val mainTestId)
-    E.orderBy [E.desc (evaluation ^. EvaluationScore)]
-    E.limit 1
-    return evaluation
+    bestEvaluation <- runDB $ E.select $ E.from $ \evaluation -> do
+        E.where_ (evaluation ^. EvaluationTest E.==. E.val mainTestId)
+        E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
+        E.limit 1
+        return evaluation
 
-  disclosedInfo <- fetchDisclosedInfo challenge
+    disclosedInfo <- fetchDisclosedInfo challenge
   
-  let bestScore = Just $ Data.Text.unpack $ formatTruncatedScore disclosedInfo formattingOpts $ entityVal <$> listToMaybe bestEvaluation
+    let bestScore = Just $ Data.Text.unpack $ formatTruncatedScore disclosedInfo formattingOpts $ entityVal <$> listToMaybe bestEvaluation
 
-  return $ ChallengeView {
-     challengeViewChallenge = entCh,
-     challengeViewTags = ts,
-     challengeDeadline = versionDeadline $ entityVal ver,
-     challengeMainMetric = mainMetric,
-     challengeBestScore = bestScore
-  }
+    return $ ChallengeView
+        { challengeViewChallenge = entCh
+        , challengeViewTags = ts
+        , challengeDeadline = versionDeadline $ entityVal ver
+        , challengeMainMetric = mainMetric
+        , challengeBestScore = bestScore
+        }
 
 
 applyTagFilter :: Text -> ChallengeView -> Bool
