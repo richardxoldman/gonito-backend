@@ -144,8 +144,6 @@ instance Yesod App where
     -- The page to be redirected to when authentication is required.
     authRoute _ = Just $ AuthR LoginR
 
-    isAuthorized UserSubmissionAbilityR _ = regularAuthorization
-
     -- Routes not requiring authentication.
     isAuthorized (AuthR _) _ = return Authorized
     isAuthorized FaviconR _ = return Authorized
@@ -254,6 +252,9 @@ instance Yesod App where
 
     isAuthorized (ViewProgressWithWebSocketsJsonR _) _  = return Authorized
     isAuthorized (ViewProgressLogR _) _  = return Authorized
+
+    isAuthorized UserSubmissionAbilityR _ = regularAuthorization
+    isAuthorized (DeleteSubmissionR _) _ = return Authorized
 
     -- Default to Authorized for now.
     isAuthorized _ _ = isTrustedAuthorized
