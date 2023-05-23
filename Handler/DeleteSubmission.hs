@@ -22,6 +22,13 @@ postDeleteSubmissionR submissionId = do
         else
             setMessage $ toHtml ("Only owner can delete a submission!" :: Text)
 
+    pure ()
+
+deleteSubmissionApi :: Swagger
+deleteSubmissionApi = spec & definitions .~ defs
+    where
+        (defs, spec) = runDeclare declareDeleteSubmissionApi mempty
+
 declareDeleteSubmissionApi :: Declare (Definitions Schema) Swagger
 declareDeleteSubmissionApi = do
     let idSchema = toParamSchema (Proxy :: Proxy Int)
