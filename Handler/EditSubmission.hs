@@ -33,7 +33,7 @@ getEditSubmissionR submissionId = getEditSubmissionG submissionId Nothing
 getEditSubmissionAndVariantR :: SubmissionId -> VariantId -> Handler Html
 getEditSubmissionAndVariantR submissionId variantId = getEditSubmissionG submissionId (Just variantId)
 
-getEditSubmissionG :: SubmissionId -> (Maybe VariantId) -> Handler Html
+getEditSubmissionG :: SubmissionId -> Maybe VariantId -> Handler Html
 getEditSubmissionG submissionId mVariantId = do
   submission <- runDB $ get404 submissionId
   tags <- runDB $ getTags submissionId
@@ -49,7 +49,7 @@ postEditSubmissionR submissionId = postEditSubmissionG submissionId Nothing
 postEditSubmissionAndVariantR :: SubmissionId -> VariantId -> Handler Html
 postEditSubmissionAndVariantR submissionId variantId = postEditSubmissionG submissionId (Just variantId)
 
-postEditSubmissionG :: SubmissionId -> (Maybe VariantId) -> Handler Html
+postEditSubmissionG :: SubmissionId -> Maybe VariantId -> Handler Html
 postEditSubmissionG submissionId mVariantId = do
   submission <- runDB $ get404 submissionId
   ((result, _), _) <- runFormPost $ editSubmissionForm (submissionDescription submission) Nothing
@@ -80,7 +80,7 @@ getPossibleAchievements userId submissionId = do
   achievements <- selectList [AchievementChallenge ==. challengeId] []
   workingOns <- mapM (\a -> getBy $ UniqueWorkingOnAchievementUser (entityKey a) userId) achievements
   let rets = Import.zip achievements workingOns
-  return $ Import.map (\(a, (Just w)) -> (a, entityKey w)) $ Import.filter (\(_, mw) -> isJust mw) $ rets
+  return $ Import.map (\(a, Just w) -> (a, entityKey w)) $ Import.filter (\(_, mw) -> isJust mw) rets
 
 doEditSubmission formWidget formEnctype submissionId mVariantId = do
   submission <- runDB $ get404 submissionId
@@ -88,7 +88,7 @@ doEditSubmission formWidget formEnctype submissionId mVariantId = do
   (Entity userId _) <- requireAuth
   let view = queryResult (Just userId) submissionFull
 
-  tagsAvailableAsJSON <- runDB $ getAvailableTagsAsJSON
+  tagsAvailableAsJSON <- runDB getAvailableTagsAsJSON
 
   achievements <- runDB $ getPossibleAchievements userId submissionId
 
@@ -96,7 +96,7 @@ doEditSubmission formWidget formEnctype submissionId mVariantId = do
     Just variantId -> runDB $ selectList [ParameterVariant ==. variantId] [Asc ParameterName]
     Nothing -> return []
 
-  (addVariantParamWidget, formEnctype2) <- generateFormPost $ addVariantParamForm
+  (addVariantParamWidget, formEnctype2) <- generateFormPost addVariantParamForm
 
   defaultLayout $ do
     setTitle "Edit a submission"
@@ -115,10 +115,10 @@ addVariantParamForm = renderBootstrap3 BootstrapBasicForm $ (,)
 
 
 getHideSubmissionR :: SubmissionId -> Handler Html
-getHideSubmissionR submissionId = changeSubmissionVisibility False submissionId
+getHideSubmissionR = changeSubmissionVisibility False
 
 getRestoreSubmissionR :: SubmissionId -> Handler Html
-getRestoreSubmissionR submissionId = changeSubmissionVisibility True submissionId
+getRestoreSubmissionR = changeSubmissionVisibility True
 
 
 changeSubmissionVisibility :: Bool -> SubmissionId -> Handler Html
@@ -128,8 +128,8 @@ changeSubmissionVisibility status submissionId =
   if isOwner
     then
      do
-      runDB $ update submissionId [SubmissionIsHidden =. (not status)]
-      setMessage $ toHtml (("Submission " :: Text) ++ (verb status))
+      runDB $ update submissionId [SubmissionIsHidden =. not status]
+      setMessage $ toHtml (("Submission " :: Text) ++ verb status)
     else
       setMessage $ toHtml ("Only owner can edit a submission!!!" :: Text)
   getEditSubmissionR submissionId

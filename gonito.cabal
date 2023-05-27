@@ -58,6 +58,7 @@ library
                      Handler.Dashboard
                      Handler.Evaluate
                      Handler.SubmissionAbility
+                     Handler.DeleteSubmission
                      Data.SubmissionConditions
                      Gonito.ExtractMetadata
                      Data.Diff

@@ -116,6 +116,7 @@ Submission
     -- challenge version present when the submission was done
     version SHA1
     team TeamId Maybe
+    deleted Bool default=False
     UniqueSubmissionRepoCommitChallenge repo commit challenge
 Variant
     submission SubmissionId
