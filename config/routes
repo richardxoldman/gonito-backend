@@ -8,7 +8,7 @@
 
 /api/user-submission-ability UserSubmissionAbilityR GET
 
-/api/user-submission-ability/#Text DeleteSubmissionR POST
+/api/delete-submission/#SubmissionId DeleteSubmissionR POST
 
 /create-challenge CreateChallengeR GET POST
 /view-progress/#Int ViewProgressR GET

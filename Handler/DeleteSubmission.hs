@@ -32,7 +32,7 @@ deleteSubmissionApi = spec & definitions .~ defs
 declareDeleteSubmissionApi :: Declare (Definitions Schema) Swagger
 declareDeleteSubmissionApi = do
     let idSchema = toParamSchema (Proxy :: Proxy Int)
-    response <- declareResponse (Proxy :: Proxy String)
+    response <- declareResponse (Proxy :: Proxy ())
 
     pure $ mempty
         & paths .~ fromList
