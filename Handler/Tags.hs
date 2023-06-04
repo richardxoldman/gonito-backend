@@ -2,46 +2,48 @@
 
 module Handler.Tags where
 
-import Import hiding (fromList, get)
-import Handler.Common (checkIfAdmin)
-import Yesod.Form.Bootstrap3 (BootstrapFormLayout (..), renderBootstrap3, bfs)
+import           Handler.Common             (checkIfAdmin)
+import           Import                     hiding (fromList, get)
+import           Yesod.Form.Bootstrap3      (BootstrapFormLayout (..), bfs,
+                                             renderBootstrap3)
 
-import qualified Yesod.Table as Table
+import qualified Yesod.Table                as Table
 
-import Handler.TagUtils
+import           Handler.TagUtils
 
-import Data.Swagger.Declare
-import Data.Swagger hiding (Tag, tags)
-import Data.Proxy as DPR
-import Control.Lens hiding ((.=))
-import Data.HashMap.Strict.InsOrd (fromList)
+import           Control.Lens               hiding ((.=))
+import           Data.HashMap.Strict.InsOrd (fromList)
+import           Data.Proxy                 as DPR
+import           Data.Swagger               hiding (Tag, tags)
+import           Data.Swagger.Declare
 
 instance ToJSON (Entity Tag) where
     toJSON v = object
-        [ "name" .= (tagName $ entityVal v)
-        , "description" .= (tagDescription $ entityVal v)
-        , "color" .= (tagColor $ entityVal v)
-        , "id" .= (entityKey v)
+        [ "name" .= tagName (entityVal v)
+        , "description" .= tagDescription (entityVal v)
+        , "color" .= tagColor (entityVal v)
+        , "id" .= entityKey v
         ]
 
 instance ToSchema (Entity Tag) where
-  declareNamedSchema _ = do
-    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
-    intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
-    return $ NamedSchema (Just "Tag") $ mempty
-        & type_ .~ Just SwaggerObject
-        & properties .~
-           fromList [  ("name", stringSchema)
-                     , ("description", stringSchema)
-                     , ("color", stringSchema)
-                     , ("id", intSchema)
+    declareNamedSchema _ = do
+        stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+        intSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Int)
+        return $ NamedSchema (Just "Tag") $ mempty
+            & (type_ ?~ SwaggerObject)
+            & properties .~
+                fromList
+                    [ ("name", stringSchema)
+                    , ("description", stringSchema)
+                    , ("color", stringSchema)
+                    , ("id", intSchema)
                     ]
-        & required .~ [ "name", "description", "color", "id" ]
+            & required .~ [ "name", "description", "color", "id" ]
 
 listTagsApi :: Swagger
 listTagsApi = spec & definitions .~ defs
-  where
-    (defs, spec) = runDeclare declareListTagsSwagger mempty
+    where
+        (defs, spec) = runDeclare declareListTagsSwagger mempty
 
 declareListTagsSwagger :: Declare (Definitions Schema) Swagger
 declareListTagsSwagger = do

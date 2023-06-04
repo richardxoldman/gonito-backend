@@ -19,11 +19,11 @@ data JwtAuthInfo = JwtAuthInfo {
   deriving (Show, Eq)
 
 instance FromJSON JwtAuthInfo where
- parseJSON (Object v) =
-    JwtAuthInfo <$> v .: "preferred_username"
-                <*> v .:? "family_name"
-                <*> v .:? "given_name"
- parseJSON _ = mzero
+    parseJSON (Object v) =
+        JwtAuthInfo <$> v .: "preferred_username"
+                    <*> v .:? "family_name"
+                    <*> v .:? "given_name"
+    parseJSON _ = mzero
 
 jwtAuthInfoIdent :: JwtAuthInfo -> Text
 jwtAuthInfoIdent jwtAuthInfo = jwtAuthInfoUsername jwtAuthInfo

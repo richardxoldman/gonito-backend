@@ -78,9 +78,9 @@ postCreateChallengeR = do
           then
             runViewProgress $ doCreateChallenge challengeData
           else
-            runViewProgress $ (flip err) "unexpected challenge ID (use only lower-case letters, digits and hyphens, start with a letter or a digit)"
+            runViewProgress $ flip err "unexpected challenge ID (use only lower-case letters, digits and hyphens, start with a letter or a digit)"
       else
-        runViewProgress $ (flip err) "MUST BE AN ADMIN TO CREATE A CHALLENGE"
+        runViewProgress $ flip err "MUST BE AN ADMIN TO CREATE A CHALLENGE"
 
 doCreateChallenge :: ChallengeCreationData -> Channel -> Handler ()
 doCreateChallenge creationData chan = do
@@ -351,7 +351,7 @@ addChallengeTag challengeId tag = runDB $ do
       return ()
     Nothing -> return ()
 
-addChallenge :: Text -> (Key Repo) -> (Key Repo) -> Maybe UTCTime -> Maybe TagId -> Channel -> Handler ()
+addChallenge :: Text -> Key Repo -> Key Repo -> Maybe UTCTime -> Maybe TagId -> Channel -> Handler ()
 addChallenge name publicRepoId privateRepoId deadline mPhaseTagId chan = do
   msg chan "adding challenge..."
 
