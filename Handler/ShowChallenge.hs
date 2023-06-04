@@ -1606,6 +1606,7 @@ convertTableEntryToView disclosedInfo tests entry = do
 
   isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission entry
   let isVisible = True
+      -- isDeleted = False
 
   return $ SubmissionView {
     submissionViewId = fromSqlKey $ entityKey $ tableEntrySubmission entry,
@@ -1624,7 +1625,8 @@ convertTableEntryToView disclosedInfo tests entry = do
     submissionViewIsReevaluable = isReevaluable,
     submissionViewIsVisible = isVisible,
     submissionViewIsPublic = submissionIsPublic submission,
-    submissionViewTeam = teamIdent <$> entityVal <$> tableEntryTeam entry
+    submissionViewTeam = teamIdent <$> entityVal <$> tableEntryTeam entry,
+    submissionViewDeleted = submissionDeleted submission
   }
   where submission = entityVal $ tableEntrySubmission entry
 
@@ -1732,6 +1734,7 @@ data SubmissionView = SubmissionView
     , submissionViewIsVisible     :: Bool
     , submissionViewIsPublic      :: Bool
     , submissionViewTeam          :: Maybe Text
+    , submissionViewDeleted       :: Bool
     }
 
 instance ToJSON SubmissionView where
@@ -1752,6 +1755,7 @@ instance ToJSON SubmissionView where
     , "isVisible" .= submissionViewIsVisible s
     , "isPublic" .= submissionViewIsPublic s
     , "team" .= submissionViewTeam s
+    , "deleted" .= submissionViewDeleted s
     ]
 
 instance ToSchema SubmissionView where
@@ -1782,11 +1786,12 @@ instance ToSchema SubmissionView where
                     , ("isVisible", isVisibleSchema)
                     , ("isPublic", isPublicSchema)
                     , ("team", stringSchema)
+                    , ("deleted", boolSchema)
                     ]
             & required .~
                 [ "id", "variant", "rank", "submitter", "when", "version",
                   "description", "tags", "hash", "evaluations", "isOwner",
-                  "isReevaluable", "isVisible", "isPublic" ]
+                  "isReevaluable", "isVisible", "isPublic", "deleted" ]
 
 data SubmissionsView = SubmissionsView
     { submissionsViewSubmissions :: [SubmissionView]
