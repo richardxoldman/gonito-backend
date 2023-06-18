@@ -1606,7 +1606,6 @@ convertTableEntryToView disclosedInfo tests entry = do
 
   isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission entry
   let isVisible = True
-      -- isDeleted = False
 
   return $ SubmissionView {
     submissionViewId = fromSqlKey $ entityKey $ tableEntrySubmission entry,

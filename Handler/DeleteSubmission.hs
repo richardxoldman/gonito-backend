@@ -11,18 +11,17 @@ import           Data.Swagger.Declare
 
 import           Handler.MakePublic
 
-postDeleteSubmissionR :: SubmissionId -> Handler ()
+postDeleteSubmissionR :: SubmissionId -> Handler Html
 postDeleteSubmissionR submissionId = do
     isOwner <- checkWhetherUserRepo submissionId
 
-    if isOwner then do
+    if isOwner
+        then do
             runDB $ update submissionId [SubmissionDeleted =. True]
-            setMessage $ toHtml ("Submission deleted" :: Text)
-        
-        else
-            setMessage $ toHtml ("Only owner can delete a submission!" :: Text)
+            pure "deleted"
 
-    pure ()
+        else
+            pure "Only owner can delete a submission!"
 
 deleteSubmissionApi :: Swagger
 deleteSubmissionApi = spec & definitions .~ defs
@@ -32,7 +31,7 @@ deleteSubmissionApi = spec & definitions .~ defs
 declareDeleteSubmissionApi :: Declare (Definitions Schema) Swagger
 declareDeleteSubmissionApi = do
     let idSchema = toParamSchema (Proxy :: Proxy Int)
-    response <- declareResponse (Proxy :: Proxy ())
+    response <- declareResponse (Proxy :: Proxy String)
 
     pure $ mempty
         & paths .~ fromList
@@ -46,6 +45,6 @@ declareDeleteSubmissionApi = do
                         & paramSchema .~ idSchema)
                 ]
                 & produces ?~ MimeList ["application/json"]
-                & description ?~ "Deletes the submission by setting 'true' value in the deleted field."
+                & description ?~ "Deletes the submission by setting 'true' value in the 'deleted' field in 'Submission' table."
                 & at 200 ?~ Inline response ))
             ]
