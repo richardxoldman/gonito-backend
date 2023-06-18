@@ -8,4 +8,4 @@
 	branch = with-gonito-yaml
 [submodule "geval"]
 	path = geval
-	url = git://gonito.net/geval
+	url = https://github.com/amu-cai/geval.git
