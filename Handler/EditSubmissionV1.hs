@@ -11,6 +11,7 @@ import           Data.Swagger.Declare
 
 import           Handler.MakePublic
 
+{-
 postEditSubmission1R :: SubmissionId -> TagId -> Handler ()
 postEditSubmission1R submissionId tagId = do
     isOwner <- checkWhetherUserRepo submissionId
@@ -21,6 +22,11 @@ postEditSubmission1R submissionId tagId = do
         
         else
             setMessage $ toHtml ("Only owner can change a submission tags!" :: Text)
+-}
+postEditSubmission1R :: SubmissionId -> TagId -> Handler ()
+postEditSubmission1R submissionId tagId = do
+    runDB $ update submissionId [SubmissionTagTag =. tagId]
+    setMessage $ toHtml ("Submission tag changed" :: Text)
 
 editSubmission1Api :: Swagger
 editSubmission1Api = spec & definitions .~ defs

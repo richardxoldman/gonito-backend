@@ -9,7 +9,7 @@
 /api/user-submission-ability UserSubmissionAbilityR GET
 
 /api/delete-submission/#SubmissionId DeleteSubmissionR POST
-/api/edit-submission/#SubmissionId/#TagId EditSubmission1R POST
+/api/edit-submission/#SubmissionId/#Text EditSubmission1R POST
 
 /create-challenge CreateChallengeR GET POST
 /view-progress/#Int ViewProgressR GET
