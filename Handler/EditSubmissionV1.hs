@@ -25,7 +25,7 @@ postEditSubmission1R submissionId tagId = do
 -}
 postEditSubmission1R :: SubmissionId -> TagId -> Handler ()
 postEditSubmission1R submissionId tagId = do
-    runDB $ update submissionId [SubmissionTagTag =. tagId]
+    runDB $ delete submissionId [SubmissionTagSubmission =. tagId]
     setMessage $ toHtml ("Submission tag changed" :: Text)
 
 editSubmission1Api :: Swagger
@@ -62,4 +62,3 @@ declareEditSubmission1Api = do
                 & description ?~ "Edit submission description and tag fields."
                 & at 200 ?~ Inline response ))
             ]
-
