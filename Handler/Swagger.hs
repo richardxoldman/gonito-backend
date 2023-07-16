@@ -11,6 +11,7 @@ import Handler.Team
 import Handler.YourAccount
 import Handler.SubmissionAbility
 import Handler.DeleteSubmission
+import Handler.EditSubmissionV1
 
 
 import Control.Lens hiding ((.=))
@@ -43,6 +44,7 @@ apiDescription = generalApi
                  <> formatAsLocalTimeApi
                  <> userSubmissionAbilityApi
                  <> deleteSubmissionApi
+                 <> editSubmission1Api
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)
