@@ -47,6 +47,7 @@ library
                      Handler.Presentation
                      Handler.Tags
                      Handler.EditSubmission
+                     Handler.EditSubmissionV1
                      Handler.SubmissionView
                      Handler.Annotations
                      Handler.Achievements
