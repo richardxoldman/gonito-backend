@@ -11,29 +11,47 @@ import           Data.Swagger.Declare
 
 import           Handler.MakePublic
 
+import Data.List (intersect)
 import           Data.Text                  (pack, splitOn, unpack)
 import           Database.Persist.Class     (insert)
 import           Database.Persist.Sql       hiding (insert)
 import           Prelude                    (read)
 
+
 postEditSubmission1R :: SubmissionId -> Text -> Text -> Handler Html
 postEditSubmission1R submissionId tagIdxsTxt newDescription = do
-    -- Change of the description
-    runDB $ updateWhere [SubmissionId ==. submissionId] [SubmissionDescription =. newDescription]
+    isOwner <- checkWhetherUserRepo submissionId
 
-    -- Deletion of the tags for a given submission
-    runDB $ deleteWhere [SubmissionTagSubmission ==. submissionId]
+    if isOwner
+        then do
+            -- Checking if tags are in the table
+            tagsEntities <- runDB $ selectList [] [Asc TagId] 
 
-    -- Insertion of new tags
-    let tagEntries = map (mkEntry . mkId) $ splitOn "," tagIdxsTxt
-    runDB $ insertMany_ tagEntries
+            let oldTagsIds = map idFromEntity tagsEntities
+                newTagIds = map mkId $ splitOn "," tagIdxsTxt
+                tagsCond = Data.List.intersect oldTagsIds newTagIds == newTagIds
 
-    setMessage $ toHtml ("Submission tags changed" :: Text)
+            if tagsCond
+                then do
+                    -- Change of the description
+                    runDB $ updateWhere [SubmissionId ==. submissionId] [SubmissionDescription =. newDescription]
 
-    pure "Submission tags changed"
+                    -- Deletion of the tags for a given submission
+                    runDB $ deleteWhere [SubmissionTagSubmission ==. submissionId]
+
+                    -- Insertion of new tags
+                    let tagEntries = map (mkEntry . mkId) $ splitOn "," tagIdxsTxt
+                    runDB $ insertMany_ tagEntries
+
+                    pure "Submission tags changed"
+                else
+                    pure "Tags are not available in the tags table"
+        else
+            pure "Only owner can edit a submission!"
     where
         mkId x = toSqlKey $ fromIntegral (read (Data.Text.unpack x) :: Int)
         mkEntry x = SubmissionTag submissionId x Nothing
+        idFromEntity (Entity tagId tag) = tagId
 
 
 editSubmission1Api :: Swagger
@@ -57,17 +75,20 @@ declareEditSubmission1Api = do
                     [ Inline $ mempty
                         & name .~ "submissionId"
                         & required ?~ True
+                        & description ?~ "Intiger, e.g.: 123"
                         & schema .~ ParamOther (mempty
                             & in_ .~ ParamPath
                             & paramSchema .~ idSchema)
                     , Inline $ mempty
                         & name .~ "tagsIds"
+                        & description ?~ "Intigers separated with coma, e.g.: 1,2,3"
                         & required ?~ True
                         & schema .~ ParamOther (mempty
                             & in_ .~ ParamPath
                             & paramSchema .~ txtSchema)
                     , Inline $ mempty
                         & name .~ "description"
+                        & description ?~ "String, e.g.: simple description"
                         & required ?~ True
                         & schema .~ ParamOther (mempty
                             & in_ .~ ParamPath
