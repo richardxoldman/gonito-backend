@@ -51,7 +51,7 @@ postEditSubmission1R submissionId tagIdxsTxt newDescription = do
     where
         mkId x = toSqlKey $ fromIntegral (read (Data.Text.unpack x) :: Int)
         mkEntry x = SubmissionTag submissionId x Nothing
-        idFromEntity (Entity tagId tag) = tagId
+        idFromEntity (Entity tagId _) = tagId
 
 
 editSubmission1Api :: Swagger
@@ -66,35 +66,42 @@ declareEditSubmission1Api = do
         txtSchema = toParamSchema (Proxy :: Proxy Text)
     response <- declareResponse (Proxy :: Proxy ())
 
-    pure $ mempty
-        & paths .~ fromList [
-            ("/api/edit-submission/{submissionId}/{tagsIds}/{description}"
-            , mempty & DS.post ?~
-                ( mempty
+    pure $ mempty & paths .~ fromList
+        [
+            ("/api/edit-submission/{submissionId}/{tagsIds}/{description}", mempty
+            & DS.post ?~ (mempty
                 & parameters .~ 
-                    [ Inline $ mempty
-                        & name .~ "submissionId"
-                        & required ?~ True
-                        & description ?~ "Intiger, e.g.: 123"
-                        & schema .~ ParamOther (mempty
-                            & in_ .~ ParamPath
-                            & paramSchema .~ idSchema)
-                    , Inline $ mempty
-                        & name .~ "tagsIds"
-                        & description ?~ "Intigers separated with coma, e.g.: 1,2,3"
-                        & required ?~ True
-                        & schema .~ ParamOther (mempty
-                            & in_ .~ ParamPath
-                            & paramSchema .~ txtSchema)
-                    , Inline $ mempty
-                        & name .~ "description"
-                        & description ?~ "String, e.g.: simple description"
-                        & required ?~ True
-                        & schema .~ ParamOther (mempty
-                            & in_ .~ ParamPath
-                            & paramSchema .~ txtSchema)
-                    ]
+                [
+                    Inline $ mempty
+                    & name .~ "submissionId"
+                    & required ?~ True
+                    & description ?~ "Intiger, e.g.: 123"
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamPath
+                        & paramSchema .~ idSchema
+                        ),
+                    
+                    Inline $ mempty
+                    & name .~ "tagsIds"
+                    & description ?~ "Intigers separated with coma, e.g.: 1,2,3"
+                    & required ?~ True
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamPath
+                        & paramSchema .~ txtSchema
+                        ),
+
+                    Inline $ mempty
+                    & name .~ "description"
+                    & description ?~ "String, e.g.: simple description"
+                    & required ?~ True
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamPath
+                        & paramSchema .~ txtSchema
+                        )
+                ]
                 & produces ?~ MimeList ["application/json"]
                 & description ?~ "Edit submission description and tag fields."
-                & at 200 ?~ Inline response ))
-            ]
+                & at 200 ?~ Inline response
+                )
+            )
+        ]

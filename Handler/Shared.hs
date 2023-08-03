@@ -36,7 +36,7 @@ import qualified Data.List as DL
 
 import System.Random
 
-import System.Directory (doesFileExist, renameDirectory, doesDirectoryExist)
+-- import System.Directory (doesFileExist, renameDirectory, doesDirectoryExist)
 
 import PersistSHA1
 
@@ -57,6 +57,9 @@ import GEval.EvaluationScheme
 import GEval.Formatting (formatTheResultWithErrorBounds)
 
 import qualified Data.Vector as DV
+import Data.Vector.Storable.Mutable (clear)
+import qualified System.FilePath.Find as SFF
+
 
 arena :: Handler FilePath
 arena = do
@@ -392,7 +395,7 @@ getHeadCommit repoDir chan = do
   (exitCode, out) <- runProgram (Just repoDir) gitPath ["rev-parse", "HEAD"] chan
   case exitCode of
     ExitSuccess -> do
-      msg chan $ concat ["HEAD commit is ", commitId]
+      msg chan ("HEAD commit is " ++ commitId)
       return $ Just commitRaw
         where commitId = T.replace "\n" "" out
               commitRaw = fromTextToSHA1 commitId
@@ -400,84 +403,115 @@ getHeadCommit repoDir chan = do
       err chan "cannot determine HEAD commit"
       return Nothing
 
+
 getPossiblyExistingRepo :: (Key Challenge -> Key Repo -> Channel -> Handler Bool)
                           -> UserId -> Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
 getPossiblyExistingRepo checkRepo userId challengeId repoSpec chan = do
-  let url = repoSpecUrl repoSpec
-  let branch = repoSpecBranch repoSpec
-  let gitAnnexRemote = repoSpecGitAnnexRemote repoSpec
-  maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
-  case maybeRepo of
-    Just (Entity repoId _) -> do
-      msg chan "Repo already there"
-      available <- checkRepo challengeId repoId chan
-      if available
-         then
-          do
-           -- this is not completely right... some other thread
-           -- might update this to a different value
-           runDB $ update repoId [RepoGitAnnexRemote =. gitAnnexRemote]
-           updateStatus <- updateRepo userId repoId chan
-           if updateStatus
-             then
-               return $ Just repoId
-             else
-               return Nothing
-         else
-           return Nothing
-    Nothing -> do
-      challenge <- runDB $ get404 challengeId
-      let repoId = challengePublicRepo challenge
-      repo <- runDB $ get404 repoId
-      repoDir <- getRepoDirOrClone repoId chan
-      let repoCloningSpec = RepoCloningSpec {
-        cloningSpecRepo = repoSpec,
-        cloningSpecReferenceRepo = RepoSpec {
-                repoSpecUrl = (T.pack repoDir),
-                repoSpecBranch = (repoBranch repo),
-                repoSpecGitAnnexRemote = Nothing
-                }
-        }
-      cloneRepo' userId repoCloningSpec chan
+    let url = repoSpecUrl repoSpec
+    let branch = repoSpecBranch repoSpec
+    let gitAnnexRemote = repoSpecGitAnnexRemote repoSpec
+    maybeRepo <- runDB $ getBy $ UniqueUrlBranch url branch
+    case maybeRepo of
+        Just (Entity repoId _) -> do
+            msg chan "Repo already there"
+            available <- checkRepo challengeId repoId chan
+            if available
+                then do
+                    -- TODO this is not completely right... some other thread
+                    -- might update this to a different value
+                    runDB $ update repoId [RepoGitAnnexRemote =. gitAnnexRemote]
+                    updateStatus <- updateRepo userId repoId chan
+                    if updateStatus
+                        then
+                            pure $ Just repoId
+                        else
+                            pure Nothing
+                else
+                    pure Nothing
+        Nothing -> do
+            challenge <- runDB $ get404 challengeId
+            let repoId = challengePublicRepo challenge
+            repo <- runDB $ get404 repoId
+            repoDir <- getRepoDirOrClone repoId chan
+            let repoCloningSpec = RepoCloningSpec
+                    { cloningSpecRepo = repoSpec
+                    , cloningSpecReferenceRepo = RepoSpec
+                        { repoSpecUrl = T.pack repoDir
+                        , repoSpecBranch = repoBranch repo
+                        , repoSpecGitAnnexRemote = Nothing
+                        }
+                    }
+            cloneRepo' userId repoCloningSpec chan
+
 
 cloneRepoToTempDir :: Maybe UserId -> RepoCloningSpec -> Channel -> Handler (ExitCode, FilePath)
 cloneRepoToTempDir mUserId repoCloningSpec chan = do
-  let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
-  msg chan $ concat ["Preparing to clone repo ", url]
-  msg chan "Cloning..."
-  r <- randomInt
-  arenaDir <- arena
-  let tmpRepoDir = arenaDir </> ("t" ++ show r)
-  exitCode <- rawClone mUserId tmpRepoDir repoCloningSpec chan
-  return (exitCode, tmpRepoDir)
+    let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
+
+    msg chan ("Preparing to clone repo " ++ url)
+    msg chan "Cloning..."
+
+    r <- randomInt
+    arenaDir <- arena
+    let tmpRepoDir = arenaDir </> ("t" ++ show r)
+    exitCode <- rawClone mUserId tmpRepoDir repoCloningSpec chan
+    return (exitCode, tmpRepoDir)
+
 
 cloneRepo' :: UserId -> RepoCloningSpec -> Channel -> Handler (Maybe (Key Repo))
 cloneRepo' userId repoCloningSpec chan = do
-  let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
-  (exitCode, tmpRepoDir) <- cloneRepoToTempDir (Just userId) repoCloningSpec chan
-  case exitCode of
-          ExitSuccess -> do
+    let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
+
+    (exitCode, tmpRepoDir) <- cloneRepoToTempDir (Just userId) repoCloningSpec chan
+
+    case exitCode of
+        ExitSuccess -> do
             maybeHeadCommit <- getHeadCommit tmpRepoDir chan
+
             case maybeHeadCommit of
-              Just commitRaw -> do
-                time <- liftIO getCurrentTime
-                repoId <- runDB $ insert $ Repo {
-                  repoUrl=url,
-                  repoBranch=repoSpecBranch $ cloningSpecRepo repoCloningSpec,
-                  repoGitAnnexRemote=repoSpecGitAnnexRemote $ cloningSpecRepo repoCloningSpec,
-                  repoCurrentCommit=commitRaw,
-                  repoOwner=userId,
-                  repoReady=True,
-                  repoStamp=time }
-                repoDir <- getRepoDir repoId
-                liftIO $ renameDirectory tmpRepoDir repoDir
-                msg chan $ concat ["Repo is in ", (T.pack repoDir)]
-                return $ Just repoId
-              Nothing -> do
-                return Nothing
-          ExitFailure _ -> do
+                Just commitRaw -> do
+                    time <- liftIO getCurrentTime
+
+                    repoId <- runDB $ insert $ Repo
+                        { repoUrl = url
+                        , repoBranch = repoSpecBranch $ cloningSpecRepo repoCloningSpec
+                        , repoGitAnnexRemote = repoSpecGitAnnexRemote $ cloningSpecRepo repoCloningSpec
+                        , repoCurrentCommit = commitRaw
+                        , repoOwner = userId
+                        , repoReady = True
+                        , repoStamp = time
+                        }
+
+                    repoDir <- getRepoDir repoId
+                    liftIO $ renameDirectory tmpRepoDir repoDir
+                    liftIO $ clearRepo repoDir
+
+                    msg chan ("Repo is in " ++ T.pack repoDir)
+
+                    pure $ Just repoId
+
+                Nothing -> do
+                    pure Nothing
+
+        ExitFailure _ -> do
             err chan "git failed"
-            return Nothing
+            pure Nothing
+
+-- Removes all files from the directory that are not 'out.tsv' but leaves hidden
+-- files and directory structure
+clearRepo :: FilePath -> IO ()
+clearRepo repo = do
+    paths <- SFF.find ffToRemove ffNotHidden repo
+    filePaths <- filterM doesFileExist paths
+    mapM_ removeFile filePaths
+
+    where
+        ffToRemove :: SFF.FindClause Bool
+        ffToRemove = SFF.fileName SFF./~? "out.tsv"
+
+        ffNotHidden :: SFF.FindClause Bool
+        ffNotHidden = SFF.fileName SFF./~? ".*" SFF.&&? SFF.fileName SFF./=? "out.tsv"
+
 
 -- An auxilliary function for fixing git URLs.
 -- By default, this does nothing, but can be changed
@@ -574,54 +608,69 @@ getGitEnv mUserId url = do
                      Nothing -> return $ Nothing
           Nothing -> return $ Nothing
 
+
 rawClone :: Maybe UserId -> FilePath -> RepoCloningSpec -> Channel -> Handler ExitCode
 rawClone mUserId tmpRepoDir repoCloningSpec chan = do
- gitEnv <- getGitEnv mUserId (repoSpecUrl $ cloningSpecRepo repoCloningSpec)
- case gitEnv of
-   Just extraEnv -> runWithChannel chan $ do
-      let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
-      let branch = repoSpecBranch $ cloningSpecRepo repoCloningSpec
-      let referenceUrl = repoSpecUrl $ cloningSpecReferenceRepo repoCloningSpec
-      let referenceBranch = repoSpecBranch $ cloningSpecReferenceRepo repoCloningSpec
+    gitEnv <- getGitEnv mUserId (repoSpecUrl $ cloningSpecRepo repoCloningSpec)
+    case gitEnv of
+        Just extraEnv -> runWithChannel chan $ do
+            let url = repoSpecUrl $ cloningSpecRepo repoCloningSpec
+            let branch = repoSpecBranch $ cloningSpecRepo repoCloningSpec
+            let referenceUrl = repoSpecUrl $ cloningSpecReferenceRepo repoCloningSpec
+            let referenceBranch = repoSpecBranch $ cloningSpecReferenceRepo repoCloningSpec
 
-      runProgWithEnv Nothing extraEnv gitPath ["clone",
-                                               "--progress",
-                                               "--single-branch",
-                                               "--branch",
-                                               T.unpack referenceBranch,
-                                               T.unpack (fixGitRepoUrl referenceUrl),
-                                               tmpRepoDir]
-      if url /= referenceUrl || branch /= referenceBranch
-        then
-          do
-            runProg (Just tmpRepoDir) gitPath ["remote",
-                                               "set-url",
-                                                "origin",
-                                                T.unpack (fixGitRepoUrl url)]
-            runProgWithEnv (Just tmpRepoDir) extraEnv gitPath ["fetch",
-                                                               "origin",
-                                                               T.unpack branch]
-            runProg (Just tmpRepoDir) gitPath ["reset",
-                                               "--hard",
-                                               "FETCH_HEAD"]
-            getStuffUsingGitAnnex tmpRepoDir (repoSpecGitAnnexRemote $ cloningSpecRepo repoCloningSpec)
-        else
-          return ()
-   Nothing -> do
-      err chan "Wrong SSH key"
-      return (ExitFailure 1)
+            runProgWithEnv Nothing extraEnv gitPath
+                [ "clone"
+                , "--progress"
+                , "--single-branch"
+                , "--branch"
+                , T.unpack referenceBranch
+                , T.unpack (fixGitRepoUrl referenceUrl)
+                , tmpRepoDir
+                ]
+
+            if url /= referenceUrl || branch /= referenceBranch
+                then do
+                    runProg (Just tmpRepoDir) gitPath
+                        [ "remote"
+                        , "set-url"
+                        , "origin"
+                        , T.unpack (fixGitRepoUrl url)
+                        ]
+
+                    runProgWithEnv (Just tmpRepoDir) extraEnv gitPath
+                        [ "fetch"
+                        , "origin"
+                        , T.unpack branch
+                        ]
+
+                    runProg (Just tmpRepoDir) gitPath
+                        [ "reset"
+                        , "--hard"
+                        , "FETCH_HEAD"
+                        ]
+
+                    getStuffUsingGitAnnex tmpRepoDir (repoSpecGitAnnexRemote $ cloningSpecRepo repoCloningSpec)
+                else
+                    pure ()
+        Nothing -> do
+            err chan "Wrong SSH key"
+            pure (ExitFailure 1)
+
 
 getStuffUsingGitAnnex :: FilePath -> Maybe Text -> Runner ()
 getStuffUsingGitAnnex _ Nothing = return ()
 getStuffUsingGitAnnex tmpRepoDir (Just gitAnnexRemote) = do
-  let randomRemoteNameLen = 10
-  remoteName <- liftIO $ RS.randomString (RS.onlyAlpha RS.randomASCII) randomRemoteNameLen
-  runGitAnnex tmpRepoDir ["init"]
-  runGitAnnex tmpRepoDir (["initremote", remoteName] ++ (words $ T.unpack gitAnnexRemote))
-  runGitAnnex tmpRepoDir ["get", "--from", remoteName]
+    let randomRemoteNameLen = 10
+    remoteName <- liftIO $ RS.randomString (RS.onlyAlpha RS.randomASCII) randomRemoteNameLen
+    runGitAnnex tmpRepoDir ["init"]
+    runGitAnnex tmpRepoDir (["initremote", remoteName] ++ words (T.unpack gitAnnexRemote))
+    runGitAnnex tmpRepoDir ["get", "--from", remoteName]
+
 
 runGitAnnex :: FilePath -> [String] -> Runner ()
 runGitAnnex tmpRepoDir args = runProg (Just tmpRepoDir) gitPath ("annex":args)
+
 
 doesRepoExistsOnTheDisk :: RepoId -> Handler Bool
 doesRepoExistsOnTheDisk repoId = do
@@ -668,11 +717,13 @@ getRepoDirOrClone repoId chan = do
           return ()
   return repoDir
 
+
 getRepoDir :: Key Repo -> Handler FilePath
 getRepoDir repoId = do
-  arenaDir <- arena
-  return $ arenaDir </> ("r" ++ repoIdAsString)
-    where repoIdAsString = show $ fromSqlKey repoId
+    arenaDir <- arena
+    return $ arenaDir </> ("r" ++ repoIdAsString)
+        where repoIdAsString = show $ fromSqlKey repoId
+
 
 getOpenViewProgressR :: Int -> Handler TypedContent
 getOpenViewProgressR = getViewProgressR
