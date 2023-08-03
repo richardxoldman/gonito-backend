@@ -763,64 +763,79 @@ getChallengeSubmissionR' maybeUser challengeEnt@(Entity _ challenge) = do
 
 declareChallengeSubmissionSwagger :: Declare (Definitions Schema) Swagger
 declareChallengeSubmissionSwagger = do
-  -- param schemas
-  let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
-  let stringSchema = toParamSchema (Proxy :: Proxy String)
+    -- param schemas
+    let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
+    let stringSchema = toParamSchema (Proxy :: Proxy String)
 
-  challengeSubmissionResponse      <- declareResponse (Proxy :: Proxy Int)
-  wrongSubmissionResponse      <- declareResponse (Proxy :: Proxy GonitoStatus)
+    challengeSubmissionResponse <- declareResponse (Proxy :: Proxy Int)
+    wrongSubmissionResponse <- declareResponse (Proxy :: Proxy GonitoStatus)
 
-  return $ mempty
-    & paths .~
-        fromList [ ("/api/challenge-submission/{challengeName}",
-                    mempty & DS.post ?~ (mempty
-                                         & parameters .~ [ Inline $ mempty
-                                                           & name .~ "challengeName"
-                                                           & required ?~ True
-                                                           & schema .~ ParamOther (mempty
-                                                                                   & in_ .~ ParamPath
-                                                                                   & paramSchema .~ challengeNameSchema),
-                                                           Inline $ mempty
-                                                           & name .~ "f1"
-                                                           & description .~ Just "submission description"
-                                                           & required ?~ False
-                                                           & schema .~ ParamOther (mempty
-                                                                                   & in_ .~ ParamFormData
-                                                                                   & paramSchema .~ stringSchema),
-                                                           Inline $ mempty
-                                                           & name .~ "f2"
-                                                           & description .~ Just "submission tags"
-                                                           & required ?~ False
-                                                           & schema .~ ParamOther (mempty
-                                                                                   & in_ .~ ParamFormData
-                                                                                   & paramSchema .~ stringSchema),
-                                                           Inline $ mempty
-                                                           & name .~ "f3"
-                                                           & description .~ Just "repo URL"
-                                                           & required ?~ True
-                                                           & schema .~ ParamOther (mempty
-                                                                                   & in_ .~ ParamFormData
-                                                                                   & paramSchema .~ stringSchema),
-                                                                                                                      Inline $ mempty
-                                                           & name .~ "f4"
-                                                           & description .~ Just "repo branch"
-                                                           & required ?~ True
-                                                           & schema .~ ParamOther (mempty
-                                                                                   & in_ .~ ParamFormData
-                                                                                   & paramSchema .~ stringSchema),
+    pure $ mempty & paths .~ fromList
+        [
+            ("/api/challenge-submission/{challengeName}", mempty
+            & DS.post ?~ (mempty
+                & parameters .~
+                [
+                    Inline $ mempty
+                    & name .~ "challengeName"
+                    & required ?~ True
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamPath
+                        & paramSchema .~ challengeNameSchema
+                        ),
 
-                                                           Inline $ mempty
-                                                           & name .~ "f5"
-                                                           & description .~ Just "git-annex remote specification"
-                                                           & required ?~ False
-                                                           & schema .~ ParamOther (mempty
-                                                                                   & in_ .~ ParamFormData
-                                                                                   & paramSchema .~ stringSchema)]
-                                         & produces ?~ MimeList ["application/json"]
-                                         & description ?~ "Initiates a submission based on a given repo URL/branch. Returns an asynchrous job ID."
-                                         & at 200 ?~ Inline challengeSubmissionResponse
-                                         & at 422 ?~ Inline wrongSubmissionResponse))
-                 ]
+                    Inline $ mempty
+                    & name .~ "f1"
+                    & (description ?~ "submission description")
+                    & required ?~ False
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamFormData
+                        & paramSchema .~ stringSchema
+                        ),
+
+                    Inline $ mempty
+                    & name .~ "f2"
+                    & (description ?~ "submission tags")
+                    & required ?~ False
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamFormData
+                        & paramSchema .~ stringSchema
+                        ),
+
+                    Inline $ mempty
+                    & name .~ "f3"
+                    & (description ?~ "repo URL")
+                    & required ?~ True
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamFormData
+                        & paramSchema .~ stringSchema
+                        ),
+
+                    Inline $ mempty
+                    & name .~ "f4"
+                    & (description ?~ "repo branch")
+                    & required ?~ True
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamFormData
+                        & paramSchema .~ stringSchema
+                        ),
+
+                    Inline $ mempty
+                    & name .~ "f5"
+                    & (description ?~ "git-annex remote specification")
+                    & required ?~ False
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamFormData
+                        & paramSchema .~ stringSchema
+                        )
+                ]
+                & produces ?~ MimeList ["application/json"]
+                & description ?~ "Initiates a submission based on a given repo URL/branch. Returns an asynchrous job ID."
+                & at 200 ?~ Inline challengeSubmissionResponse
+                & at 422 ?~ Inline wrongSubmissionResponse
+                )
+            )
+        ]
 
 challengeSubmissionApi :: Swagger
 challengeSubmissionApi = spec & definitions .~ defs
@@ -1019,7 +1034,7 @@ isBefore moment (Just deadline) = moment <= deadline
 -- the submission repo, just by looking at the metadata)
 willClone :: Challenge -> ChallengeSubmissionData -> Bool
 willClone challenge submissionData =
-  (challengeName challenge) `isInfixOf` theUrl && branch /= dontPeek && not (dontPeek `isInfixOf` theUrl)
+  challengeName challenge `isInfixOf` theUrl && branch /= dontPeek && not (dontPeek `isInfixOf` theUrl)
   where theUrl = repoSpecUrl $ challengeSubmissionDataRepo submissionData
         branch = repoSpecBranch $ challengeSubmissionDataRepo submissionData
         dontPeek = "dont-peek"
@@ -1033,7 +1048,7 @@ doCreateSubmission userId challengeId challengeSubmissionData chan = do
   theVersion <- runDB $ getBy404 $ UniqueVersionByCommit $ challengeVersion challenge
   theNow <- liftIO getCurrentTime
 
-  if theNow `isBefore` (versionDeadline $ entityVal theVersion)
+  if theNow `isBefore` versionDeadline (entityVal theVersion)
     then
      do
       let wanted = willClone challenge challengeSubmissionData
@@ -1090,7 +1105,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
               E.orderBy [orderDirection (evaluation ^. EvaluationScore)]
               E.limit 1
               return evaluation
-          let bestScoreSoFar' = join (evaluationScore <$> entityVal <$> (listToMaybe bestResultSoFar))
+          let bestScoreSoFar' = join (evaluationScore <$> entityVal <$> listToMaybe bestResultSoFar)
           return bestScoreSoFar'
         Nothing -> return Nothing
 
@@ -1098,7 +1113,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
 
       case bestScoreSoFar of
         Just s -> case disclosedInfo of
-                   DisclosedInfo Nothing -> msg chan ("best score so far is: " ++ (Data.Text.pack $ show s))
+                   DisclosedInfo Nothing -> msg chan ("best score so far is: " ++ Data.Text.pack (show s))
                    _ -> return ()
         Nothing -> msg chan "first submission so far"
 
@@ -1147,7 +1162,7 @@ doCreateSubmission' _ userId challengeId challengeSubmissionData chan = do
       msg chan "SUBMISSION CREATED"
 
       app <- getYesod
-      let submissionLink = linkInAnnouncement app "submission" ("q/" ++ (fromSHA1ToText (repoCurrentCommit repo)))
+      let submissionLink = linkInAnnouncement app "submission" ("q/" ++ fromSHA1ToText (repoCurrentCommit repo))
 
       case mMainEnt of
         Just (Entity mainTestId mainTest) -> do
@@ -1277,8 +1292,10 @@ getSubmission userId mTeamId repoId commit challengeId subDescription chan = do
         submissionTeam=mTeamId,
         submissionDeleted=False}
 
+
 getSubmissionRepo :: UserId -> Key Challenge -> RepoSpec -> Channel -> Handler (Maybe (Key Repo))
 getSubmissionRepo userId challengeId repoSpec chan = getPossiblyExistingRepo checkRepoAvailibility userId challengeId repoSpec chan
+
 
 checkRepoAvailibility :: Key Challenge -> Key Repo -> Channel -> Handler Bool
 checkRepoAvailibility challengeId repoId chan = do

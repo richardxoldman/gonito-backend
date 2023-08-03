@@ -33,18 +33,23 @@ declareDeleteSubmissionApi = do
     let idSchema = toParamSchema (Proxy :: Proxy Int)
     response <- declareResponse (Proxy :: Proxy String)
 
-    pure $ mempty
-        & paths .~ fromList
-            [ ("/api/delete-submission/{submissionId}", mempty
-                & DS.post ?~ (mempty
-                & parameters .~ [ Inline $ mempty
+    pure $ mempty & paths .~ fromList
+        [
+            ( "/api/delete-submission/{submissionId}", mempty
+            & DS.post ?~ (mempty
+                & parameters .~
+                [
+                    Inline $ mempty
                     & name .~ "submissionId"
                     & required ?~ True
                     & schema .~ ParamOther (mempty
                         & in_ .~ ParamPath
-                        & paramSchema .~ idSchema)
+                        & paramSchema .~ idSchema
+                        )
                 ]
                 & produces ?~ MimeList ["application/json"]
                 & description ?~ "Deletes the submission by setting 'true' value in the 'deleted' field in 'Submission' table."
-                & at 200 ?~ Inline response ))
-            ]
+                & at 200 ?~ Inline response
+                )
+            )
+        ]
