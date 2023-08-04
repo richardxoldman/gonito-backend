@@ -11,9 +11,8 @@ import           Data.Swagger.Declare
 
 import           Handler.MakePublic
 
-import Data.List (intersect)
-import           Data.Text                  (pack, splitOn, unpack)
-import           Database.Persist.Class     (insert)
+import           Data.List (intersect)
+import           Data.Text                  (splitOn, unpack)
 import           Database.Persist.Sql       hiding (insert)
 import           Prelude                    (read)
 
@@ -43,7 +42,7 @@ postEditSubmission1R submissionId tagIdxsTxt newDescription = do
                     let tagEntries = map (mkEntry . mkId) $ splitOn "," tagIdxsTxt
                     runDB $ insertMany_ tagEntries
 
-                    pure "Submission tags changed"
+                    pure "Submission changed"
                 else
                     pure "Tags are not available in the tags table"
         else
@@ -75,7 +74,7 @@ declareEditSubmission1Api = do
                     Inline $ mempty
                     & name .~ "submissionId"
                     & required ?~ True
-                    & description ?~ "Intiger, e.g.: 123"
+                    & description ?~ "Integer, e.g.: 123"
                     & schema .~ ParamOther (mempty
                         & in_ .~ ParamPath
                         & paramSchema .~ idSchema
@@ -83,7 +82,7 @@ declareEditSubmission1Api = do
                     
                     Inline $ mempty
                     & name .~ "tagsIds"
-                    & description ?~ "Intigers separated with coma, e.g.: 1,2,3"
+                    & description ?~ "Integers separated with coma, e.g.: 1,2,3"
                     & required ?~ True
                     & schema .~ ParamOther (mempty
                         & in_ .~ ParamPath
