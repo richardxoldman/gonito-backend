@@ -12,6 +12,7 @@ import Handler.YourAccount
 import Handler.SubmissionAbility
 import Handler.DeleteSubmission
 import Handler.EditSubmissionV1
+import Handler.Wirus
 
 
 import Control.Lens hiding ((.=))
@@ -45,6 +46,7 @@ apiDescription = generalApi
                  <> userSubmissionAbilityApi
                  <> deleteSubmissionApi
                  <> editSubmission1Api
+                 <> wirusApi
 
 generalApi :: Swagger
 generalApi = (mempty :: Swagger)
