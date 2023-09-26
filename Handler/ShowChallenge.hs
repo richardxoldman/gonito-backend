@@ -174,22 +174,28 @@ instance ToSchema LeaderboardView where
                     ]
         & required .~ [ "tests", "entries" ]
 
+
 getLeaderboardJsonR :: Text -> Handler Value
 getLeaderboardJsonR = makeSureChallengeAccessible getLeaderboardJsonR'
+
 
 getLeaderboardJsonR' :: Maybe (Entity User) -> Entity Challenge -> Handler Value
 getLeaderboardJsonR' _ (Entity challengeId challenge) = do
   disclosedInfo <- fetchDisclosedInfo challenge
   leaderboardStyle <- determineLeaderboardStyle challenge
   (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
-  return $ toJSON $ LeaderboardView {
-    leaderboardViewTests = tests,
-    leaderboardViewEntries = map (toLeaderboardEntryView disclosedInfo tests) leaderboard }
 
-data LeaderboardEntryView = LeaderboardEntryView {
-  leaderboardEntryViewEntry :: LeaderboardEntry,
-  leaderboardEntryViewEvaluations :: [EvaluationView]
-}
+  return $ toJSON $ LeaderboardView
+      { leaderboardViewTests = tests
+      , leaderboardViewEntries = map (toLeaderboardEntryView disclosedInfo tests) leaderboard
+      }
+
+
+data LeaderboardEntryView = LeaderboardEntryView
+    { leaderboardEntryViewEntry :: LeaderboardEntry
+    , leaderboardEntryViewEvaluations :: [EvaluationView]
+    }
+
 
 addJsonKey :: Text -> Value -> Value -> Value
 addJsonKey key val (Object xs) = Object $ Data.Aeson.KeyMap.insert (fromText key) val xs

@@ -346,47 +346,50 @@ compareVersions ((aM, aN, aP), _) ((bM, bN, bP), _) = (aM `compare` bM)
                                             <> (aN `compare` bN)
                                             <> (aP `compare` bP)
 
+
 getLeaderboardEntriesByCriterion :: (Ord a) => Int
-                                 -> Key Challenge
-                                 -> ((Entity Submission) -> Bool)
-                                 -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
-                                 -> (TableEntry -> [a])
-                                 -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
+    -> Key Challenge
+    -> (Entity Submission -> Bool)
+    -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
+    -> (TableEntry -> [a])
+    -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
 getLeaderboardEntriesByCriterion maxPriority challengeId condition preselector selector = do
-  (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos maxPriority condition (const True) preselector challengeId
-  let mainTests = getMainTests tests
-  let mMainTestEnt = getMainTest tests
+    (evaluationMaps, tests) <- runDB $ getChallengeSubmissionInfos maxPriority condition (const True) preselector challengeId
+    let mainTests = getMainTests tests
+    let mMainTestEnt = getMainTest tests
 
-  challenge <- runDB $ get404 challengeId
-  disclosedInfo <- fetchDisclosedInfo challenge
+    challenge <- runDB $ get404 challengeId
+    disclosedInfo <- fetchDisclosedInfo challenge
 
-  case mMainTestEnt of
-    Nothing -> return ([], ([], []))
-    Just mainTestEnt -> do
-      let mainTestRef = getTestReference mainTestEnt
-      let (Entity _ mainTest) = mainTestEnt
-      let auxItems = concat
-                     $ map (\i -> map (\s -> (s, [i])) (selector i))
-                     $ filter (\entry -> member mainTestRef $ tableEntryMapping entry)
-                     $ evaluationMaps
-      let auxItemsMap = Map.fromListWith (++) auxItems
-      let entryComparator a b = case disclosedInfo of
-                                  DisclosedInfo Nothing ->
-                                              (compareMajorVersions (leaderboardVersion a) (leaderboardVersion b))
-                                              <>
-                                              ((compareResult $ Just mainTest) (evaluationScore $ leaderboardEvaluationMap a Map.! mainTestRef)
-                                                                               (evaluationScore $ leaderboardEvaluationMap b Map.! mainTestRef))
-                                              <>
-                                              (compareVersions (leaderboardVersion a) (leaderboardVersion b))
-                                  DisclosedInfo (Just 0) ->
-                                              (submissionStamp (leaderboardBestSubmission a) `compare` submissionStamp (leaderboardBestSubmission b))
-      entries' <- mapM (toLeaderboardEntry challengeId mainTests)
-                 $ filter (\ll -> not (null ll))
-                 $ map snd
-                 $ Map.toList auxItemsMap
-      let entries = DL.nubBy (\a b -> leaderboardBestVariantId a == leaderboardBestVariantId b)
+    case mMainTestEnt of
+        Nothing -> return ([], ([], []))
+        Just mainTestEnt -> do
+            let mainTestRef = getTestReference mainTestEnt
+                (Entity _ mainTest) = mainTestEnt
+                auxItems = concatMap (\i -> map (, [i]) (selector i))
+                    $ filter (member mainTestRef . tableEntryMapping) evaluationMaps
+                auxItemsMap = Map.fromListWith (++) auxItems
+
+                entryComparator a b = case disclosedInfo of
+                    DisclosedInfo Nothing ->
+                        compareMajorVersions (leaderboardVersion a) (leaderboardVersion b)
+                        <>
+                        (compareResult $ Just mainTest) (evaluationScore $ leaderboardEvaluationMap a Map.! mainTestRef)
+                            (evaluationScore $ leaderboardEvaluationMap b Map.! mainTestRef)
+                        <>
+                        compareVersions (leaderboardVersion a) (leaderboardVersion b)
+                    DisclosedInfo (Just 0) ->
+                        submissionStamp (leaderboardBestSubmission a) `compare` submissionStamp (leaderboardBestSubmission b)
+
+            entries' <- mapM (toLeaderboardEntry challengeId mainTests)
+                $ filter (not . null)
+                $ map snd
+                $ Map.toList auxItemsMap
+
+            let entries = DL.nubBy (\a b -> leaderboardBestVariantId a == leaderboardBestVariantId b)
                     $ sortBy (flip entryComparator) entries'
-      return (entries, (evaluationMaps, mainTests))
+
+            return (entries, (evaluationMaps, mainTests))
 
 
 toLeaderboardEntry :: Foldable t => Key Challenge -> [Entity Test] -> t TableEntry -> Handler LeaderboardEntry
@@ -396,10 +399,10 @@ toLeaderboardEntry challengeId tests ss = do
   let submissionId = entityKey bestSubmission
   tagEnts <- runDB $ getTags submissionId
 
-  theParameters <- runDB $ selectList [ParameterVariant ==. (entityKey bestVariant)] [Asc ParameterName]
+  theParameters <- runDB $ selectList [ParameterVariant ==. entityKey bestVariant] [Asc ParameterName]
 
   submission <- runDB $ get404 submissionId
-  (entity) <- runDB $ getBy $ UniqueVersionByCommit $ submissionVersion submission
+  entity <- runDB $ getBy $ UniqueVersionByCommit $ submissionVersion submission
   let (Entity _ itsVersion) = fromJust entity
 
   mPhaseTag <- case versionPhase itsVersion of
@@ -456,22 +459,30 @@ toLeaderboardEntry challengeId tests ss = do
                     (compareVersions v1 v2)
                Nothing -> EQ
 
+
 getLeaderboardEntries :: Int -> LeaderboardStyle -> Key Challenge -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
-getLeaderboardEntries maxPriority BySubmitter challengeId =
-  getLeaderboardEntriesByCriterion maxPriority
-                                   challengeId
-                                   (const True)
-                                   onlyTheBestVariant
-                                   (\entry -> [(entityKey $ tableEntrySubmitter entry,
-                                               tagName <$> (snd $ tableEntryVersion entry))])
-getLeaderboardEntries maxPriority ByTag challengeId =
-  getLeaderboardEntriesByCriterion maxPriority
-                                   challengeId
-                                   (const True)
-                                   onlyTheBestVariant
-                                   (noEmptyList . (map (entityKey . fst)) . tableEntryTagsInfo)
-  where noEmptyList [] = [Nothing]
-        noEmptyList l = map Just l
+getLeaderboardEntries maxPriority BySubmitter challengeId = getLeaderboardEntriesByCriterion
+    maxPriority
+    challengeId
+    (const True)
+    onlyTheBestVariant
+    (\entry ->
+        [
+            (entityKey $ tableEntrySubmitter entry
+            , tagName <$> snd (tableEntryVersion entry)
+            )
+        ]
+    )
+getLeaderboardEntries maxPriority ByTag challengeId = getLeaderboardEntriesByCriterion
+    maxPriority
+    challengeId
+    (const True)
+    onlyTheBestVariant
+    (noEmptyList . map (entityKey . fst) . tableEntryTagsInfo)
+        where 
+            noEmptyList [] = [Nothing]
+            noEmptyList l = map Just l
+
 
 compareResult :: Maybe Test -> Maybe Double -> Maybe Double -> Ordering
 compareResult Nothing _ _ = EQ
