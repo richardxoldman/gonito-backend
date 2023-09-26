@@ -57,7 +57,6 @@ import GEval.EvaluationScheme
 import GEval.Formatting (formatTheResultWithErrorBounds)
 
 import qualified Data.Vector as DV
-import Data.Vector.Storable.Mutable (clear)
 import qualified System.FilePath.Find as SFF
 
 
@@ -484,18 +483,26 @@ cloneRepo' userId repoCloningSpec chan = do
 
                     repoDir <- getRepoDir repoId
                     liftIO $ renameDirectory tmpRepoDir repoDir
-                    liftIO $ clearRepo repoDir
+                    -- TODO Change file system to ZFS (or system with automatic
+                    -- de-duplication)
+                    -- Linux has "access time" atime, which can be used to clean
+                    -- the filesystem
+                    -- liftIO $ clearRepo repoDir
+                    -- This cannot work this way, because other functions use
+                    -- this code
 
                     msg chan ("Repo is in " ++ T.pack repoDir)
 
                     pure $ Just repoId
 
                 Nothing -> do
+                    liftIO $ removeDirectory tmpRepoDir
                     pure Nothing
 
         ExitFailure _ -> do
             err chan "git failed"
             pure Nothing
+
 
 -- Removes all files from the directory that are not 'out.tsv' but leaves hidden
 -- files and directory structure
@@ -605,7 +612,10 @@ getGitEnv mUserId url = do
                      Just individualPrivateKey -> do
                        return $ Just [("GIT_SSH_COMMAND",
                                        "/usr/bin/ssh -o StrictHostKeyChecking=no  -i " ++ individualPrivateKey)]
-                     Nothing -> return $ Nothing
+                     -- TODO Check how to make it more safe, i.e. not to allow
+                     -- every user to get repository from every other user
+                     -- Nothing -> return $ Nothing
+                     Nothing -> return $ Just []
           Nothing -> return $ Nothing
 
 
