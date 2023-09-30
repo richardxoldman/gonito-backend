@@ -394,70 +394,80 @@ getLeaderboardEntriesByCriterion maxPriority challengeId condition preselector s
 
 toLeaderboardEntry :: Foldable t => Key Challenge -> [Entity Test] -> t TableEntry -> Handler LeaderboardEntry
 toLeaderboardEntry challengeId tests ss = do
-  let bestOne = DL.maximumBy submissionComparator ss
-  let (TableEntry bestSubmission bestVariant user evals _ _ _ _ _) = bestOne
-  let submissionId = entityKey bestSubmission
-  tagEnts <- runDB $ getTags submissionId
+    let bestOne = DL.maximumBy submissionComparator ss
+        (TableEntry bestSubmission bestVariant user evals _ _ _ _ _) = bestOne
+        submissionId = entityKey bestSubmission
 
-  theParameters <- runDB $ selectList [ParameterVariant ==. entityKey bestVariant] [Asc ParameterName]
+    tagEnts <- runDB $ getTags submissionId
 
-  submission <- runDB $ get404 submissionId
-  entity <- runDB $ getBy $ UniqueVersionByCommit $ submissionVersion submission
-  let (Entity _ itsVersion) = fromJust entity
+    theParameters <- runDB $ selectList [ParameterVariant ==. entityKey bestVariant] [Asc ParameterName]
 
-  mPhaseTag <- case versionPhase itsVersion of
-                   Just phaseId -> runDB $ get phaseId
-                   Nothing -> return Nothing
+    submission <- runDB $ get404 submissionId
+    entity <- runDB $ getBy $ UniqueVersionByCommit $ submissionVersion submission
 
-  let theVersion = (versionMajor itsVersion,
-                    versionMinor itsVersion,
-                    versionPatch itsVersion)
+    let (Entity _ itsVersion) = fromJust entity
 
-  -- get all user submissions, including hidden ones
-  allUserSubmissions <- runDB $ selectList [SubmissionChallenge ==. challengeId,
-                                           SubmissionSubmitter ==. entityKey user]
-                                          [Desc SubmissionStamp]
+    mPhaseTag <- case versionPhase itsVersion of
+        Just phaseId -> runDB $ get phaseId
+        Nothing -> return Nothing
 
-  mUserEnt <- maybeAuthPossiblyByToken
-  let isOwner = (entityKey <$> mUserEnt) == Just (submissionSubmitter submission)
+    let theVersion =
+            ( versionMajor itsVersion
+            , versionMinor itsVersion
+            , versionPatch itsVersion
+            )
 
-  isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission bestOne
-  let isVisible = True
+    -- get all user submissions, including hidden ones
+    allUserSubmissions <- runDB $ selectList
+        [ SubmissionChallenge ==. challengeId
+        , SubmissionSubmitter ==. entityKey user
+        ]
+        [Desc SubmissionStamp]
 
-  mTeam <- case submissionTeam $ entityVal bestSubmission of
-            Just teamId -> do
-              team <- runDB $ get404 teamId
-              return $ Just (Entity teamId team)
-            Nothing -> return Nothing
+    mUserEnt <- maybeAuthPossiblyByToken
+    let isOwner = (entityKey <$> mUserEnt) == Just (submissionSubmitter submission)
 
-  return $ LeaderboardEntry {
-              leaderboardUser = entityVal user,
-              leaderboardUserId = entityKey user,
-              leaderboardBestSubmission = entityVal bestSubmission,
-              leaderboardBestSubmissionId = entityKey bestSubmission,
-              leaderboardBestVariant = entityVal bestVariant,
-              leaderboardBestVariantId = entityKey bestVariant,
-              leaderboardEvaluationMap = evals,
-              leaderboardNumberOfSubmissions = length allUserSubmissions,
-              leaderboardTags = tagEnts,
-              leaderboardParams = map entityVal theParameters,
-              leaderboardVersion = (theVersion, mPhaseTag),
-              leaderboardIsOwner = isOwner,
-              leaderboardIsReevaluable = isReevaluable,
-              leaderboardIsVisible = isVisible,
-              leaderboardTeam = mTeam
-              }
-     where submissionComparator (TableEntry _  _  _ em1 _ _ _ v1 _) (TableEntry _  _ _ em2 _ _ _ v2 _) =
-             case getMainTest tests of
-               Just mainTestEnt@(Entity _ mainTest) ->
-                 let mainTestRef = getTestReference mainTestEnt
-                 in (compareMajorVersions v1 v2)
-                    <>
-                    (compareResult (Just $ mainTest) (evaluationScore (em1 Map.! mainTestRef))
-                                                     (evaluationScore (em2 Map.! mainTestRef)))
-                    <>
-                    (compareVersions v1 v2)
-               Nothing -> EQ
+    isReevaluable <- runDB $ canBeReevaluated $ entityKey $ tableEntrySubmission bestOne
+    let isVisible = True
+
+    mTeam <- case submissionTeam $ entityVal bestSubmission of
+        Just teamId -> do
+            team <- runDB $ get404 teamId
+            return $ Just (Entity teamId team)
+
+        Nothing -> return Nothing
+
+    return $ LeaderboardEntry
+        { leaderboardUser = entityVal user
+        , leaderboardUserId = entityKey user
+        , leaderboardBestSubmission = entityVal bestSubmission
+        , leaderboardBestSubmissionId = entityKey bestSubmission
+        , leaderboardBestVariant = entityVal bestVariant
+        , leaderboardBestVariantId = entityKey bestVariant
+        , leaderboardEvaluationMap = evals
+        , leaderboardNumberOfSubmissions = length allUserSubmissions
+        , leaderboardTags = tagEnts
+        , leaderboardParams = map entityVal theParameters
+        , leaderboardVersion = (theVersion, mPhaseTag)
+        , leaderboardIsOwner = isOwner
+        , leaderboardIsReevaluable = isReevaluable
+        , leaderboardIsVisible = isVisible
+        , leaderboardTeam = mTeam
+        }
+    where
+        submissionComparator (TableEntry _  _  _ em1 _ _ _ v1 _) (TableEntry _  _ _ em2 _ _ _ v2 _) =
+            case getMainTest tests of
+                Just mainTestEnt@(Entity _ mainTest) ->
+                    let mainTestRef = getTestReference mainTestEnt
+                    in compareMajorVersions v1 v2
+                        <>
+                        compareResult
+                            (Just mainTest)
+                            (evaluationScore (em1 Map.! mainTestRef))
+                            (evaluationScore (em2 Map.! mainTestRef))
+                        <>
+                        compareVersions v1 v2
+                Nothing -> EQ
 
 
 getLeaderboardEntries :: Int -> LeaderboardStyle -> Key Challenge -> Handler ([LeaderboardEntry], ([TableEntry], [Entity Test]))
@@ -491,89 +501,111 @@ compareResult _ (Just _) Nothing = GT
 compareResult _ Nothing (Just _) = LT
 compareResult _ Nothing Nothing = EQ
 
+
 onlyTheBestVariant :: [(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))]
-onlyTheBestVariant = DL.nubBy (\(_, (Entity aid _, _)) (_, (Entity bid _, _)) -> aid == bid)
-                     . (sortBy (\(r1, (_, Entity _ va)) (r2, (_, Entity _ vb)) -> (r1 `compare` r2)
-                                                                                     `thenCmp`
-                                                                    ((variantName va) `compare` (variantName vb))))
+onlyTheBestVariant =
+    DL.nubBy (\(_, (Entity aid _, _)) (_, (Entity bid _, _)) -> aid == bid)
+    . sortBy (\(r1, (_, Entity _ va)) (r2, (_, Entity _ vb)) ->
+        (r1 `compare` r2) `thenCmp` (variantName va `compare` variantName vb))
 
 
-getChallengeSubmissionInfos :: (MonadIO m,
-                               PersistQueryRead backend,
-                               BackendCompatible SqlBackend backend,
-                               PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
-                              => Int
-                                -> (Entity Submission -> Bool)
-                                -> (Entity Variant -> Bool)
-                                -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
-                                -> Key Challenge
-                                -> ReaderT backend m ([TableEntry], [Entity Test])
+getChallengeSubmissionInfos ::
+    ( MonadIO m
+    , PersistQueryRead backend
+    , BackendCompatible SqlBackend backend
+    , PersistUniqueRead backend
+    , BaseBackend backend ~ SqlBackend
+    )
+    => Int
+    -> (Entity Submission -> Bool)
+    -> (Entity Variant -> Bool)
+    -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
+    -> Key Challenge
+    -> ReaderT backend m ([TableEntry], [Entity Test])
 getChallengeSubmissionInfos maxMetricPriority condition variantCondition preselector challengeId = do
-  challenge <- get404 challengeId
-  let versionCommit = challengeVersion challenge
-  getChallengeSubmissionInfosForVersion maxMetricPriority
-                                        condition
-                                        variantCondition
-                                        preselector
-                                        challengeId
-                                        versionCommit
+    challenge <- get404 challengeId
+    let versionCommit = challengeVersion challenge
+    getChallengeSubmissionInfosForVersion
+        maxMetricPriority
+        condition
+        variantCondition
+        preselector
+        challengeId
+        versionCommit
 
-getChallengeSubmissionInfosForVersion :: (MonadIO m,
-                                         PersistQueryRead backend,
-                                         BackendCompatible SqlBackend backend,
-                                         PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
-                                      => Int
-                                      -> (Entity Submission -> Bool)
-                                      -> (Entity Variant -> Bool)
-                                      -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
-                                      -> ChallengeId
-                                      -> SHA1
-                                      -> ReaderT backend m ([TableEntry], [Entity Test])
+
+getChallengeSubmissionInfosForVersion ::
+    ( MonadIO m
+    , PersistQueryRead backend
+    , BackendCompatible SqlBackend backend
+    , PersistUniqueRead backend
+    , BaseBackend backend ~ SqlBackend
+    )
+    => Int
+    -> (Entity Submission -> Bool)
+    -> (Entity Variant -> Bool)
+    -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
+    -> ChallengeId
+    -> SHA1
+    -> ReaderT backend m ([TableEntry], [Entity Test])
 getChallengeSubmissionInfosForVersion maxMetricPriority condition variantCondition preselector challengeId commit = do
+    tests' <- selectList [TestChallenge ==. challengeId, TestActive ==. True, TestCommit ==. commit] []
 
-  tests' <- selectList [TestChallenge ==. challengeId, TestActive ==. True, TestCommit ==. commit] []
-  let tests = filter (\t -> (evaluationSchemePriority $ testMetric $ entityVal t) <= maxMetricPriority) tests'
-  let mainTest = getMainTest tests
+    let tests = filter (\t -> evaluationSchemePriority (testMetric $ entityVal t) <= maxMetricPriority) tests'
+        mainTest = getMainTest tests
 
-  challenge <- get404 challengeId
-  disclosedInfo <- fetchDisclosedInfoBare challenge
+    challenge <- get404 challengeId
+    disclosedInfo <- fetchDisclosedInfoBare challenge
 
-  allSubmissionsVariants <- E.select $ E.from $ \(submission, variant) -> do
-     E.where_ (submission ^. SubmissionChallenge E.==. E.val challengeId
-               E.&&. submission ^. SubmissionIsHidden E.==. E.val False
-               E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId)
-     return (submission, variant)
+    allSubmissionsVariants <- E.select $ E.from $ \(submission, variant) -> do
+        E.where_ (
+            submission ^. SubmissionChallenge E.==. E.val challengeId
+            E.&&. submission ^. SubmissionIsHidden E.==. E.val False
+            E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId
+            )
+        return (submission, variant)
 
-  scores <- mapM (getScore (entityKey <$> mainTest)) $ map (entityKey . snd) allSubmissionsVariants
+    scores <- mapM (getScore (entityKey <$> mainTest) . entityKey . snd) allSubmissionsVariants
 
-  let allSubmissionsVariantsWithRanks =
-        sortBy (\(r1, (s1, _)) (r2, (s2, _)) -> (submissionStamp (entityVal s2) `compare` submissionStamp (entityVal s1))
-                                                                               `thenCmp`
-                                                                            (r2 `compare` r1))
-        $ preselector
-        $ filter (\(_, (s, _)) -> condition s)
-        $ map (\(rank, (_, sv)) -> (rank, sv))
-        $ zip [1..]
-        $ sortBy (\(s1, (e1, _)) (s2, (e2, _)) -> case disclosedInfo of
-                     DisclosedInfo Nothing -> compareResult (entityVal <$> mainTest) s2 s1
-                     DisclosedInfo (Just 0) -> (submissionStamp (entityVal e2) `compare` submissionStamp (entityVal e1)))
-        $ zip scores allSubmissionsVariants
+    let allSubmissionsVariantsWithRanks =
+            sortBy (\(r1, (s1, _)) (r2, (s2, _)) ->
+                (submissionStamp (entityVal s2) `compare` submissionStamp (entityVal s1))
+                `thenCmp`
+                (r2 `compare` r1))
+            $ preselector
+            $ filter (\(_, (s, _)) -> condition s)
+            -- $ zipWith (\(rank, (_, sv)) -> (rank, sv)) [1..]
+            $ map (\(rank, (_, sv)) -> (rank, sv))
+            $ zip [1..]
+            $ sortBy (\(s1, (e1, _)) (s2, (e2, _)) ->
+                case disclosedInfo of
+                    DisclosedInfo Nothing -> compareResult (entityVal <$> mainTest) s2 s1
+                    DisclosedInfo (Just 0) -> submissionStamp (entityVal e2) `compare` submissionStamp (entityVal e1))
+            $ zip scores allSubmissionsVariants
 
-  allTests <- selectList [] [Asc TestName]
-  let testsMap = Map.fromList $ map (\(ent@(Entity testId _)) -> (testId, getTestReference ent)) allTests
+    allTests <- selectList [] [Asc TestName]
+    let testsMap = Map.fromList $ map (\ent@(Entity testId _) -> (testId, getTestReference ent)) allTests
 
-  let allSubmissions = DL.nubBy (\(Entity a _) (Entity b _) -> a == b) $ map (\(_, (s, _)) -> s) allSubmissionsVariantsWithRanks
-  subs <- mapM getBasicSubmissionInfo allSubmissions
-  let submissionMap = Map.fromList subs
-  -- testsMap and submissionMap are created to speed up getEvaluationMap
+    let allSubmissions = DL.nubBy (\(Entity a _) (Entity b _) -> a == b) $ map (\(_, (s, _)) -> s) allSubmissionsVariantsWithRanks
+    subs <- mapM getBasicSubmissionInfo allSubmissions
+    let submissionMap = Map.fromList subs
+    -- testsMap and submissionMap are created to speed up getEvaluationMap
 
-  evaluationMaps' <- mapM (getEvaluationMap testsMap submissionMap) allSubmissionsVariantsWithRanks
-  let evaluationMaps = filter (variantCondition . tableEntryVariant) evaluationMaps'
-  return (evaluationMaps, tests)
+    evaluationMaps' <- mapM (getEvaluationMap testsMap submissionMap) allSubmissionsVariantsWithRanks
+    let evaluationMaps = filter (variantCondition . tableEntryVariant) evaluationMaps'
 
-getScore :: (MonadIO m, BackendCompatible SqlBackend backend,
-            PersistQueryRead backend, PersistUniqueRead backend, BaseBackend backend ~ SqlBackend)
-           => Maybe (Key Test) -> Key Variant -> ReaderT backend m (Maybe Double)
+    return (evaluationMaps, tests)
+
+
+getScore ::
+    ( MonadIO m
+    , BackendCompatible SqlBackend backend
+    , PersistQueryRead backend
+    , PersistUniqueRead backend
+    , BaseBackend backend ~ SqlBackend)
+    => Maybe (Key Test)
+    -> Key Variant
+    -> ReaderT backend m (Maybe Double)
 getScore Nothing _ = return Nothing
 getScore (Just testId) variantId = do
   evaluations <- E.select $ E.from $ \(out, evaluation, variant, submission) -> do
