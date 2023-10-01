@@ -393,16 +393,19 @@ getViewVariantDiffR :: VariantId -> VariantId -> TestId -> Handler Html
 getViewVariantDiffR oldVariantId newVariantId testId = do
   doViewVariantTestR (TwoThings oldVariantId newVariantId) testId
 
+
 getViewVariantTestR :: VariantId -> TestId -> Handler Html
 getViewVariantTestR variantId testId = do
   doViewVariantTestR (OneThing variantId) testId
 
-data ViewVariantData = ViewVariantData {
-  viewVariantDataFullSubmissionInfo :: (FullSubmissionInfo, Maybe Text),
-  viewVariantDataTableEntry :: TableEntry,
-  viewVariantDataTests :: [Entity Test],
-  viewVariantDataOuts :: [(SHA1, Text)]
-  }
+
+data ViewVariantData = ViewVariantData
+    { viewVariantDataFullSubmissionInfo :: (FullSubmissionInfo, Maybe Text)
+    , viewVariantDataTableEntry :: TableEntry
+    , viewVariantDataTests :: [Entity Test]
+    , viewVariantDataOuts :: [(SHA1, Text)]
+    }
+
 
 -- Return the submission version for which the tests are available.
 -- It should be simply submissionVersion but the problem is that
@@ -484,32 +487,33 @@ postCompareFormR variantId testId = do
 nullSHA1 :: SHA1
 nullSHA1 = fromTextToSHA1 "da39a3ee5e6b4b0d3255bfef95601890afd80709"
 
+
 doViewVariantTestR :: Diff VariantId -> TestId -> Handler Html
 doViewVariantTestR variantId testId = do
-  mUserId <- maybeAuthId
+    mUserId <- maybeAuthId
 
-  testSelected <- runDB $ get404 testId
-  let testSelectedEnt = Entity testId testSelected
+    testSelected <- runDB $ get404 testId
+    let testSelectedEnt = Entity testId testSelected
 
-  variantInfos <- mapM (fetchViewVariantData) variantId
-  let fullSubmissionInfo = viewVariantDataFullSubmissionInfo <$> variantInfos
-  let entry = viewVariantDataTableEntry <$> variantInfos
-  let tests' = viewVariantDataTests <$> variantInfos
-  let outputs' = viewVariantDataOuts <$> variantInfos
+    variantInfos <- mapM fetchViewVariantData variantId
+    let fullSubmissionInfo = viewVariantDataFullSubmissionInfo <$> variantInfos
+        entry = viewVariantDataTableEntry <$> variantInfos
+        tests' = viewVariantDataTests <$> variantInfos
+        outputs' = viewVariantDataOuts <$> variantInfos
 
+    let testIds = map fst $ runDiff () $ fmap (map entityKey) tests'
+    testEnts <- mapM (runDB . get404) testIds
+    let tests = zipWith (curry (\(i,e) -> Entity i e)) testIds testEnts
+        outputs :: [(Diff SHA1, Text)] =
+            sortBy (\a b -> snd b `compare` snd a)
+            $ map swap $ LM.toList $ runDiff (nullSHA1, ()) $ fmap (LM.fromList . map swap) outputs'
 
-  let testIds = map fst $ runDiff () $ fmap (map entityKey) tests'
-  testEnts <- mapM (runDB . get404) testIds
-  let tests = map (\(i,e) -> Entity i e) $ zip testIds testEnts
-  let outputs :: [(Diff SHA1, Text)] =
-        sortBy (\a b -> ((snd b) `compare` (snd a)))
-        $ map swap $ LM.toList $ runDiff (nullSHA1, ()) $ fmap (LM.fromList . map swap) outputs'
+    (formWidget, formEnctype) <- generateFormPost outQueryForm
 
-  (formWidget, formEnctype) <- generateFormPost outQueryForm
+    defaultLayout $ do
+        setTitle "Variant"
+        $(widgetFile "view-variant")
 
-  defaultLayout $ do
-    setTitle "Variant"
-    $(widgetFile "view-variant")
 
 mergeEntryParams :: Diff [Parameter] -> [(Text, Diff Text)]
 mergeEntryParams (OneThing u) = map (\(Parameter _ pname pval) -> (pname, OneThing pval)) u
@@ -518,22 +522,28 @@ mergeEntryParams (TwoThings old new) = LM.toList $ diff ("", ()) oldMap newMap
          newMap = mapify new
          mapify l = LM.fromList $ map (\(Parameter _ pname pval) -> (pname, pval)) l
 
+
 getViewVariantR :: VariantId -> Handler Html
 getViewVariantR variantId = do
-  variant <- runDB $ get404 variantId
-  let theSubmissionId = variantSubmission variant
-  theSubmission <- runDB $ get404 theSubmissionId
+    variant <- runDB $ get404 variantId
 
-  theVersion <- realSubmissionVersion $ Entity theSubmissionId theSubmission
+    let theSubmissionId = variantSubmission variant
+    theSubmission <- runDB $ get404 theSubmissionId
 
-  (_, tests') <- runDB $ getChallengeSubmissionInfosForVersion priorityLimitForViewVariant
-                                                              (\e -> entityKey e == theSubmissionId)
-                                                              (\e -> entityKey e == variantId)
-                                                              id
-                                                              (submissionChallenge theSubmission)
-                                                              theVersion
-  let (mainTest:_) = sortBy (flip testComparator) tests'
-  getViewVariantTestR variantId (entityKey mainTest)
+    theVersion <- realSubmissionVersion $ Entity theSubmissionId theSubmission
+
+    (_, tests') <- runDB $ getChallengeSubmissionInfosForVersion
+        priorityLimitForViewVariant
+        (\e -> entityKey e == theSubmissionId)
+        (\e -> entityKey e == variantId)
+        id
+        (submissionChallenge theSubmission)
+        theVersion
+
+    let (mainTest:_) = sortBy (flip testComparator) tests'
+
+    getViewVariantTestR variantId (entityKey mainTest)
+
 
 linkedWithAnchor :: (Text.Blaze.ToMarkup a1, Text.Blaze.ToMarkup a2)
                    => Text -> (t -> a2) -> (t -> Route site) -> (t -> a1) -> Table.Table site t
