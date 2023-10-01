@@ -84,112 +84,127 @@ import Data.HashMap.Strict.InsOrd (fromList)
 import System.Directory
 
 instance ToJSON Import.Tag where
-  toJSON t = object
-       [ "name" .= tagName t
-       , "description" .= tagDescription t
-       , "color" .= tagColor t
-       ]
+    toJSON t = object
+        [ "name" .= tagName t
+        , "description" .= tagDescription t
+        , "color" .= tagColor t
+        ]
+
 
 instance ToSchema Import.Tag where
-  declareNamedSchema _ = do
-    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
-    return $ NamedSchema (Just "Tag") $ mempty
-        & type_ .~ Just SwaggerObject
-        & properties .~
-           fromList [  ("name", stringSchema)
-                     , ("description", stringSchema)
-                     , ("color", stringSchema)
-                    ]
-        & required .~ [ "name", "color", "description" ]
+    declareNamedSchema _ = do
+        stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+        return $ NamedSchema (Just "Tag") $ mempty
+            & (type_ ?~ SwaggerObject)
+            & properties .~ fromList
+                [ ("name", stringSchema)
+                , ("description", stringSchema)
+                , ("color", stringSchema)
+                ]
+            & required .~ [ "name", "color", "description" ]
 
 
 instance ToJSON LeaderboardEntry where
     toJSON entry = object
-        [ "submitter" .= (formatSubmitter $ leaderboardUser entry)
-        , "team" .= (teamIdent <$> entityVal <$> leaderboardTeam entry)
-        , "when" .= (submissionStamp $ leaderboardBestSubmission entry)
-        , "version" .= (fst $ leaderboardVersion entry)
-        , "phase" .= (snd $ leaderboardVersion entry)
-        , "description" .= descriptionToBeShown (leaderboardBestSubmission entry)
-                                                (leaderboardBestVariant entry)
-                                                (leaderboardParams entry)
+        [ "submitter" .= formatSubmitter (leaderboardUser entry)
+        , "team" .= (teamIdent . entityVal <$> leaderboardTeam entry)
+        , "when" .= submissionStamp (leaderboardBestSubmission entry)
+        , "version" .= fst (leaderboardVersion entry)
+        , "phase" .= snd (leaderboardVersion entry)
+        , "description" .= descriptionToBeShown
+            (leaderboardBestSubmission entry)
+            (leaderboardBestVariant entry)
+            (leaderboardParams entry)
         , "times" .= leaderboardNumberOfSubmissions entry
-        , "hash" .= (fromSHA1ToText $ submissionCommit $ leaderboardBestSubmission entry)
-        , "isPublic" .= (submissionIsPublic $ leaderboardBestSubmission entry)
-        , "isOwner" .= (leaderboardIsOwner entry)
-        , "isReevaluable" .= (leaderboardIsReevaluable entry)
-        , "isVisible" .= (leaderboardIsVisible entry)
-        , "id" .= (leaderboardBestSubmissionId entry)
-        , "variant" .= (leaderboardBestVariantId entry)
+        , "hash" .= fromSHA1ToText (submissionCommit $ leaderboardBestSubmission entry)
+        , "isPublic" .= submissionIsPublic (leaderboardBestSubmission entry)
+        , "isOwner" .= leaderboardIsOwner entry
+        , "isReevaluable" .= leaderboardIsReevaluable entry
+        , "isVisible" .= leaderboardIsVisible entry
+        , "id" .= leaderboardBestSubmissionId entry
+        , "variant" .= leaderboardBestVariantId entry
         ]
+
 
 declareLeaderboardSwagger :: Declare (Definitions Schema) Swagger
 declareLeaderboardSwagger = do
-  -- param schemas
   let challengeNameSchema = toParamSchema (Proxy :: Proxy String)
 
-  leaderboardResponse      <- declareResponse (Proxy :: Proxy LeaderboardView)
+  leaderboardResponse <- declareResponse (Proxy :: Proxy LeaderboardView)
 
   return $ mempty
-    & paths .~
-        fromList [ ("/api/leaderboard/{challengeName}",
-                    mempty & DS.get ?~ (mempty
-                                        & parameters .~ [ Inline $ mempty
-                                                          & name .~ "challengeName"
-                                                          & required ?~ True
-                                                          & schema .~ ParamOther (mempty
-                                                                                  & in_ .~ ParamPath
-                                                                                  & paramSchema .~ challengeNameSchema) ]
-                                        & produces ?~ MimeList ["application/json"]
-                                        & description ?~ "Returns a leaderboard for a given challenge"
-                                        & at 200 ?~ Inline leaderboardResponse))
-                 ]
+    & paths .~ fromList
+        [
+            ("/api/leaderboard/{challengeName}", mempty
+            & DS.get ?~ (mempty
+                & parameters .~
+                    [ Inline $ mempty
+                    & name .~ "challengeName"
+                    & required ?~ True
+                    & schema .~ ParamOther (mempty
+                        & in_ .~ ParamPath
+                        & paramSchema .~ challengeNameSchema)
+                    ]
+                & produces ?~ MimeList ["application/json"]
+                & description ?~ "Returns a leaderboard for a given challenge"
+                & at 200 ?~ Inline leaderboardResponse
+                )
+            )
+        ]
 
 
 leaderboardApi :: Swagger
 leaderboardApi = spec & definitions .~ defs
-  where
-    (defs, spec) = runDeclare declareLeaderboardSwagger mempty
+    where
+        (defs, spec) = runDeclare declareLeaderboardSwagger mempty
 
-data LeaderboardView = LeaderboardView {
-  leaderboardViewTests :: [Entity Test],
-  leaderboardViewEntries :: [LeaderboardEntryView]
-}
+
+data LeaderboardView = LeaderboardView
+    { leaderboardViewTests :: [Entity Test]
+    , leaderboardViewEntries :: [LeaderboardEntryView]
+    }
 
 instance ToJSON LeaderboardView where
     toJSON v = object
-        [ "tests" .= (map getTestReference $ leaderboardViewTests v)
+        [ "tests" .= map getTestReference (leaderboardViewTests v)
         , "entries" .= leaderboardViewEntries v
         ]
 
 instance ToSchema LeaderboardView where
-  declareNamedSchema _ = do
-    testsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TestReference])
-    entriesSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [LeaderboardEntryView])
-    return $ NamedSchema (Just "Leaderboard") $ mempty
-        & type_ .~ Just SwaggerObject
-        & properties .~
-           fromList [  ("tests", testsSchema)
-                     , ("entries", entriesSchema)
-                    ]
-        & required .~ [ "tests", "entries" ]
+    declareNamedSchema _ = do
+        testsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [TestReference])
+        entriesSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [LeaderboardEntryView])
+
+        return $ NamedSchema (Just "Leaderboard") $ mempty
+            & (type_ ?~ SwaggerObject)
+            & properties .~ fromList
+                [ ("tests", testsSchema)
+                , ("entries", entriesSchema)
+                ]
+            & required .~ ["tests", "entries"]
+
 
 getLeaderboardJsonR :: Text -> Handler Value
 getLeaderboardJsonR = makeSureChallengeAccessible getLeaderboardJsonR'
 
+
 getLeaderboardJsonR' :: Maybe (Entity User) -> Entity Challenge -> Handler Value
 getLeaderboardJsonR' _ (Entity challengeId challenge) = do
-  disclosedInfo <- fetchDisclosedInfo challenge
-  leaderboardStyle <- determineLeaderboardStyle challenge
-  (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
-  return $ toJSON $ LeaderboardView {
-    leaderboardViewTests = tests,
-    leaderboardViewEntries = map (toLeaderboardEntryView disclosedInfo tests) leaderboard }
+    disclosedInfo <- fetchDisclosedInfo challenge
+    leaderboardStyle <- determineLeaderboardStyle challenge
+    (leaderboard, (_, tests)) <- getLeaderboardEntries 1 leaderboardStyle challengeId
 
-data LeaderboardEntryView = LeaderboardEntryView {
-  leaderboardEntryViewEntry :: LeaderboardEntry,
-  leaderboardEntryViewEvaluations :: [EvaluationView]
-}
+    return $ toJSON $ LeaderboardView
+        { leaderboardViewTests = tests
+        , leaderboardViewEntries = map (toLeaderboardEntryView disclosedInfo tests) leaderboard
+        }
+
+
+data LeaderboardEntryView = LeaderboardEntryView
+    { leaderboardEntryViewEntry :: LeaderboardEntry
+    , leaderboardEntryViewEvaluations :: [EvaluationView]
+    }
+
 
 addJsonKey :: Text -> Value -> Value -> Value
 addJsonKey key val (Object xs) = Object $ Data.Aeson.KeyMap.insert (fromText key) val xs
@@ -200,81 +215,88 @@ addJsonKey _ _ xs = xs
 
 isVisibleSchema :: Referenced Schema
 isVisibleSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy Bool)
-  & description .~ Just "Whether the details of the submissions are visible (i.e. either the submission is public or the user has the right permissions)"
+  & (description ?~ "Whether the details of the submissions are visible (i.e. either the submission is public or the user has the right permissions)")
+
 
 isPublicSchema :: Referenced Schema
 isPublicSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy Bool)
-  & description .~ Just "Whether the submissions is public (i.e. whether its details are available to everyone)"
+  & (description ?~ "Whether the submissions is public (i.e. whether its details are available to everyone)")
+
 
 hashSchema :: Referenced Schema
 hashSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy String)
-  & description .~ Just "Git SHA1 commit hash; could be used as an argument for queries (if the submission is visible)"
-  & example .~ Just "ec41f0e2636bfedbd765c9871c813f7c5b896c51"
+  & (description ?~ "Git SHA1 commit hash; could be used as an argument for queries (if the submission is visible)")
+  & (example ?~ "ec41f0e2636bfedbd765c9871c813f7c5b896c51")
+
 
 versionSchema :: Referenced Schema
 versionSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy [Int])
-  & description .~ Just "Challenge version under which the submission was done"
-  & example .~ Just (toJSON [2 :: Int, 0, 1])
+  & (description ?~ "Challenge version under which the submission was done")
+  & (example ?~ toJSON [2 :: Int, 0, 1])
+
 
 submitterSchema :: Referenced Schema
 submitterSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy String)
-  & description .~ Just ("Name of the submitter, might be a special value in square brackets, e.g. " <> anonymizedLabel <> " or " <> nameNotGivenLabel)
-  & example .~ Just "John Smith"
+  & (description ?~ ("Name of the submitter, might be a special value in square brackets, e.g. " <> anonymizedLabel <> " or " <> nameNotGivenLabel))
+  & (example ?~ "John Smith")
+
 
 submissionIdSchema :: Referenced Schema
 submissionIdSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy Int)
-  & description .~ Just "Internal database identifier of the submission"
-  & example .~ Just(toJSON (42 :: Int))
+  & (description ?~ "Internal database identifier of the submission")
+  & (example ?~ toJSON (42 :: Int))
+
 
 variantIdSchema :: Referenced Schema
 variantIdSchema = Inline $ toSchema (DPR.Proxy :: DPR.Proxy Int)
-  & description .~ Just "Internal database identifier of the submission variant"
-  & example .~ Just (toJSON (53 :: Int))
-
+  & (description ?~ "Internal database identifier of the submission variant")
+  & (example ?~ toJSON (53 :: Int))
 
 
 instance ToJSON LeaderboardEntryView where
     toJSON v = addJsonKey "evaluations"
-                           (toJSON $ leaderboardEntryViewEvaluations v)
-                           (toJSON $ leaderboardEntryViewEntry v)
+        (toJSON $ leaderboardEntryViewEvaluations v)
+        (toJSON $ leaderboardEntryViewEntry v)
 
 instance ToSchema LeaderboardEntryView where
-  declareNamedSchema _ = do
-    stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
-    boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
-    evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
-    tagSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Import.Tag)
+    declareNamedSchema _ = do
+        stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
+        boolSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Bool)
+        evaluationsSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy [EvaluationView])
+        tagSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy Import.Tag)
 
-    return $ NamedSchema (Just "LeaderboardEntry") $ mempty
-        & type_ .~ Just SwaggerObject
-        & properties .~
-           fromList [  ("submitter", submitterSchema)
-                     , ("team", stringSchema)
-                     , ("when", stringSchema)
-                     , ("version", versionSchema)
-                     , ("phase", tagSchema)
-                     , ("description", stringSchema)
-                     , ("times", Inline $ toSchema (DPR.Proxy :: DPR.Proxy Int)
-                                           & description .~ Just "How many times a submission from the same user/of the same tag was submitted"
-                                           & minProperties .~ Just 1
-                                           & example .~ Just (toJSON (2:: Int)))
-                     , ("hash", hashSchema)
-                     , ("evaluations", evaluationsSchema)
-                     , ("isOwner", boolSchema)
-                     , ("isPublic", isPublicSchema)
-                     , ("isReevaluable", boolSchema)
-                     , ("isVisible", isVisibleSchema)
-                     , ("id", submissionIdSchema)
-                     , ("variantId", variantIdSchema)
-                    ]
-        & required .~ [ "submitter", "when", "version", "description", "times", "hash", "evaluations" ]
+        return $ NamedSchema (Just "LeaderboardEntry") $ mempty
+            & (type_ ?~ SwaggerObject)
+            & properties .~ fromList
+                [ ("submitter", submitterSchema)
+                , ("team", stringSchema)
+                , ("when", stringSchema)
+                , ("version", versionSchema)
+                , ("phase", tagSchema)
+                , ("description", stringSchema)
+                , ("times", Inline $ toSchema (DPR.Proxy :: DPR.Proxy Int)
+                    & (description ?~ "How many times a submission from the same user/of the same tag was submitted")
+                    & (minProperties ?~ 1)
+                    & (example ?~ toJSON (2:: Int)))
+                , ("hash", hashSchema)
+                , ("evaluations", evaluationsSchema)
+                , ("isOwner", boolSchema)
+                , ("isPublic", isPublicSchema)
+                , ("isReevaluable", boolSchema)
+                , ("isVisible", isVisibleSchema)
+                , ("id", submissionIdSchema)
+                , ("variantId", variantIdSchema)
+                ]
+            & required .~ [ "submitter", "when", "version", "description", "times", "hash", "evaluations" ]
 
-toLeaderboardEntryView :: DisclosedInfo -> [(Entity Test)] -> LeaderboardEntry -> LeaderboardEntryView
-toLeaderboardEntryView disclosedInfo tests entry = LeaderboardEntryView {
-  leaderboardEntryViewEntry = entry,
-  leaderboardEntryViewEvaluations = catMaybes $
-                                    applyDisclosedInfoOnLast disclosedInfo (convertEvaluationToView (leaderboardEvaluationMap entry)) tests
-  }
+
+toLeaderboardEntryView :: DisclosedInfo -> [Entity Test] -> LeaderboardEntry -> LeaderboardEntryView
+toLeaderboardEntryView disclosedInfo tests entry = LeaderboardEntryView
+    { leaderboardEntryViewEntry = entry
+    , leaderboardEntryViewEvaluations = catMaybes $
+        applyDisclosedInfoOnLast disclosedInfo (convertEvaluationToView $ leaderboardEvaluationMap entry) tests
+    }
+
 
 determineLeaderboardStyle :: Challenge -> Handler LeaderboardStyle
 determineLeaderboardStyle challenge = do
