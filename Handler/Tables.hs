@@ -347,7 +347,9 @@ compareVersions ((aM, aN, aP), _) ((bM, bN, bP), _) = (aM `compare` bM)
                                             <> (aP `compare` bP)
 
 
-getLeaderboardEntriesByCriterion :: (Ord a) => Int
+getLeaderboardEntriesByCriterion ::
+    (Ord a)
+    => Int
     -> Key Challenge
     -> (Entity Submission -> Bool)
     -> ([(Int, (Entity Submission, Entity Variant))] -> [(Int, (Entity Submission, Entity Variant))])
@@ -455,7 +457,7 @@ toLeaderboardEntry challengeId tests ss = do
         , leaderboardTeam = mTeam
         }
     where
-        submissionComparator (TableEntry _  _  _ em1 _ _ _ v1 _) (TableEntry _  _ _ em2 _ _ _ v2 _) =
+        submissionComparator (TableEntry _  _  _ em1 _ _ _ v1 _) (TableEntry _ _ _ em2 _ _ _ v2 _) =
             case getMainTest tests of
                 Just mainTestEnt@(Entity _ mainTest) ->
                     let mainTestRef = getTestReference mainTestEnt
@@ -559,9 +561,10 @@ getChallengeSubmissionInfosForVersion maxMetricPriority condition variantConditi
 
     allSubmissionsVariants <- E.select $ E.from $ \(submission, variant) -> do
         E.where_ (
-            submission ^. SubmissionChallenge E.==. E.val challengeId
-            E.&&. submission ^. SubmissionIsHidden E.==. E.val False
-            E.&&. variant ^. VariantSubmission E.==. submission ^. SubmissionId
+            submission ^. SubmissionChallenge E.==. E.val challengeId E.&&.
+            submission ^. SubmissionIsHidden E.==. E.val False E.&&.
+            submission ^. SubmissionDeleted E.==. E.val False E.&&.
+            variant ^. VariantSubmission E.==. submission ^. SubmissionId
             )
         return (submission, variant)
 
