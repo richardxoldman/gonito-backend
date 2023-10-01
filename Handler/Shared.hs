@@ -582,41 +582,43 @@ isUserLocalRepo user url =
                     || ("git@django:/git_data" `isInfixOf` url))
     Nothing -> ("git@django:/git_data" `isInfixOf` url)
 
+
 getGitEnv :: Maybe UserId -> Text -> Handler (Maybe [(String, String)])
 getGitEnv mUserId url = do
-  maybeUser <- case mUserId of
-    Just userId -> do
-      user <- runDB $ get404 userId
-      return $ Just $ Entity userId user
-    Nothing -> maybeAuth
-  if ((userIsAdmin <$> entityVal <$> maybeUser) == Just True)
-   then
-     return $ Just []
-   else
-     do
-       case maybeUser of
-          Just (Entity _ user) -> do
-            if isUserLocalRepo user url
-              then
-                return $ Just []
-              else
-                do
-                 if ("https://" `isPrefixOf` url)
-                 then
-                  do
-                   return $ Just []
-                 else
-                  do
-                   mInvidualPrivateKey <- fetchIndividualKeyPath user
-                   case mInvidualPrivateKey of
-                     Just individualPrivateKey -> do
-                       return $ Just [("GIT_SSH_COMMAND",
-                                       "/usr/bin/ssh -o StrictHostKeyChecking=no  -i " ++ individualPrivateKey)]
-                     -- TODO Check how to make it more safe, i.e. not to allow
-                     -- every user to get repository from every other user
-                     -- Nothing -> return $ Nothing
-                     Nothing -> return $ Just []
-          Nothing -> return $ Nothing
+    maybeUser <- case mUserId of
+        Just userId -> do
+            user <- runDB $ get404 userId
+            return $ Just $ Entity userId user
+        Nothing -> maybeAuth
+    if (userIsAdmin . entityVal <$> maybeUser) == Just True
+        then return $ Just []
+        else do
+            case maybeUser of
+                Just (Entity _ user) -> do
+                    if isUserLocalRepo user url
+                        then
+                            return $ Just []
+                        else do
+                            if "https://" `isPrefixOf` url
+                                then do
+                                    return $ Just []
+                                else do
+                                    mInvidualPrivateKey <- fetchIndividualKeyPath user
+
+                                    case mInvidualPrivateKey of
+                                        Just individualPrivateKey -> do
+                                            return $ Just
+                                                [
+                                                    ( "GIT_SSH_COMMAND"
+                                                    , "/usr/bin/ssh -o StrictHostKeyChecking=no  -i " ++ individualPrivateKey
+                                                    )
+                                                ]
+                                        -- TODO Check how to make it more safe, i.e. not to allow
+                                        -- every user to get repository from every other user
+                                        -- Nothing -> return $ Nothing
+                                        Nothing -> return $ Just []
+                -- Nothing -> return Nothing (the asme as above)
+                Nothing -> return $ Just []
 
 
 rawClone :: Maybe UserId -> FilePath -> RepoCloningSpec -> Channel -> Handler ExitCode
