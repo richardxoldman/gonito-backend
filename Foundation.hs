@@ -127,7 +127,7 @@ instance Yesod App where
     -- default session idle timeout is 120 minutes
     makeSessionBackend app = Just <$> defaultClientSessionBackend
         120    -- timeout in minutes
-        ((appVarDir $ appSettings app) </> "config/client_session_key.aes")
+        (appVarDir (appSettings app) </> "config/client_session_key.aes")
 
     -- Yesod Middleware allows you to run code before and after each handler function.
     -- The defaultYesodMiddleware adds the response header "Vary: Accept, Accept-Language" and performs authorization checks.
@@ -145,7 +145,8 @@ instance Yesod App where
     authRoute _ = Just $ AuthR LoginR
 
     -- Routes not requiring authentication.
-    isAuthorized (EditSubmission1R _ _ _) _ = return Authorized
+    isAuthorized (EditSubmission1R {}) _ = return Authorized
+    isAuthorized (SubmissionPreviewR {}) _ = return Authorized
     isAuthorized (AuthR _) _ = return Authorized
     isAuthorized FaviconR _ = return Authorized
     isAuthorized RobotsR _ = return Authorized
@@ -199,7 +200,7 @@ instance Yesod App where
 
     isAuthorized ListAnnotationsR _ = isAdmin
     isAuthorized (AnnotationTaskR _) _ = regularAuthorization
-    isAuthorized (AnnotationTaskDecisionR _ _ _) _ = regularAuthorization
+    isAuthorized (AnnotationTaskDecisionR {}) _ = regularAuthorization
     isAuthorized (AnnotationTaskResultsR _) _ = isAdmin
 
     isAuthorized Presentation4RealR _ = regularAuthorization
@@ -210,7 +211,7 @@ instance Yesod App where
     isAuthorized (AvatarR _) _ = regularAuthorization
 
     isAuthorized TriggerRemotelyR _ = return Authorized
-    isAuthorized (TriggerRemotelySimpleR _ _ _ _) _ = return Authorized
+    isAuthorized (TriggerRemotelySimpleR {}) _ = return Authorized
     isAuthorized TriggerLocallyR _ = return Authorized
     isAuthorized (TriggerByWebhookR _ _) _ = return Authorized
     isAuthorized (OpenViewProgressR _) _ = return Authorized
@@ -234,7 +235,7 @@ instance Yesod App where
 
     isAuthorized (ApiTxtScoreR _) _ = return Authorized
 
-    isAuthorized (ChallengeParamGraphDataR _ _ _) _ = regularAuthorization
+    isAuthorized (ChallengeParamGraphDataR {}) _ = regularAuthorization
     isAuthorized (IndicatorGraphDataR _) _ = regularAuthorization
 
     isAuthorized (CompareFormR _ _) _ = regularAuthorization
@@ -282,14 +283,18 @@ instance Yesod App where
 
     makeLogger = return . appLogger
 
+
+regularAuthorization :: (MonadHandler m, HandlerSite m ~ App) => m AuthResult
 regularAuthorization = do
-  app <- getYesod
-  mauth <- maybeAuth
-  return $ defaultStatus mauth $ appIsPublic (appSettings app)
-  where defaultStatus _ True = Authorized
+    app <- getYesod
+    mauth <- maybeAuth
+    return $ defaultStatus mauth $ appIsPublic (appSettings app)
+    where
+        defaultStatus _ True = Authorized
         defaultStatus mauth False = case mauth of
-          Just _ -> Authorized
-          Nothing -> AuthenticationRequired
+            Just _  -> Authorized
+            Nothing -> AuthenticationRequired
+
 
 -- How to run database actions.
 instance YesodPersist App where
@@ -315,7 +320,7 @@ instance YesodAuth App where
     authenticate creds = liftHandler $ runDB $ do
         x <- getBy $ UniqueUser $ credsIdent creds
         Authenticated <$> case x of
-            Just (Entity uid _) -> return $ uid
+            Just (Entity uid _) -> return uid
             Nothing ->
                 insert User
                     { userIdent = credsIdent creds

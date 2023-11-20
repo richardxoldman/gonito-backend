@@ -45,6 +45,7 @@ instance ToSchema FullSubmissionInfo where
                 ]
             & required .~ [ "hash", "submitter", "challenge" ]
 
+
 getFullInfo :: Entity Submission -> Handler FullSubmissionInfo
 getFullInfo (Entity submissionId submission) = do
     repo <- runDB $ get404 $ submissionRepo submission
@@ -78,6 +79,7 @@ getFullInfo (Entity submissionId submission) = do
         , fsiExternalLinks = links
         , fsiSuperSubmissions = superSubmissionFsis
         }
+
 
 getTags :: (BaseBackend backend ~ SqlBackend, MonadIO m, PersistQueryRead backend) => Key Submission -> ReaderT backend m [(Entity Import.Tag, Entity SubmissionTag)]
 getTags submissionId = do
