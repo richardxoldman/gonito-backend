@@ -47,40 +47,43 @@ data TestReference = TestReference Text Text
 instance ToJSON TestReference where
     toJSON (TestReference metric n) = object
         [ "name" .= n,
-          "metric" .= (Data.Text.pack $ evaluationSchemeName $ read $ Data.Text.unpack metric)
+          "metric" .= Data.Text.pack (evaluationSchemeName $ read $ Data.Text.unpack metric)
         ]
 
 instance ToSchema TestReference where
   declareNamedSchema _ = do
     stringSchema <- declareSchemaRef (DPR.Proxy :: DPR.Proxy String)
     return $ NamedSchema (Just "TestReference") $ mempty
-        & type_ .~ Just SwaggerObject
+        & (type_ ?~ SwaggerObject)
         & properties .~
            Data.HashMap.Strict.InsOrd.fromList [  ("name", stringSchema)
                                                , ("metric", stringSchema)
                                                ]
         & required .~ [ "name", "metric" ]
 
+
 getTestReference :: Entity Test -> TestReference
 getTestReference (Entity _ test) = TestReference (Data.Text.pack $ show $ testMetric test) (testName test)
 
+
 data LeaderboardEntry = LeaderboardEntry {
-  leaderboardUser :: User,
-  leaderboardUserId :: UserId,
-  leaderboardBestSubmission :: Submission,
-  leaderboardBestSubmissionId :: SubmissionId,
-  leaderboardBestVariant :: Variant,
-  leaderboardBestVariantId :: VariantId,
-  leaderboardEvaluationMap :: Map TestReference Evaluation,
-  leaderboardNumberOfSubmissions :: Int,
-  leaderboardTags :: [(Entity Import.Tag, Entity SubmissionTag)],
-  leaderboardParams :: [Parameter],
-  leaderboardVersion :: ((Int, Int, Int), (Maybe Import.Tag)),
-  leaderboardIsOwner :: Bool,
-  leaderboardIsVisible :: Bool,
-  leaderboardIsReevaluable :: Bool,
-  leaderboardTeam :: Maybe (Entity Team)
+    leaderboardUser :: User,
+    leaderboardUserId :: UserId,
+    leaderboardBestSubmission :: Submission,
+    leaderboardBestSubmissionId :: SubmissionId,
+    leaderboardBestVariant :: Variant,
+    leaderboardBestVariantId :: VariantId,
+    leaderboardEvaluationMap :: Map TestReference Evaluation,
+    leaderboardNumberOfSubmissions :: Int,
+    leaderboardTags :: [(Entity Import.Tag, Entity SubmissionTag)],
+    leaderboardParams :: [Parameter],
+    leaderboardVersion :: ((Int, Int, Int), Maybe Import.Tag),
+    leaderboardIsOwner :: Bool,
+    leaderboardIsVisible :: Bool,
+    leaderboardIsReevaluable :: Bool,
+    leaderboardTeam :: Maybe (Entity Team)
 }
+
 
 -- | Finds parameters shared by all entries (including values) and removes
 -- them from the entries
@@ -166,7 +169,7 @@ formatListWithLimit limit fun l = (Data.Text.unwords $ map fun $ Import.take lim
 
 
 descriptionToBeShown :: Submission -> Variant -> [Parameter] -> Text
-descriptionToBeShown s v params = (submissionDescription s) ++ (Data.Text.pack vdescription) ++ " " ++ paramsShown
+descriptionToBeShown s v params = submissionDescription s ++ Data.Text.pack vdescription ++ " " ++ paramsShown
   where (OutputFileParsed r _) = parseParamsFromFilePath (Data.Text.unpack $ variantName v)
         vdescription = if r == "out"
                          then
@@ -185,35 +188,56 @@ formatSubmittingEntityInLeaderboard entry =
     Just teamEnt -> teamIdent $ entityVal teamEnt
     Nothing -> formatSubmitter $ leaderboardUser entry
 
-versionCell :: (a -> ((Int, Int, Int), (Maybe Import.Tag))) -> Table site a
+versionCell :: (a -> ((Int, Int, Int), Maybe Import.Tag)) -> Table site a
 versionCell fun = Table.widget "ver." (
   \e -> fragmentWithTag (formatVersion $ fst $ fun e) (snd $ fun e))
 
-leaderboardTable :: DisclosedInfo -> Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Int, LeaderboardEntry)
+
+leaderboardTable
+    :: DisclosedInfo
+    -> Maybe UserId
+    -> Text
+    -> RepoScheme
+    -> Repo
+    -> [Entity Test]
+    -> Table App (Int, LeaderboardEntry)
 leaderboardTable disclosedInfo mauthId challengeName repoScheme challengeRepo tests = mempty
-  ++ Table.int "#" fst
-  ++ Table.text "submitter" (formatSubmittingEntityInLeaderboard . snd)
-  ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
-  ++ versionCell (leaderboardVersion . snd)
-  ++ leaderboardDescriptionCell mauthId
-  ++ mconcat (applyDisclosedInfoOnLast disclosedInfo (\d e@(Entity _ t) -> resultCell (extractScoreFromLeaderboardEntry (getTestReference e) . snd) d t) tests)
-  ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
-  ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
-                                                                   leaderboardBestSubmission e,
-                                                                   leaderboardBestVariantId e,
-                                                                   leaderboardBestVariant e,
-                                                                   mauthId))
+    ++ Table.int "#" fst
+    ++ Table.text "submitter" (formatSubmittingEntityInLeaderboard . snd)
+    ++ timestampCell "when" (submissionStamp . leaderboardBestSubmission . snd)
+    ++ versionCell (leaderboardVersion . snd)
+    ++ leaderboardDescriptionCell mauthId
+    ++ mconcat (applyDisclosedInfoOnLast disclosedInfo
+        (\d e@(Entity _ t) ->
+            resultCell (extractScoreFromLeaderboardEntry (getTestReference e) . snd) d t) tests)
+    ++ Table.int "×" (leaderboardNumberOfSubmissions . snd)
+    ++ statusCell challengeName repoScheme challengeRepo
+        (\(_, e) ->
+            ( leaderboardBestSubmissionId e
+            , leaderboardBestSubmission e
+            , leaderboardBestVariantId e
+            , leaderboardBestVariant e
+            , mauthId
+            )
+        )
+
 
 altLeaderboardTable :: DisclosedInfo -> Maybe UserId -> Text -> RepoScheme -> Repo -> [Entity Test] -> Table App (Int, LeaderboardEntry)
 altLeaderboardTable disclosedInfo mauthId challengeName repoScheme challengeRepo tests = mempty
-  ++ Table.int "#" fst
-  ++ leaderboardOnlyTagsCell mauthId
-  ++ mconcat (applyDisclosedInfoOnLast disclosedInfo (\d e@(Entity _ t) -> resultCell (extractScoreFromLeaderboardEntry (getTestReference e) . snd) d t) tests)
-  ++ statusCell challengeName repoScheme challengeRepo (\(_, e) -> (leaderboardBestSubmissionId e,
-                                                                   leaderboardBestSubmission e,
-                                                                   leaderboardBestVariantId e,
-                                                                   leaderboardBestVariant e,
-                                                                   mauthId))
+    ++ Table.int "#" fst
+    ++ leaderboardOnlyTagsCell mauthId
+    ++ mconcat (applyDisclosedInfoOnLast disclosedInfo
+        (\d e@(Entity _ t) ->
+            resultCell (extractScoreFromLeaderboardEntry (getTestReference e) . snd) d t) tests)
+    ++ statusCell challengeName repoScheme challengeRepo
+        (\(_, e) ->
+            ( leaderboardBestSubmissionId e
+            , leaderboardBestSubmission e
+            , leaderboardBestVariantId e
+            , leaderboardBestVariant e
+            , mauthId
+            )
+        )
 
 
 extractScoreFromLeaderboardEntry :: TestReference -> LeaderboardEntry -> Maybe Evaluation
@@ -256,7 +280,7 @@ resultCell fun disclosedInfo test = hoverTextCell (formatTestForHtml test) (form
 textLimited :: Int -> Text -> Text
 textLimited limit t
   | l < limit = t
-  | otherwise = (Data.Text.take limit t) <> "…"
+  | otherwise = Data.Text.take limit t <> "…"
   where l = length t
 
 textCellSoftLimit :: Int
@@ -270,8 +294,8 @@ limitedWidget softLimit hardLimit v =
   [whamlet|<span title="#{textLimited hardLimit v}"><tt>#{textLimited softLimit v}</tt>|]
 
 limitedTextCell :: Text -> Int -> Int -> (a -> Text) -> Table site a
-limitedTextCell h softLimit hardLimit textFun = Table.widget h (
-  \v -> limitedWidget softLimit hardLimit (textFun v))
+limitedTextCell h softLimit hardLimit textFun = Table.widget h
+    (limitedWidget softLimit hardLimit . textFun)
 
 theLimitedTextCell :: Text -> (a -> Text) -> Table site a
 theLimitedTextCell h textFun = limitedTextCell h textCellSoftLimit textCellHardLimit textFun
@@ -526,7 +550,9 @@ getChallengeSubmissionInfos ::
     -> ReaderT backend m ([TableEntry], [Entity Test])
 getChallengeSubmissionInfos maxMetricPriority condition variantCondition preselector challengeId = do
     challenge <- get404 challengeId
+
     let versionCommit = challengeVersion challenge
+
     getChallengeSubmissionInfosForVersion
         maxMetricPriority
         condition
@@ -634,30 +660,42 @@ data BasicSubmissionInfo = BasicSubmissionInfo {
   basicSubmissionInfoVersion :: (Version, Maybe Import.Tag),
   basicSubmissionInfoTeam :: Maybe (Entity Team) }
 
-getBasicSubmissionInfo :: (MonadIO m, PersistQueryRead backend,
-                          PersistUniqueRead backend,
-                          BaseBackend backend ~ SqlBackend)
-                         => Entity Submission -> ReaderT backend m (SubmissionId, BasicSubmissionInfo)
+
+getBasicSubmissionInfo
+    :: ( MonadIO m, PersistQueryRead backend
+       , PersistUniqueRead backend
+       , BaseBackend backend ~ SqlBackend
+       )
+    => Entity Submission
+    -> ReaderT backend m (SubmissionId, BasicSubmissionInfo)
 getBasicSubmissionInfo (Entity submissionId submission) = do
-  user <- get404 $ submissionSubmitter submission
-  mTeam <- case submissionTeam submission of
+    user <- get404 $ submissionSubmitter submission
+
+    mTeam <- case submissionTeam submission of
             Just teamId -> do
-              team <- get404 teamId
-              return $ Just (Entity teamId team)
+                team <- get404 teamId
+                return $ Just (Entity teamId team)
             Nothing -> return Nothing
-  tagEnts <- getTags submissionId
-  let versionHash = submissionVersion submission
-  (Entity _ ver) <- getBy404 $ UniqueVersionByCommit versionHash
 
-  mPhaseTag <- case versionPhase ver of
-                   Just phaseId -> get phaseId
-                   Nothing -> return Nothing
+    tagEnts <- getTags submissionId
 
-  return $ (submissionId, BasicSubmissionInfo {
-               basicSubmissionInfoUser = user,
-               basicSubmissionInfoTagEnts = tagEnts,
-               basicSubmissionInfoVersion = (ver, mPhaseTag),
-               basicSubmissionInfoTeam = mTeam })
+    let versionHash = submissionVersion submission
+    (Entity _ ver) <- getBy404 $ UniqueVersionByCommit versionHash
+
+    mPhaseTag <- case versionPhase ver of
+            Just phaseId -> get phaseId
+            Nothing -> return Nothing
+
+    return
+        ( submissionId
+        , BasicSubmissionInfo
+            { basicSubmissionInfoUser = user
+            , basicSubmissionInfoTagEnts = tagEnts
+            , basicSubmissionInfoVersion = (ver, mPhaseTag)
+            , basicSubmissionInfoTeam = mTeam
+            }
+        )
+
 
 getEvaluationMap :: (PersistUniqueRead backend,
                     PersistQueryRead backend,

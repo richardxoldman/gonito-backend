@@ -503,7 +503,7 @@ doViewVariantTestR variantId testId = do
 
     let testIds = map fst $ runDiff () $ fmap (map entityKey) tests'
     testEnts <- mapM (runDB . get404) testIds
-    let tests = zipWith (curry (\(i,e) -> Entity i e)) testIds testEnts
+    let tests = zipWith Entity testIds testEnts
         outputs :: [(Diff SHA1, Text)] =
             sortBy (\a b -> snd b `compare` snd a)
             $ map swap $ LM.toList $ runDiff (nullSHA1, ()) $ fmap (LM.fromList . map swap) outputs'
