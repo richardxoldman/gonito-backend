@@ -488,6 +488,7 @@ nullSHA1 :: SHA1
 nullSHA1 = fromTextToSHA1 "da39a3ee5e6b4b0d3255bfef95601890afd80709"
 
 
+-- variantId may be OntThing or TwoThings
 doViewVariantTestR :: Diff VariantId -> TestId -> Handler Html
 doViewVariantTestR variantId testId = do
     mUserId <- maybeAuthId
