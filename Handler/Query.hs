@@ -636,11 +636,12 @@ checkForExpected repoDir testName = do
   return expFileExists
 
 
-viewOutputWithNonDefaultTestSelected :: Diff TableEntry
-                                     -> [Entity Test]
-                                     -> Entity Test
-                                     -> (Diff SHA1, Text)
-                                     -> WidgetFor App ()
+viewOutputWithNonDefaultTestSelected
+    :: Diff TableEntry
+    -> [Entity Test]
+    -> Entity Test
+    -> (Diff SHA1, Text)
+    -> WidgetFor App ()
 viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) = do
     let tests' = filter (\e -> testName (entityVal e) == testSet) tests
 

@@ -11,7 +11,7 @@
 /api/delete-submission/#SubmissionId DeleteSubmissionR POST
 /api/edit-submission/#SubmissionId/#Text/#Text EditSubmission1R POST
 /api/wirus WirusR POST
-/api/submission-preview/#SubmissionId SubmissionPreviewR GET
+/api/submission-preview/#VariantId/#SubmissionId SubmissionPreviewR GET
 
 /create-challenge CreateChallengeR GET POST
 /view-progress/#Int ViewProgressR GET
