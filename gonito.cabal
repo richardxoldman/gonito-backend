@@ -61,6 +61,7 @@ library
                      Handler.SubmissionAbility
                      Handler.DeleteSubmission
                      Handler.Wirus
+                     Handler.Poleval
                      Handler.Wirus_admin
                      Handler.ViewPublicKey
                      Data.SubmissionConditions
@@ -177,6 +178,7 @@ library
                  , parser-combinators
                  , http-client-tls
                  , pureMD5
+                 , http-client
 
 executable         gonito
     if flag(library-only)

@@ -75,6 +75,7 @@ import Handler.SubmissionAbility
 import Handler.DeleteSubmission
 import Handler.EditSubmissionV1
 import Handler.Wirus
+import Handler.Poleval
 import Handler.ViewPublicKey
 import Handler.Wirus_admin
 
