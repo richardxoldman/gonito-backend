@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 
 module Handler.Evaluate where
@@ -30,6 +32,10 @@ import Data.Conduit.Bootstrap (defaultConfidenceLevel, getConfidenceBounds)
 import System.FilePath (takeFileName, dropExtensions, (-<.>))
 
 import PersistSHA1
+
+import qualified Data.Aeson as DA
+import Data.ByteString.UTF8 (toString)
+import qualified Network.HTTP.Client as NHC
 
 canBeReevaluated :: (YesodAuthPersist (HandlerSite m),
                     MonadHandler m,
@@ -201,82 +207,162 @@ checkOrInsertOut out = do
     Just _ -> return ()
     Nothing -> (runDB $ insert out) >> return ()
 
+
 checkOrInsertEvaluation :: FilePath -> Bool -> Channel -> SHA1 -> Out -> Handler ()
 checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
-  test <- runDB $ get404 $ outTest out
-  challenge <- runDB $ get404 $ testChallenge test
-  maybeEvaluation <- runDB $ fetchTheEvaluation out version
+    test <- runDB $ get404 $ outTest out
+    challenge <- runDB $ get404 $ testChallenge test
+    maybeEvaluation <- runDB $ fetchTheEvaluation out version
 
-  disclosedInfo <- fetchDisclosedInfo challenge
+    disclosedInfo <- fetchDisclosedInfo challenge
 
-  if not forceEvaluation && isJust maybeEvaluation
-   then
-    do
-      let Just (Entity _ evaluation) = maybeEvaluation
-      case disclosedInfo of
-        DisclosedInfo Nothing -> msg chan $ concat ["Already evaluated with score ", (fromMaybe "???" $ formatNonScientifically <$> evaluationScore evaluation)]
-        _ -> return ()
-   else
-    do
-      msg chan $ "Start evaluation..."
-      challengeDir <- getRepoDirOrClone (challengePrivateRepo challenge) chan
-      variant <- runDB $ get404 $ outVariant out
-      resultOrException <- liftIO $ rawEval challengeDir (testMetric test) repoDir (testName test) ((T.unpack $ variantName variant) <.> "tsv")
-      case resultOrException of
-        Right (Left _) -> do
-          err chan "Cannot parse options, check the challenge repo"
-        Right (Right (_, Just [(_, [result])])) -> do
-          let defaultFormattingOpts = FormattingOptions {
-                decimalPlaces = Nothing,
-                asPercentage = False }
-          case disclosedInfo of
-            DisclosedInfo Nothing -> msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult defaultFormattingOpts result) ]
-            _ -> msg chan "Evaluated!"
-          time <- liftIO getCurrentTime
-          let (pointResult, errorBound) = extractResult result
-          if (isJust maybeEvaluation)
-           then
-            runDB $ updateWhere [
-              EvaluationTest ==. outTest out,
-              EvaluationChecksum ==. outChecksum out,
-              EvaluationVersion ==. version ]
-                 [ EvaluationScore =. Just pointResult,
-                   EvaluationErrorBound =. errorBound,
-                   EvaluationErrorMessage =. Nothing,
-                   EvaluationStamp =. time ]
-           else
-             do
-              _ <- runDB $ insert $ Evaluation {
-                                   evaluationTest=outTest out,
-                                   evaluationChecksum=outChecksum out,
-                                   evaluationScore=Just pointResult,
-                                   evaluationErrorBound=errorBound,
-                                   evaluationErrorMessage=Nothing,
-                                   evaluationStamp=time,
-                                   evaluationVersion=version }
-              return ()
-          msg chan "Evaluation done"
-        Right (Right (_, Just _)) -> do
-          err chan "Unexpected multiple results (???)"
-        Right (Right (_, Nothing)) -> do
-          err chan "Error during the evaluation"
-        Left exception -> do
-          err chan $ "Evaluation failed: " ++ (T.pack $ show exception)
+    if not forceEvaluation && isJust maybeEvaluation
+        then do
+            let Just (Entity _ evaluation) = maybeEvaluation
+            case disclosedInfo of
+              DisclosedInfo Nothing -> msg chan $ concat ["Already evaluated with score ", (fromMaybe "???" $ formatNonScientifically <$> evaluationScore evaluation)]
+              _ -> return ()
+        else do
+            msg chan "Start evaluation..."
+            challengeDir <- getRepoDirOrClone (challengePrivateRepo challenge) chan
+            variant <- runDB $ get404 $ outVariant out
+--------------------------------------------------------------------------------
+-- POLEVAL ---------------------------------------------------------------------
+{-
+    EvaluationScheme (CustomMetric metricName) _ -> do
+        dataExpected <- toString <$> readFile $ challengeDir ++ "expected.tsv"
+        dataIn <- toString <$> readFile $ challengeDir ++ "in.tsv"
+        dataOut <- toString <$> readFile $ repoDir ++ "out.tsv"
+        customMetricRequest dataExpected dataIn dataOut
+-- challengeDir -> expected.tsv and in.tsv
+-- repoDir -> out.tsv
+-}
+--------------------------------------------------------------------------------
+            resultOrException <- liftIO $ rawEval challengeDir (testMetric test) repoDir (testName test) (T.unpack (variantName variant) <.> "tsv")
+            case resultOrException of
+                Right (Left _) -> do
+                    err chan "Cannot parse options, check the challenge repo"
+
+                Right (Right (_, Just [(_, [result])])) -> do
+                    let defaultFormattingOpts = FormattingOptions
+                            { decimalPlaces = Nothing
+                            , asPercentage = False
+                            }
+                    case disclosedInfo of
+                        DisclosedInfo Nothing -> msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult defaultFormattingOpts result) ]
+                        _ -> msg chan "Evaluated!"
+
+                    time <- liftIO getCurrentTime
+
+                    let (pointResult, errorBound) = extractResult result
+
+                    if isJust maybeEvaluation
+                        then runDB $ updateWhere
+                            [ EvaluationTest ==. outTest out
+                            , EvaluationChecksum ==. outChecksum out
+                            , EvaluationVersion ==. version
+                            ]
+                            [ EvaluationScore =. Just pointResult
+                            , EvaluationErrorBound =. errorBound
+                            , EvaluationErrorMessage =. Nothing
+                            , EvaluationStamp =. time
+                            ]
+                        else do
+                            _ <- runDB $ insert $ Evaluation
+                                    { evaluationTest=outTest out
+                                    , evaluationChecksum=outChecksum out
+                                    , evaluationScore=Just pointResult
+                                    , evaluationErrorBound=errorBound
+                                    , evaluationErrorMessage=Nothing
+                                    , evaluationStamp=time
+                                    , evaluationVersion=version
+                                    }
+                            return ()
+                    msg chan "Evaluation done"
+
+                Right (Right (_, Just _)) -> do
+                    err chan "Unexpected multiple results (???)"
+
+                Right (Right (_, Nothing)) -> do
+                    err chan "Error during the evaluation"
+
+                Left exception -> do
+                    err chan $ "Evaluation failed: " ++ T.pack (show exception)
+
 
 extractResult :: MetricResult -> (MetricValue, Maybe MetricValue)
 extractResult (SimpleRun r) = (r, Nothing)
 extractResult (BootstrapResampling vals) = ((upperBound + lowerBound) / 2.0, Just ((upperBound - lowerBound) / 2.0))
   where (lowerBound, upperBound) = getConfidenceBounds defaultConfidenceLevel vals
 
-rawEval :: FilePath
-          -> EvaluationScheme
-          -> FilePath
-          -> Text
-          -> FilePath
-          -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [(SourceSpec, [MetricResult])])))
-rawEval challengeDir metric repoDir name outF = Import.try (runGEvalGetOptions [
-                                                          "--alt-metric", (show metric),
-                                                          "--expected-directory", challengeDir,
-                                                          "--out-directory", repoDir,
-                                                          "--out-file", outF,
-                                                          "--test-name", (T.unpack name)])
+
+rawEval
+    :: FilePath
+    -> EvaluationScheme
+    -> FilePath
+    -> Text
+    -> FilePath
+    -> IO (Either GEvalException (Either (ParserResult GEvalOptions) (GEvalOptions, Maybe [(SourceSpec, [MetricResult])])))
+rawEval challengeDir metric repoDir name outF = Import.try
+    ( runGEvalGetOptions
+        [ "--alt-metric", show metric
+        , "--expected-directory", challengeDir
+        , "--out-directory", repoDir
+        , "--out-file", outF
+        , "--test-name", T.unpack name
+        ]
+    )
+
+
+data CustomMetricRequest = CustomMetricRequest
+    { challenge :: String
+    , dev_expected :: String
+    , dev_out :: String
+    , testA_expected :: String
+    , testA_out :: String
+    , testB_expected :: String
+    , testB_out :: String
+    , dev_in :: String
+    , testA_in :: String
+    , testB_in :: String
+    } deriving (Generic, Show, Read)
+
+instance ToJSON CustomMetricRequest where
+    toEncoding = DA.genericToEncoding DA.defaultOptions
+
+instance FromJSON CustomMetricRequest
+
+
+customMetricRequest :: String -> String -> String -> IO DA.Object
+customMetricRequest dataExpected dataIn dataOut = do
+    let exemplaryRequest = CustomMetricRequest
+            { challenge = "QuestionAnswering"
+            , dev_expected = dataExpected
+            , dev_out = dataOut
+            , testA_expected = ""
+            , testA_out = ""
+            , testB_expected = ""
+            , testB_out = ""
+            , dev_in = dataIn
+            , testA_in = ""
+            , testB_in = ""
+            }
+
+    send $ RequestBodyLBS $ DA.encode exemplaryRequest
+
+
+buildRequest :: String -> RequestBody -> IO Request
+buildRequest givenUrl body = do
+    initRequest <- parseRequest givenUrl
+    return $ initRequest { method = "GET", requestBody = body }
+
+
+send :: RequestBody -> IO DA.Object
+send toSend = do
+    manager <- NHC.newManager NHC.defaultManagerSettings
+    request <- buildRequest "http://127.0.0.1:8000" toSend
+    response <- NHC.httpLbs request manager
+
+    let Just obj = DA.decode (responseBody response)
+
+    pure (obj :: DA.Object)

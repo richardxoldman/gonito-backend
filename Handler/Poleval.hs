@@ -5,7 +5,7 @@
 module Handler.Poleval where
 
 
-import           Import                     hiding (Proxy, encodeUtf8, fromList)
+import           Import                     hiding (Proxy, encodeUtf8, fromList, defaultManagerSettings, newManager, httpLbs)
 
 import           Control.Lens               hiding ((.=), (^.))
 import           Data.HashMap.Strict.InsOrd (fromList)
@@ -14,8 +14,11 @@ import           Data.Swagger               hiding (delete, get, tags)
 import qualified Data.Swagger               as DS
 import           Data.Swagger.Declare
 
+--import GHC.Generics
 import Data.Aeson
-import Data.ByteString.Lazy.Char8 (unpack)
+--import Data.Aeson.Types (parseMaybe, (.:))
+import Network.HTTP.Client
+import Data.ByteString.UTF8 (toString)
 
 
 data AdditionalRequest = AdditionalRequest
@@ -45,13 +48,13 @@ getDataFromPythonEndpoint = do
 
     let exemplaryRequest = AdditionalRequest
             { challenge = "QuestionAnswering"
-            , dev_expected = dataExpected
-            , dev_out = dataOut
+            , dev_expected = toString dataExpected
+            , dev_out = toString dataOut
             , testA_expected = ""
             , testA_out = ""
             , testB_expected = ""
             , testB_out = ""
-            , dev_in = dataIn
+            , dev_in = toString dataIn
             , testA_in = ""
             , testB_in = ""
             }
@@ -67,13 +70,13 @@ buildRequest givenUrl body = do
 
 send :: RequestBody -> IO ()
 send toSend = do
-    let manager = newManager defaultManagerSettings
+    manager <- newManager defaultManagerSettings
     request <- buildRequest "http://127.0.0.1:8000" toSend
-    let response = httpLbs request manager
+    response <- httpLbs request manager
 
     let Just obj = decode (responseBody response)
 
-    print obj
+    print (obj :: Object)
 
 
 postPolevalR :: Handler Html
@@ -89,7 +92,7 @@ polevalApi = spec & definitions .~ defs
 
 declarePolevalApi :: Declare (Definitions Schema) Swagger
 declarePolevalApi = do
-    response <- declareResponse (Proxy :: Proxy ())
+    response <- declareResponse (DPR.Proxy :: DPR.Proxy ())
 
     pure $ mempty & paths .~ fromList
         [

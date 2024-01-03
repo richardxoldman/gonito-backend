@@ -179,6 +179,7 @@ library
                  , http-client-tls
                  , pureMD5
                  , http-client
+                 , utf8-string
 
 executable         gonito
     if flag(library-only)

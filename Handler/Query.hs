@@ -619,125 +619,138 @@ checkForExpected repoDir testName = do
   expFileExists <- D.doesFileExist expFile
   return expFileExists
 
-viewOutputWithNonDefaultTestSelected :: Diff TableEntry
-                                       -> [Entity Test]
-                                       -> Entity Test
-                                       -> (Diff SHA1, Text)
-                                       -> WidgetFor App ()
+
+viewOutputWithNonDefaultTestSelected
+    :: Diff TableEntry
+    -> [Entity Test]
+    -> Entity Test
+    -> (Diff SHA1, Text)
+    -> WidgetFor App ()
 viewOutputWithNonDefaultTestSelected entry tests mainTest (outputHash, testSet) = do
-  let tests' = filter (\e -> (testName $ entityVal e) == testSet) tests
+    mauthId <- maybeAuthId
 
-  mauthId <- maybeAuthId
+    let tests' = filter (\e -> testName (entityVal e) == testSet) tests
 
-  let outputSha1AsText = fromSHA1ToText $ current outputHash
+        outputSha1AsText = fromSHA1ToText $ current outputHash
 
-  let variantId = entityKey <$> tableEntryVariant <$> entry
+        variantId = entityKey . tableEntryVariant <$> entry
 
-  let theStamp = submissionStamp $ entityVal $ tableEntrySubmission $ current entry
-  let theVersion = submissionVersion $ entityVal $ tableEntrySubmission $ current entry
+        theStamp = submissionStamp $ entityVal $ tableEntrySubmission $ current entry
+        theVersion = submissionVersion $ entityVal $ tableEntrySubmission $ current entry
 
-  let challengeId = submissionChallenge $ entityVal $ tableEntrySubmission $ current entry
-  challenge <- handlerToWidget $ runDB $ get404 challengeId
+        challengeId = submissionChallenge $ entityVal $ tableEntrySubmission $ current entry
 
-  disclosedInfo <- case tests' of
-    [] -> return $ DisclosedInfo Nothing
-    t@(_:_) -> liftHandler $ fetchDisclosedInfoForTest challengeId $ last $ impureNonNull tests'
+    challenge <- handlerToWidget $ runDB $ get404 challengeId
 
-  let isNonSensitive = challengeSensitive challenge == Just False
+    disclosedInfo <- case tests' of
+        [] -> return $ DisclosedInfo Nothing
+        (_:_) -> liftHandler $ fetchDisclosedInfoForTest challengeId $ last $ impureNonNull tests'
 
-  let shouldBeShown = testSet /= (testName $ entityVal mainTest) && isNonSensitive
+    let isNonSensitive = challengeSensitive challenge == Just False
 
-  let mainMetric = testMetric $ entityVal mainTest
+        shouldBeShown = testSet /= testName (entityVal mainTest) && isNonSensitive
 
-  let testLabels = map (formatTestEvaluationScheme . entityVal) tests'
-  let theMapping = LM.fromList $ map (\test -> (formatTestEvaluationScheme $ entityVal test,
-                                            (test,
-                                             (formatTruncatedScore disclosedInfo (getTestFormattingOpts $ entityVal test)
-                                              <$> extractScore (getTestReference test) <$> entry)))) tests'
-  let crossTables = splitIntoTablesWithValues "Metric" "Score" theMapping testLabels
+        mainMetric = testMetric $ entityVal mainTest
 
-  mResult <-
-    if shouldBeShown
-      then
-       do
-        outPaths <- mapM (getOut mauthId) entry
-        case current outPaths of
-          Just _ -> do
-            let repoDir = fst <$> fromJust <$> outPaths
-            let outFilePath = snd <$> fromJust <$> outPaths
-            let outFile = takeFileName $ current outFilePath
+        testLabels = map (formatTestEvaluationScheme . entityVal) tests'
+        theMapping = LM.fromList $ map (\test ->
+                ( formatTestEvaluationScheme $ entityVal test
+                , ( test
+                  , formatTruncatedScore disclosedInfo (getTestFormattingOpts $ entityVal test) . extractScore (getTestReference test) <$> entry
+                  )
+                )
+            ) tests'
+        crossTables = splitIntoTablesWithValues "Metric" "Score" theMapping testLabels
 
-            let testName = T.unpack testSet
-
-            challengeRepoDir <- handlerToWidget $ getRepoDir (challengePublicRepo challenge)
-            expFileExistsInChallengeRepo <- liftIO $ checkForExpected challengeRepoDir testName
-
-            expFileExists <- liftIO $ checkForExpected (current repoDir) testName
-
-            let expFileStatus = if expFileExists
-                                then ExpectedFromSubmission
-                                else
-                                  if expFileExistsInChallengeRepo
-                                  then ExpectedFromChallenge
-                                  else NoExpectedFound
-
-            if expFileStatus /= NoExpectedFound
+    mResult <-
+        if shouldBeShown
             then do
-                let theRepoDir = case expFileStatus of
-                                   ExpectedFromSubmission -> (current repoDir)
-                                   ExpectedFromChallenge -> challengeRepoDir
-                                   NoExpectedFound -> error "Should not be here"
+                outPaths <- mapM (getOut mauthId) entry
 
-                rightOpts <- liftIO $ readOptsFromConfigFile [] (theRepoDir </> "config.txt")
-                let Right opts = rightOpts
-                let spec = GEvalSpecification {
-                  gesOutDirectory = current repoDir,
-                  gesExpectedDirectory = Just theRepoDir,
-                  gesTestName = testName,
-                  gesSelector = Nothing,
-                  gesOutFile = outFile,
-                  gesAltOutFiles = Nothing,
-                  gesExpectedFile = "expected.tsv",
-                  gesInputFile = "in.tsv",
-                  gesMetrics = [mainMetric],
-                  gesFormatting = FormattingOptions {
-                      decimalPlaces = Nothing,
-                      asPercentage = False },
-                  gesTokenizer = Nothing,
-                  gesGonitoHost = Nothing,
-                  gesToken = Nothing,
-                  gesGonitoGitAnnexRemote = Nothing,
-                  gesReferences = Nothing,
-                  gesBootstrapResampling = Nothing,
-                  gesInHeader = gesInHeader $ geoSpec opts,
-                  gesOutHeader = gesOutHeader $ geoSpec opts,
-                  gesShowPreprocessed = True }
+                case current outPaths of
+                    Just _ -> do
+                        let repoDir = fst . fromJust <$> outPaths
+                            outFilePath = snd . fromJust <$> outPaths
+                            outFile = takeFileName $ current outFilePath
 
-                case outPaths of
-                   OneThing _ -> do
-                     result <- liftIO $ runLineByLineGeneralized FirstTheWorst
-                                                                spec
-                                                                (\_ -> CL.take maximumNumberOfItemsToBeShown)
-                     return $ Just (expFileStatus, zip [1..] $ map getUniLineRecord result)
-                   TwoThings (Just (oldRepoDir, oldOutFilePath)) _ -> do
-                     absOldOutFilePath <- liftIO $ makeAbsolute (oldRepoDir </> testName </> (takeFileName oldOutFilePath))
-                     result <- liftIO $ runDiffGeneralized FirstTheWorst
-                                                           absOldOutFilePath
-                                                           spec
-                                                           (\_ -> CL.take maximumNumberOfItemsToBeShown)
-                     return $ Just (expFileStatus, zip [1..] $ map getBiLineRecord result)
-            else
-             do
-              return Nothing
-          Nothing -> return Nothing
-      else
-        return Nothing
-  $(widgetFile "view-output")
+                            testName = T.unpack testSet
+
+                        challengeRepoDir <- handlerToWidget $ getRepoDir (challengePublicRepo challenge)
+                        expFileExistsInChallengeRepo <- liftIO $ checkForExpected challengeRepoDir testName
+
+                        expFileExists <- liftIO $ checkForExpected (current repoDir) testName
+
+                        let expFileStatus
+                                | expFileExists = ExpectedFromSubmission
+                                | expFileExistsInChallengeRepo = ExpectedFromChallenge
+                                | otherwise = NoExpectedFound
+
+                        if expFileStatus /= NoExpectedFound
+                            then do
+                                let theRepoDir = case expFileStatus of
+                                       ExpectedFromSubmission -> current repoDir
+                                       ExpectedFromChallenge -> challengeRepoDir
+                                       NoExpectedFound -> error "Should not be here"
+
+                                rightOpts <- liftIO $ readOptsFromConfigFile [] (theRepoDir </> "config.txt")
+                                let Right opts = rightOpts
+                                    spec = GEvalSpecification
+                                        { gesOutDirectory = current repoDir
+                                        , gesExpectedDirectory = Just theRepoDir
+                                        , gesTestName = testName
+                                        , gesSelector = Nothing
+                                        , gesOutFile = outFile
+                                        , gesAltOutFiles = Nothing
+                                        , gesExpectedFile = "expected.tsv"
+                                        , gesInputFile = "in.tsv"
+                                        , gesMetrics = [mainMetric]
+                                        , gesFormatting = FormattingOptions
+                                            { decimalPlaces = Nothing
+                                            , asPercentage = False
+                                            }
+                                        , gesTokenizer = Nothing
+                                        , gesGonitoHost = Nothing
+                                        , gesToken = Nothing
+                                        , gesGonitoGitAnnexRemote = Nothing
+                                        , gesReferences = Nothing
+                                        , gesBootstrapResampling = Nothing
+                                        , gesInHeader = gesInHeader $ geoSpec opts
+                                        , gesOutHeader = gesOutHeader $ geoSpec opts
+                                        , gesShowPreprocessed = True
+                                        }
+
+                                case outPaths of
+                                    OneThing _ -> do
+                                        result <- liftIO $ runLineByLineGeneralized
+                                            FirstTheWorst
+                                            spec
+                                            (\_ -> CL.take maximumNumberOfItemsToBeShown)
+                                        pure $ Just (expFileStatus, zip [1..] $ map getUniLineRecord result)
+
+                                    TwoThings (Just (oldRepoDir, oldOutFilePath)) _ -> do
+                                        absOldOutFilePath <- liftIO $ makeAbsolute (oldRepoDir </> testName </> takeFileName oldOutFilePath)
+                                        result <- liftIO $ runDiffGeneralized
+                                            FirstTheWorst
+                                            absOldOutFilePath
+                                            spec
+                                            (\_ -> CL.take maximumNumberOfItemsToBeShown)
+                                        pure $ Just (expFileStatus, zip [1..] $ map getBiLineRecord result)
+
+                                    TwoThings Nothing _ -> pure Nothing
+
+                            else pure Nothing
+
+                    Nothing -> pure Nothing
+
+        else pure Nothing
+
+    $(widgetFile "view-output")
+
 
 lineByLineTable :: Entity Test -> SHA1 -> UTCTime -> Table.Table App (Int, DiffLineRecord)
 lineByLineTable (Entity testId test) theVersion theStamp = mempty
   ++ Table.int "#" fst
-  ++ theLimitedTextCell "input" (((\(DiffLineRecord inp _ _ _) -> inp) . snd))
+  ++ theLimitedTextCell "input" ((\(DiffLineRecord inp _ _ _) -> inp) . snd)
   ++ theLimitedTextCell "expected output" ((\(DiffLineRecord _ expected _ _) -> expected) . snd)
   ++ theLimitedDiffTextCell "actual output" (fmap fst . (\(DiffLineRecord _ _ out _) -> out) . snd)
   ++ resultCell (fakeEvaluation . getScoreFromDiff . snd) (DisclosedInfo Nothing) test
