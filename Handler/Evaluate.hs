@@ -226,68 +226,72 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
             msg chan "Start evaluation..."
             challengeDir <- getRepoDirOrClone (challengePrivateRepo challenge) chan
             variant <- runDB $ get404 $ outVariant out
+
+            let metric = testMetric test
+
+            case metric of
 --------------------------------------------------------------------------------
 -- POLEVAL ---------------------------------------------------------------------
-{-
-    EvaluationScheme (CustomMetric metricName) _ -> do
-        dataExpected <- toString <$> readFile $ challengeDir ++ "expected.tsv"
-        dataIn <- toString <$> readFile $ challengeDir ++ "in.tsv"
-        dataOut <- toString <$> readFile $ repoDir ++ "out.tsv"
-        customMetricRequest dataExpected dataIn dataOut
+                EvaluationScheme (CustomMetric metricName) _ -> do
+                    dataExpected <- readFile $ challengeDir ++ "expected.tsv"
+                    dataIn <- readFile $ challengeDir ++ "in.tsv"
+                    dataOut <- readFile $ repoDir ++ "out.tsv"
+                    msg chan "Evaluation done"
+                    --customMetricRequest metricName dataExpected dataIn dataOut
 -- challengeDir -> expected.tsv and in.tsv
 -- repoDir -> out.tsv
--}
 --------------------------------------------------------------------------------
-            resultOrException <- liftIO $ rawEval challengeDir (testMetric test) repoDir (testName test) (T.unpack (variantName variant) <.> "tsv")
-            case resultOrException of
-                Right (Left _) -> do
-                    err chan "Cannot parse options, check the challenge repo"
+                _ -> do
+                    resultOrException <- liftIO $ rawEval challengeDir metric repoDir (testName test) (T.unpack (variantName variant) <.> "tsv")
+                    case resultOrException of
+                        Right (Left _) -> do
+                            err chan "Cannot parse options, check the challenge repo"
 
-                Right (Right (_, Just [(_, [result])])) -> do
-                    let defaultFormattingOpts = FormattingOptions
-                            { decimalPlaces = Nothing
-                            , asPercentage = False
-                            }
-                    case disclosedInfo of
-                        DisclosedInfo Nothing -> msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult defaultFormattingOpts result) ]
-                        _ -> msg chan "Evaluated!"
-
-                    time <- liftIO getCurrentTime
-
-                    let (pointResult, errorBound) = extractResult result
-
-                    if isJust maybeEvaluation
-                        then runDB $ updateWhere
-                            [ EvaluationTest ==. outTest out
-                            , EvaluationChecksum ==. outChecksum out
-                            , EvaluationVersion ==. version
-                            ]
-                            [ EvaluationScore =. Just pointResult
-                            , EvaluationErrorBound =. errorBound
-                            , EvaluationErrorMessage =. Nothing
-                            , EvaluationStamp =. time
-                            ]
-                        else do
-                            _ <- runDB $ insert $ Evaluation
-                                    { evaluationTest=outTest out
-                                    , evaluationChecksum=outChecksum out
-                                    , evaluationScore=Just pointResult
-                                    , evaluationErrorBound=errorBound
-                                    , evaluationErrorMessage=Nothing
-                                    , evaluationStamp=time
-                                    , evaluationVersion=version
+                        Right (Right (_, Just [(_, [result])])) -> do
+                            let defaultFormattingOpts = FormattingOptions
+                                    { decimalPlaces = Nothing
+                                    , asPercentage = False
                                     }
-                            return ()
-                    msg chan "Evaluation done"
+                            case disclosedInfo of
+                                DisclosedInfo Nothing -> msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult defaultFormattingOpts result) ]
+                                _ -> msg chan "Evaluated!"
 
-                Right (Right (_, Just _)) -> do
-                    err chan "Unexpected multiple results (???)"
+                            time <- liftIO getCurrentTime
 
-                Right (Right (_, Nothing)) -> do
-                    err chan "Error during the evaluation"
+                            let (pointResult, errorBound) = extractResult result
 
-                Left exception -> do
-                    err chan $ "Evaluation failed: " ++ T.pack (show exception)
+                            if isJust maybeEvaluation
+                                then runDB $ updateWhere
+                                    [ EvaluationTest ==. outTest out
+                                    , EvaluationChecksum ==. outChecksum out
+                                    , EvaluationVersion ==. version
+                                    ]
+                                    [ EvaluationScore =. Just pointResult
+                                    , EvaluationErrorBound =. errorBound
+                                    , EvaluationErrorMessage =. Nothing
+                                    , EvaluationStamp =. time
+                                    ]
+                                else do
+                                    _ <- runDB $ insert $ Evaluation
+                                            { evaluationTest=outTest out
+                                            , evaluationChecksum=outChecksum out
+                                            , evaluationScore=Just pointResult
+                                            , evaluationErrorBound=errorBound
+                                            , evaluationErrorMessage=Nothing
+                                            , evaluationStamp=time
+                                            , evaluationVersion=version
+                                            }
+                                    return ()
+                            msg chan "Evaluation done"
+
+                        Right (Right (_, Just _)) -> do
+                            err chan "Unexpected multiple results (???)"
+
+                        Right (Right (_, Nothing)) -> do
+                            err chan "Error during the evaluation"
+
+                        Left exception -> do
+                            err chan $ "Evaluation failed: " ++ T.pack (show exception)
 
 
 extractResult :: MetricResult -> (MetricValue, Maybe MetricValue)
@@ -333,10 +337,10 @@ instance ToJSON CustomMetricRequest where
 instance FromJSON CustomMetricRequest
 
 
-customMetricRequest :: String -> String -> String -> IO DA.Object
-customMetricRequest dataExpected dataIn dataOut = do
+customMetricRequest :: Text -> String -> String -> String -> IO DA.Object
+customMetricRequest metricName dataExpected dataIn dataOut = do
     let exemplaryRequest = CustomMetricRequest
-            { challenge = "QuestionAnswering"
+            { challenge = unpack metricName
             , dev_expected = dataExpected
             , dev_out = dataOut
             , testA_expected = ""
