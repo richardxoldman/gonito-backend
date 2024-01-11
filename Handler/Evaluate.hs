@@ -220,8 +220,8 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
         then do
             let Just (Entity _ evaluation) = maybeEvaluation
             case disclosedInfo of
-              DisclosedInfo Nothing -> msg chan $ concat ["Already evaluated with score ", (fromMaybe "???" $ formatNonScientifically <$> evaluationScore evaluation)]
-              _ -> return ()
+                DisclosedInfo Nothing -> msg chan $ concat ["Already evaluated with score ", (fromMaybe "???" $ formatNonScientifically <$> evaluationScore evaluation)]
+                _ -> return ()
         else do
             msg chan "Start evaluation..."
             challengeDir <- getRepoDirOrClone (challengePrivateRepo challenge) chan
@@ -236,13 +236,31 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
                     dataExpected <- readFile $ challengeDir ++ "expected.tsv"
                     dataIn <- readFile $ challengeDir ++ "in.tsv"
                     dataOut <- readFile $ repoDir ++ "out.tsv"
+
+                    pointResult <- liftIO $ customMetricRequest
+                        metricName
+                        (toString dataExpected)
+                        (toString dataIn)
+                        (toString dataOut)
+
+                    time <- liftIO getCurrentTime
+
+                    runDB $ updateWhere
+                        [ EvaluationTest ==. outTest out
+                        , EvaluationChecksum ==. outChecksum out
+                        , EvaluationVersion ==. version
+                        ]
+                        [ EvaluationScore =. Just (result pointResult)
+                        , EvaluationErrorBound =. Nothing
+                        , EvaluationErrorMessage =. Nothing
+                        , EvaluationStamp =. time
+                        ]
+
                     msg chan "Evaluation done"
-                    --customMetricRequest metricName dataExpected dataIn dataOut
--- challengeDir -> expected.tsv and in.tsv
--- repoDir -> out.tsv
 --------------------------------------------------------------------------------
                 _ -> do
                     resultOrException <- liftIO $ rawEval challengeDir metric repoDir (testName test) (T.unpack (variantName variant) <.> "tsv")
+
                     case resultOrException of
                         Right (Left _) -> do
                             err chan "Cannot parse options, check the challenge repo"
@@ -253,13 +271,14 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
                                     , asPercentage = False
                                     }
                             case disclosedInfo of
-                                DisclosedInfo Nothing -> msg chan $ concat [ "Evaluated! Score ", (T.pack $ formatTheResult defaultFormattingOpts result) ]
+                                DisclosedInfo Nothing -> msg chan $ T.pack $ "Evaluated! Score " ++ formatTheResult defaultFormattingOpts result
                                 _ -> msg chan "Evaluated!"
 
                             time <- liftIO getCurrentTime
 
                             let (pointResult, errorBound) = extractResult result
 
+                            -- POLE
                             if isJust maybeEvaluation
                                 then runDB $ updateWhere
                                     [ EvaluationTest ==. outTest out
@@ -267,7 +286,7 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
                                     , EvaluationVersion ==. version
                                     ]
                                     [ EvaluationScore =. Just pointResult
-                                    , EvaluationErrorBound =. errorBound
+                                    , EvaluationErrorBound =. errorBound -- Nothing
                                     , EvaluationErrorMessage =. Nothing
                                     , EvaluationStamp =. time
                                     ]
@@ -282,6 +301,7 @@ checkOrInsertEvaluation repoDir forceEvaluation chan version out = do
                                             , evaluationVersion=version
                                             }
                                     return ()
+                            -- POLE
                             msg chan "Evaluation done"
 
                         Right (Right (_, Just _)) -> do
@@ -319,16 +339,10 @@ rawEval challengeDir metric repoDir name outF = Import.try
 
 
 data CustomMetricRequest = CustomMetricRequest
-    { challenge :: String
-    , dev_expected :: String
-    , dev_out :: String
-    , testA_expected :: String
-    , testA_out :: String
-    , testB_expected :: String
-    , testB_out :: String
-    , dev_in :: String
-    , testA_in :: String
-    , testB_in :: String
+    { metric :: String
+    , file_expected :: String
+    , file_out :: String
+    , file_in :: String
     } deriving (Generic, Show, Read)
 
 instance ToJSON CustomMetricRequest where
@@ -337,19 +351,24 @@ instance ToJSON CustomMetricRequest where
 instance FromJSON CustomMetricRequest
 
 
-customMetricRequest :: Text -> String -> String -> String -> IO DA.Object
+data CustomMetricResult = CustomMetricResult
+    { result :: Double
+    , status :: Int
+    } deriving (Generic, Show, Read)
+
+instance ToJSON CustomMetricResult where
+    toEncoding = DA.genericToEncoding DA.defaultOptions
+
+instance FromJSON CustomMetricResult
+
+
+customMetricRequest :: Text -> String -> String -> String -> IO CustomMetricResult
 customMetricRequest metricName dataExpected dataIn dataOut = do
     let exemplaryRequest = CustomMetricRequest
-            { challenge = unpack metricName
-            , dev_expected = dataExpected
-            , dev_out = dataOut
-            , testA_expected = ""
-            , testA_out = ""
-            , testB_expected = ""
-            , testB_out = ""
-            , dev_in = dataIn
-            , testA_in = ""
-            , testB_in = ""
+            { metric = unpack metricName
+            , file_expected = dataExpected
+            , file_out = dataOut
+            , file_in = dataIn
             }
 
     send $ RequestBodyLBS $ DA.encode exemplaryRequest
@@ -361,7 +380,7 @@ buildRequest givenUrl body = do
     return $ initRequest { method = "GET", requestBody = body }
 
 
-send :: RequestBody -> IO DA.Object
+send :: RequestBody -> IO CustomMetricResult
 send toSend = do
     manager <- NHC.newManager NHC.defaultManagerSettings
     request <- buildRequest "http://127.0.0.1:8000" toSend
@@ -369,4 +388,4 @@ send toSend = do
 
     let Just obj = DA.decode (responseBody response)
 
-    pure (obj :: DA.Object)
+    pure (obj :: CustomMetricResult)
