@@ -352,8 +352,8 @@ instance FromJSON CustomMetricRequest
 
 
 data CustomMetricResult = CustomMetricResult
-    { result :: Double
-    , status :: Int
+    { status :: Int
+    , result :: Double
     } deriving (Generic, Show, Read)
 
 instance ToJSON CustomMetricResult where
