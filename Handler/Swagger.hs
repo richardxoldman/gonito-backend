@@ -13,7 +13,6 @@ import Handler.SubmissionAbility
 import Handler.DeleteSubmission
 import Handler.EditSubmissionV1
 import Handler.Wirus
-import Handler.Poleval
 import Handler.Wirus_admin
 import Handler.ViewPublicKey
 
@@ -50,7 +49,6 @@ apiDescription = generalApi
                  <> deleteSubmissionApi
                  <> editSubmission1Api
                  <> wirusApi
-                 <> polevalApi
                  <> wirusAdminApi
                  <> viewPublicKeyApi
 

@@ -11,7 +11,6 @@
 /api/delete-submission/#SubmissionId DeleteSubmissionR POST
 /api/edit-submission/#SubmissionId/#Text/#Text EditSubmission1R POST
 /api/wirus WirusR POST
-/api/poleval PolevalR POST
 /api/wirus-admin WirusAdminR POST
 /api/view-public-key ViewPublicKeyR GET
 
