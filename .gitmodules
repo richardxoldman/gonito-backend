@@ -9,3 +9,4 @@
 [submodule "geval"]
 	path = geval
 	url = https://github.com/amu-cai/geval.git
+    branch = poleval
